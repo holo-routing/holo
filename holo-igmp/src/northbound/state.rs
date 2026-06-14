@@ -6,8 +6,7 @@
 
 use std::borrow::Cow;
 
-use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, YangOps};
+use holo_northbound::state::{ListIterator, Provider, YangContainer, YangList, YangOps};
 use holo_utils::option::OptionExt;
 use holo_utils::protocol::Protocol;
 use holo_yang::ToYang;
@@ -17,7 +16,7 @@ use crate::interface::Interface;
 use crate::northbound::yang_gen::{self, igmp};
 
 impl Provider for Instance {
-    type ListEntry<'a> = ListEntry<'a>;
+    type ListEntry<'a> = yang_gen::ops::ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
 
     fn top_level_node(&self) -> String {
@@ -29,22 +28,12 @@ impl Provider for Instance {
     }
 }
 
-#[derive(Debug, Default)]
-#[derive(EnumAsInner)]
-pub enum ListEntry<'a> {
-    #[default]
-    None,
-    Interface(&'a Interface),
-}
-
-pub type ListIterator<'a> = Box<dyn Iterator<Item = ListEntry<'a>> + 'a>;
-
-impl ListEntryKind for ListEntry<'_> {}
-
 // ===== YANG impls =====
 
 impl<'a> YangContainer<'a, Instance> for igmp::global::Global {
-    fn new(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(_instance: &'a Instance, _: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             entries_count: todo!(),
             groups_count: todo!(),
@@ -53,7 +42,9 @@ impl<'a> YangContainer<'a, Instance> for igmp::global::Global {
 }
 
 impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::Statistics {
-    fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<Self> {
         let statistics = &instance.state.as_ref()?.statistics;
         Some(Self {
             discontinuity_time: Some(statistics.discontinuity_time).ignore_in_testing(),
@@ -62,7 +53,9 @@ impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::Statistics {
 }
 
 impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::error::Error {
-    fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<Self> {
         let errors = &instance.state.as_ref()?.statistics.errors;
         Some(Self {
             total: Some(errors.total),
@@ -77,7 +70,9 @@ impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::error::Error 
 }
 
 impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::received::Received {
-    fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<Self> {
         let msgs_rcvd = &instance.state.as_ref()?.statistics.msgs_rcvd;
         Some(Self {
             total: Some(msgs_rcvd.total),
@@ -90,7 +85,9 @@ impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::received::Rec
 }
 
 impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::sent::Sent {
-    fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<Self> {
         let msgs_sent = &instance.state.as_ref()?.statistics.msgs_sent;
         Some(Self {
             total: Some(msgs_sent.total),
@@ -103,13 +100,15 @@ impl<'a> YangContainer<'a, Instance> for igmp::global::statistics::sent::Sent {
 }
 
 impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::Interface<'a> {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iter = instance.interfaces.values().map(ListEntry::Interface);
-        Some(Box::new(iter))
+    type ParentListEntry = ();
+    type ListEntry = &'a Interface;
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = instance.interfaces.values();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let iface = list_entry.as_interface().unwrap();
+    fn new(_instance: &'a Instance, iface: &Self::ListEntry) -> Self {
         Self {
             interface_name: Cow::Borrowed(&iface.name),
             oper_status: todo!(),
@@ -120,11 +119,14 @@ impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::Interface<'a> {
 }
 
 impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::group::Group<'a> {
-    fn iter(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        todo!()
+    type ParentListEntry = &'a Interface;
+    type ListEntry = ();
+
+    fn iter(_instance: &'a Instance, _iface: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        None::<std::iter::Empty<_>>
     }
 
-    fn new(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Self {
+    fn new(_instance: &'a Instance, _: &Self::ListEntry) -> Self {
         Self {
             group_address: todo!(),
             expire: todo!(),
@@ -136,11 +138,14 @@ impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::group::Group<'a
 }
 
 impl<'a> YangList<'a, Instance> for igmp::interfaces::interface::group::source::Source {
-    fn iter(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        todo!()
+    type ParentListEntry = ();
+    type ListEntry = ();
+
+    fn iter(_instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        None::<std::iter::Empty<_>>
     }
 
-    fn new(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Self {
+    fn new(_instance: &'a Instance, _: &Self::ListEntry) -> Self {
         Self {
             source_address: todo!(),
             expire: todo!(),

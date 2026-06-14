@@ -215,20 +215,20 @@ impl AdjRib {
         *table = Some(route)
     }
 
-    pub(crate) fn in_pre(&self) -> Option<&Box<Route>> {
-        self.in_pre.as_ref()
+    pub(crate) fn in_pre(&self) -> Option<&Route> {
+        self.in_pre.as_deref()
     }
 
-    pub(crate) fn in_post(&self) -> Option<&Box<Route>> {
-        self.in_post.as_ref()
+    pub(crate) fn in_post(&self) -> Option<&Route> {
+        self.in_post.as_deref()
     }
 
-    pub(crate) fn out_pre(&self) -> Option<&Box<Route>> {
-        self.out_pre.as_ref()
+    pub(crate) fn out_pre(&self) -> Option<&Route> {
+        self.out_pre.as_deref()
     }
 
-    pub(crate) fn out_post(&self) -> Option<&Box<Route>> {
-        self.out_post.as_ref()
+    pub(crate) fn out_post(&self) -> Option<&Route> {
+        self.out_post.as_deref()
     }
 
     pub(crate) fn remove_in_pre(

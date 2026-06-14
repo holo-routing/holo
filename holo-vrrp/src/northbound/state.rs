@@ -9,8 +9,7 @@
 
 use std::sync::atomic::Ordering;
 
-use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, YangOps};
+use holo_northbound::state::{ListIterator, Provider, YangContainer, YangList, YangOps};
 use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
 
@@ -19,7 +18,7 @@ use crate::interface::Interface;
 use crate::northbound::yang_gen::{self, interfaces};
 
 impl Provider for Interface {
-    type ListEntry<'a> = ListEntry<'a>;
+    type ListEntry<'a> = yang_gen::ops::ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
 
     fn top_level_node(&self) -> String {
@@ -27,28 +26,18 @@ impl Provider for Interface {
     }
 }
 
-#[derive(Debug, Default)]
-#[derive(EnumAsInner)]
-pub enum ListEntry<'a> {
-    #[default]
-    None,
-    Instance(u8, &'a Instance),
-}
-
-pub type ListIterator<'a> = Box<dyn Iterator<Item = ListEntry<'a>> + 'a>;
-
-impl ListEntryKind for ListEntry<'_> {}
-
 // ===== YANG impls =====
 
 impl<'a> YangList<'a, Interface> for interfaces::interface::ipv4::vrrp::vrrp_instance::VrrpInstance<'a> {
-    fn iter(interface: &'a Interface, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iter = interface.vrrp_ipv4_instances.iter().map(|(vrid, instance)| ListEntry::Instance(*vrid, instance));
-        Some(Box::new(iter))
+    type ParentListEntry = ();
+    type ListEntry = (u8, &'a Instance);
+
+    fn iter(interface: &'a Interface, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = interface.vrrp_ipv4_instances.iter().map(|(vrid, instance)| (*vrid, instance));
+        Some(iter)
     }
 
-    fn new(_interface: &'a Interface, list_entry: &ListEntry<'a>) -> Self {
-        let (vrid, instance) = list_entry.as_instance().unwrap();
+    fn new(_interface: &'a Interface, (vrid, instance): &Self::ListEntry) -> Self {
         Self {
             vrid: *vrid,
             state: Some(instance.state.state.to_yang()), // TODO
@@ -64,8 +53,9 @@ impl<'a> YangList<'a, Interface> for interfaces::interface::ipv4::vrrp::vrrp_ins
 }
 
 impl<'a> YangContainer<'a, Interface> for interfaces::interface::ipv4::vrrp::vrrp_instance::statistics::Statistics {
-    fn new(_interface: &'a Interface, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, instance) = list_entry.as_instance().unwrap();
+    type ParentListEntry = (u8, &'a Instance);
+
+    fn new(_interface: &'a Interface, (_, instance): &Self::ParentListEntry) -> Option<Self> {
         let statistics = &instance.state.statistics;
         Some(Self {
             discontinuity_datetime: Some(statistics.discontinuity_time),
@@ -83,13 +73,15 @@ impl<'a> YangContainer<'a, Interface> for interfaces::interface::ipv4::vrrp::vrr
 }
 
 impl<'a> YangList<'a, Interface> for interfaces::interface::ipv6::vrrp::vrrp_instance::VrrpInstance<'a> {
-    fn iter(interface: &'a Interface, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iter = interface.vrrp_ipv6_instances.iter().map(|(vrid, instance)| ListEntry::Instance(*vrid, instance));
-        Some(Box::new(iter))
+    type ParentListEntry = ();
+    type ListEntry = (u8, &'a Instance);
+
+    fn iter(interface: &'a Interface, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = interface.vrrp_ipv6_instances.iter().map(|(vrid, instance)| (*vrid, instance));
+        Some(iter)
     }
 
-    fn new(_interface: &'a Interface, list_entry: &ListEntry<'a>) -> Self {
-        let (vrid, instance) = list_entry.as_instance().unwrap();
+    fn new(_interface: &'a Interface, (vrid, instance): &Self::ListEntry) -> Self {
         Self {
             vrid: *vrid,
             state: Some(instance.state.state.to_yang()),
@@ -105,8 +97,9 @@ impl<'a> YangList<'a, Interface> for interfaces::interface::ipv6::vrrp::vrrp_ins
 }
 
 impl<'a> YangContainer<'a, Interface> for interfaces::interface::ipv6::vrrp::vrrp_instance::statistics::Statistics {
-    fn new(_interface: &'a Interface, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, instance) = list_entry.as_instance().unwrap();
+    type ParentListEntry = (u8, &'a Instance);
+
+    fn new(_interface: &'a Interface, (_, instance): &Self::ParentListEntry) -> Option<Self> {
         let statistics = &instance.state.statistics;
         Some(Self {
             discontinuity_datetime: Some(statistics.discontinuity_time),

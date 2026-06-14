@@ -8,6 +8,7 @@ pub mod code_writer;
 pub mod struct_builder;
 pub mod types;
 
+use std::collections::HashMap;
 use std::env;
 use std::iter::once;
 use std::path::PathBuf;
@@ -37,7 +38,8 @@ use yang5::schema::SchemaModule;
 "#;
 
 const HEADER_YANG_OPS: &str = r#"
-use holo_northbound::state::{self, YangList, YangListOps, YangContainer, YangContainerOps};
+use holo_northbound::NbDaemonSender;
+use holo_northbound::state::{self, ListEntryKind, YangList, YangListOps, YangContainer, YangContainerOps};
 use holo_northbound::rpc::{self, YangRpc, YangRpcObject, YangRpcOps};
 use phf::phf_map;
 use super::*;
@@ -279,13 +281,13 @@ fn generate_default_value(
 fn write_ops_map_entry(
     w: &mut CodeWriter,
     snode: &SchemaNode<'_>,
-    ops_expr: impl Fn(&str) -> String,
+    ops_expr: impl Fn(&SchemaNode<'_>, &str) -> String,
 ) -> std::fmt::Result {
     let path = snode.path(SchemaPathFormat::DATA);
     let type_name = snode.rust_name(Case::Pascal);
     emit!(w, 2, "\"{path}\" => {{")?;
     emit!(w, 3, "use {}::{type_name};", snode.rust_module_path())?;
-    emit!(w, 3, "{}", ops_expr(&type_name))?;
+    emit!(w, 3, "{}", ops_expr(snode, &type_name))?;
     emit!(w, 2, "}},")?;
     Ok(())
 }
@@ -295,7 +297,7 @@ fn write_ops_map<'a>(
     const_name: &str,
     type_str: &str,
     snodes: impl Iterator<Item = SchemaNode<'a>>,
-    ops_expr: impl Fn(&str) -> String,
+    ops_expr: impl Fn(&SchemaNode<'_>, &str) -> String,
 ) -> std::fmt::Result {
     emit!(
         w,
@@ -309,28 +311,231 @@ fn write_ops_map<'a>(
     Ok(())
 }
 
+// Returns true if this list node is part of the provider's list ops map.
+fn is_relevant_list(
+    snode: &SchemaNode<'_>,
+    modules: &[&str],
+    path_filter: Option<&str>,
+) -> bool {
+    !snode.is_schema_only()
+        && snode.is_status_current()
+        && snode.is_state_list()
+        && snode.in_modules(modules)
+        && !path_filter.is_some_and(|name| snode.has_ancestor_named(name))
+}
+
+// Returns true if this container node is part of the provider's container
+// ops map.
+fn is_relevant_container(
+    snode: &SchemaNode<'_>,
+    modules: &[&str],
+    path_filter: Option<&str>,
+) -> bool {
+    !snode.is_schema_only()
+        && snode.is_status_current()
+        && snode.is_state_container()
+        && snode.in_modules(modules)
+        && !path_filter.is_some_and(|name| snode.has_ancestor_named(name))
+}
+
+// Returns the nearest ancestor list implemented by the provider, which is
+// the list whose entries the driver passes down to this node.
+fn find_parent_list<'a>(
+    snode: &SchemaNode<'a>,
+    modules: &[&str],
+    path_filter: Option<&str>,
+) -> Option<SchemaNode<'a>> {
+    snode
+        .ancestors()
+        .find(|snode| is_relevant_list(snode, modules, path_filter))
+}
+
+// Generated ListEntry variant and Rust type reference for a list node.
+struct TypedListInfo {
+    variant: String,
+    type_ref: String,
+    lifetime: &'static str,
+}
+
+impl TypedListInfo {
+    // Returns the list entry type projection for this list.
+    fn list_entry(&self) -> String {
+        format!(
+            "<{}{} as YangList<'a, Provider>>::ListEntry",
+            self.type_ref, self.lifetime
+        )
+    }
+}
+
+// Computes a unique ListEntry variant name for each list node, derived from
+// the node's schema path minus the leading segments shared by all lists.
+fn typed_list_infos<'a>(
+    yang_ctx: &'a Context,
+    modules: &[&str],
+    path_filter: Option<&str>,
+) -> (Vec<SchemaNode<'a>>, HashMap<String, TypedListInfo>) {
+    let snodes = yang_ctx
+        .traverse()
+        .filter(|snode| is_relevant_list(snode, modules, path_filter))
+        .collect::<Vec<_>>();
+
+    // Pascal-case segment chain of each list node.
+    let seg_chains = snodes
+        .iter()
+        .map(|snode| {
+            let mut chain = snode
+                .inclusive_ancestors()
+                .filter(|snode| !snode.is_schema_only())
+                .map(|snode| snode.rust_name(Case::Pascal))
+                .collect::<Vec<_>>();
+            chain.reverse();
+            chain
+        })
+        .collect::<Vec<_>>();
+
+    // Longest common prefix of all chains, capped so that no variant name
+    // ends up empty.
+    let max_prefix = seg_chains
+        .iter()
+        .map(|chain| chain.len())
+        .min()
+        .unwrap_or(1)
+        .saturating_sub(1);
+    let mut prefix_len = 0;
+    while prefix_len < max_prefix
+        && let Some(first) = seg_chains.first()
+        && seg_chains
+            .iter()
+            .all(|chain| chain[prefix_len] == first[prefix_len])
+    {
+        prefix_len += 1;
+    }
+
+    let mut infos = HashMap::new();
+    for (snode, chain) in snodes.iter().zip(seg_chains) {
+        let variant = chain[prefix_len..].concat();
+        let type_ref = format!(
+            "{}::{}",
+            snode.rust_module_path(),
+            snode.rust_name(Case::Pascal)
+        );
+        let lifetime = if StructBuilder::new(snode.clone()).needs_lifetime() {
+            "<'a>"
+        } else {
+            ""
+        };
+        let path = snode.path(SchemaPathFormat::DATA);
+        if infos
+            .values()
+            .any(|info: &TypedListInfo| info.variant == variant)
+        {
+            panic!("Duplicate ListEntry variant name: {variant}");
+        }
+        infos.insert(
+            path,
+            TypedListInfo {
+                variant,
+                type_ref,
+                lifetime,
+            },
+        );
+    }
+
+    (snodes, infos)
+}
+
+// Generates the ListEntry enum and its ListEntryKind implementation.
+fn generate_list_entry_enum(
+    w: &mut CodeWriter,
+    snodes: &[SchemaNode<'_>],
+    infos: &HashMap<String, TypedListInfo>,
+) -> std::fmt::Result {
+    emit!(w, 0, "#[derive(Debug, Default)]")?;
+    emit!(w, 0, "pub enum ListEntry<'a> {{")?;
+    emit!(w, 1, "#[default]")?;
+    emit!(w, 1, "None,")?;
+    if snodes.is_empty() {
+        // Keep the lifetime parameter used.
+        emit!(w, 1, "_Phantom(std::marker::PhantomData<&'a ()>),")?;
+    }
+    for snode in snodes {
+        let info = &infos[&snode.path(SchemaPathFormat::DATA)];
+        emit!(w, 1, "{}({}),", info.variant, info.list_entry())?;
+    }
+    emit!(w, 0, "}}")?;
+
+    emit!(w, 0, "impl<'a> ListEntryKind for ListEntry<'a> {{")?;
+    emit!(
+        w,
+        1,
+        "fn child_task(&self, module_name: &str) -> Option<NbDaemonSender> {{"
+    )?;
+    emit!(w, 2, "let _ = module_name;")?;
+    emit!(w, 2, "match self {{")?;
+    for snode in snodes {
+        let info = &infos[&snode.path(SchemaPathFormat::DATA)];
+        emit!(
+            w,
+            3,
+            "ListEntry::{}(list_entry) => <{}{} as YangList<'a, Provider>>::child_task(list_entry, module_name),",
+            info.variant,
+            info.type_ref,
+            info.lifetime
+        )?;
+    }
+    emit!(w, 3, "_ => None,")?;
+    emit!(w, 2, "}}")?;
+    emit!(w, 1, "}}")?;
+    emit!(w, 0, "}}")?;
+
+    Ok(())
+}
+
+// Returns the let-else pattern and expression used by the generated glue to
+// extract a node's parent list entry from the ListEntry enum.
+fn typed_parent_accessor(
+    snode: &SchemaNode<'_>,
+    modules: &[&str],
+    path_filter: Option<&str>,
+    infos: &HashMap<String, TypedListInfo>,
+) -> (String, &'static str) {
+    match find_parent_list(snode, modules, path_filter) {
+        Some(parent) => {
+            let info = &infos[&parent.path(SchemaPathFormat::DATA)];
+            (format!("ListEntry::{}(parent)", info.variant), "parent")
+        }
+        None => ("ListEntry::None".to_owned(), "&()"),
+    }
+}
+
 fn generate_yang_ops(
     w: &mut CodeWriter,
     modules: &[&str],
     yang_ctx: &Context,
     path_filter: Option<&str>,
 ) -> std::fmt::Result {
+    let (list_snodes, infos) = typed_list_infos(yang_ctx, modules, path_filter);
+
+    generate_list_entry_enum(w, &list_snodes, &infos)?;
+
     write_ops_map(
         w,
         "YANG_LIST_OPS",
         "YangListOps<Provider>",
-        yang_ctx
-            .traverse()
-            .filter(|snode| !snode.is_schema_only())
-            .filter(|snode| snode.is_status_current())
-            .filter(|snode| snode.is_state_list())
-            .filter(|snode| snode.in_modules(modules))
-            .filter(|snode| {
-                !path_filter.is_some_and(|name| snode.has_ancestor_named(name))
-            }),
-        |name| {
+        list_snodes.iter().cloned(),
+        |snode, name| {
+            let info = &infos[&snode.path(SchemaPathFormat::DATA)];
+            let (parent_pat, parent_expr) =
+                typed_parent_accessor(snode, modules, path_filter, &infos);
             format!(
-                "YangListOps {{ iter: |p, le| {name}::iter(p, le), new: |p, le| Box::new({name}::new(p, le)) }}"
+                "YangListOps {{ \
+                 iter: |p, le| {{ \
+                 let {parent_pat} = le else {{ return None }}; \
+                 Some(Box::new({name}::iter(p, {parent_expr})?.map(ListEntry::{variant}))) }}, \
+                 new: |p, le| {{ \
+                 let ListEntry::{variant}(list_entry) = le else {{ return None }}; \
+                 Some(Box::new({name}::new(p, list_entry))) }} }}",
+                variant = info.variant,
             )
         },
     )?;
@@ -341,20 +546,31 @@ fn generate_yang_ops(
         "YangContainerOps<Provider>",
         yang_ctx
             .traverse()
-            .filter(|snode| !snode.is_schema_only())
-            .filter(|snode| snode.is_status_current())
-            .filter(|snode| snode.is_state_container())
-            .filter(|snode| snode.in_modules(modules))
-            .filter(|snode| {
-                !path_filter.is_some_and(|name| snode.has_ancestor_named(name))
-            }),
-        |name| {
+            .filter(|snode| is_relevant_container(snode, modules, path_filter)),
+        |snode, name| {
+            let (parent_pat, parent_expr) =
+                typed_parent_accessor(snode, modules, path_filter, &infos);
             format!(
-                "YangContainerOps {{ new: |p, le| {name}::new(p, le).map(|c| Box::new(c) as _) }}"
+                "YangContainerOps {{ \
+                 new: |p, le| {{ \
+                 let {parent_pat} = le else {{ return None }}; \
+                 {name}::new(p, {parent_expr}).map(|c| Box::new(c) as _) }} }}"
             )
         },
     )?;
 
+    generate_yang_ops_rpc(w, modules, yang_ctx, path_filter)?;
+    generate_yang_ops_consts(w)?;
+
+    Ok(())
+}
+
+fn generate_yang_ops_rpc(
+    w: &mut CodeWriter,
+    modules: &[&str],
+    yang_ctx: &Context,
+    path_filter: Option<&str>,
+) -> std::fmt::Result {
     write_ops_map(
         w,
         "YANG_RPC_OPS",
@@ -377,7 +593,7 @@ fn generate_yang_ops(
                     SchemaNodeKind::Rpc | SchemaNodeKind::Action
                 )
             }),
-        |name| {
+        |_, name| {
             format!(
                 "YangRpcOps {{ process: |dnode, provider| {{ \
                  let mut rpc = {name}::parse_input(dnode); \
@@ -388,6 +604,10 @@ fn generate_yang_ops(
         },
     )?;
 
+    Ok(())
+}
+
+fn generate_yang_ops_consts(w: &mut CodeWriter) -> std::fmt::Result {
     emit!(
         w,
         0,

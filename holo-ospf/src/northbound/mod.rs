@@ -16,6 +16,8 @@ use crate::instance::Instance;
 use crate::version::{Ospfv2, Ospfv3, Version};
 
 pub trait NorthboundVersion<V: Version> {
+    type ListEntry<'a>: northbound::state::ListEntryKind;
+
     const YANG_OPS_STATE: northbound::state::YangOps<Instance<V>>;
     const YANG_OPS_RPC: northbound::rpc::YangOps<Instance<V>>;
 
@@ -57,6 +59,8 @@ pub mod yang_gen {
 // ===== impl Ospfv2 =====
 
 impl NorthboundVersion<Self> for Ospfv2 {
+    type ListEntry<'a> = yang_gen::ops::ospfv2::ListEntry<'a>;
+
     const YANG_OPS_STATE: northbound::state::YangOps<Instance<Self>> = yang_gen::ops::ospfv2::YANG_OPS_STATE;
     const YANG_OPS_RPC: northbound::rpc::YangOps<Instance<Self>> = yang_gen::ops::ospfv2::YANG_OPS_RPC;
 
@@ -72,6 +76,8 @@ impl NorthboundVersion<Self> for Ospfv2 {
 // ===== impl Ospfv3 =====
 
 impl NorthboundVersion<Self> for Ospfv3 {
+    type ListEntry<'a> = yang_gen::ops::ospfv3::ListEntry<'a>;
+
     const YANG_OPS_STATE: northbound::state::YangOps<Instance<Self>> = yang_gen::ops::ospfv3::YANG_OPS_STATE;
     const YANG_OPS_RPC: northbound::rpc::YangOps<Instance<Self>> = yang_gen::ops::ospfv3::YANG_OPS_RPC;
 

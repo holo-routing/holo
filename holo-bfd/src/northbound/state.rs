@@ -7,8 +7,7 @@
 use std::borrow::Cow;
 use std::sync::atomic;
 
-use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, YangOps};
+use holo_northbound::state::{ListIterator, Provider, YangContainer, YangList, YangOps};
 use holo_utils::bfd::{PathType, State};
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
@@ -23,7 +22,7 @@ use crate::packet::DiagnosticCode;
 use crate::session::Session;
 
 impl Provider for Master {
-    type ListEntry<'a> = ListEntry<'a>;
+    type ListEntry<'a> = yang_gen::ops::ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
 
     fn top_level_node(&self) -> String {
@@ -31,22 +30,12 @@ impl Provider for Master {
     }
 }
 
-#[derive(Debug, Default)]
-#[derive(EnumAsInner)]
-pub enum ListEntry<'a> {
-    #[default]
-    None,
-    Session(&'a Session),
-}
-
-pub type ListIterator<'a> = Box<dyn Iterator<Item = ListEntry<'a>> + 'a>;
-
-impl ListEntryKind for ListEntry<'_> {}
-
 // ===== YANG impls =====
 
 impl<'a> YangContainer<'a, Master> for bfd::summary::Summary {
-    fn new(master: &'a Master, _list_entry: &ListEntry<'a>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(master: &'a Master, _: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             number_of_sessions: Some(master.sessions_count(None, None).saturating_into()),
             number_of_sessions_up: Some(master.sessions_count(None, Some(State::Up)).saturating_into()),
@@ -57,7 +46,9 @@ impl<'a> YangContainer<'a, Master> for bfd::summary::Summary {
 }
 
 impl<'a> YangContainer<'a, Master> for bfd::ip_mh::summary::Summary {
-    fn new(master: &'a Master, _list_entry: &ListEntry<'a>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(master: &'a Master, _: &Self::ParentListEntry) -> Option<Self> {
         let path_type = Some(PathType::IpMultihop);
         Some(Self {
             number_of_sessions: Some(master.sessions_count(path_type, None).saturating_into()),
@@ -69,13 +60,15 @@ impl<'a> YangContainer<'a, Master> for bfd::ip_mh::summary::Summary {
 }
 
 impl<'a> YangList<'a, Master> for bfd::ip_mh::session_groups::session_group::SessionGroup {
-    fn iter(master: &'a Master, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iter = master.sessions.iter().filter(|sess| sess.key.is_ip_multihop()).map(ListEntry::Session);
-        Some(Box::new(iter))
+    type ParentListEntry = ();
+    type ListEntry = &'a Session;
+
+    fn iter(master: &'a Master, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = master.sessions.iter().filter(|sess| sess.key.is_ip_multihop());
+        Some(iter)
     }
 
-    fn new(_master: &'a Master, list_entry: &ListEntry<'a>) -> Self {
-        let sess = list_entry.as_session().unwrap();
+    fn new(_master: &'a Master, sess: &Self::ListEntry) -> Self {
         let (src, dst) = sess.key.as_ip_multihop().unwrap();
         Self {
             source_addr: *src,
@@ -85,13 +78,15 @@ impl<'a> YangList<'a, Master> for bfd::ip_mh::session_groups::session_group::Ses
 }
 
 impl<'a> YangList<'a, Master> for bfd::ip_mh::session_groups::session_group::sessions::Sessions<'a> {
-    fn iter(_master: &'a Master, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let sess = list_entry.as_session().unwrap();
-        Some(Box::new(std::iter::once(ListEntry::Session(sess))))
+    type ParentListEntry = &'a Session;
+    type ListEntry = &'a Session;
+
+    fn iter(_master: &'a Master, sess: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = std::iter::once(*sess);
+        Some(iter)
     }
 
-    fn new(_master: &'a Master, list_entry: &ListEntry<'a>) -> Self {
-        let sess = list_entry.as_session().unwrap();
+    fn new(_master: &'a Master, sess: &Self::ListEntry) -> Self {
         Self {
             path_type: Some(sess.key.path_type().to_yang()),
             ip_encapsulation: Some(true),
@@ -105,8 +100,9 @@ impl<'a> YangList<'a, Master> for bfd::ip_mh::session_groups::session_group::ses
 }
 
 impl<'a> YangContainer<'a, Master> for bfd::ip_mh::session_groups::session_group::sessions::session_running::SessionRunning<'a> {
-    fn new(_master: &'a Master, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let sess = list_entry.as_session().unwrap();
+    type ParentListEntry = &'a Session;
+
+    fn new(_master: &'a Master, sess: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             session_index: Some(sess.id as u32),
             local_state: Some(sess.state.local_state),
@@ -123,8 +119,9 @@ impl<'a> YangContainer<'a, Master> for bfd::ip_mh::session_groups::session_group
 }
 
 impl<'a> YangContainer<'a, Master> for bfd::ip_mh::session_groups::session_group::sessions::session_statistics::SessionStatistics {
-    fn new(_master: &'a Master, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let sess = list_entry.as_session().unwrap();
+    type ParentListEntry = &'a Session;
+
+    fn new(_master: &'a Master, sess: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             create_time: Some(sess.statistics.create_time).ignore_in_testing(),
             last_down_time: sess.statistics.last_down_time.ignore_in_testing(),
@@ -140,7 +137,9 @@ impl<'a> YangContainer<'a, Master> for bfd::ip_mh::session_groups::session_group
 }
 
 impl<'a> YangContainer<'a, Master> for bfd::ip_sh::summary::Summary {
-    fn new(master: &'a Master, _list_entry: &ListEntry<'a>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(master: &'a Master, _: &Self::ParentListEntry) -> Option<Self> {
         let path_type = Some(PathType::IpSingleHop);
         Some(Self {
             number_of_sessions: Some(master.sessions_count(path_type, None).saturating_into()),
@@ -152,13 +151,15 @@ impl<'a> YangContainer<'a, Master> for bfd::ip_sh::summary::Summary {
 }
 
 impl<'a> YangList<'a, Master> for bfd::ip_sh::sessions::session::Session<'a> {
-    fn iter(master: &'a Master, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iter = master.sessions.iter().filter(|sess| sess.key.is_ip_single_hop()).map(ListEntry::Session);
-        Some(Box::new(iter))
+    type ParentListEntry = ();
+    type ListEntry = &'a Session;
+
+    fn iter(master: &'a Master, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = master.sessions.iter().filter(|sess| sess.key.is_ip_single_hop());
+        Some(iter)
     }
 
-    fn new(_master: &'a Master, list_entry: &ListEntry<'a>) -> Self {
-        let sess = list_entry.as_session().unwrap();
+    fn new(_master: &'a Master, sess: &Self::ListEntry) -> Self {
         let (ifname, dst) = sess.key.as_ip_single_hop().unwrap();
         Self {
             interface: Cow::Borrowed(ifname),
@@ -175,8 +176,9 @@ impl<'a> YangList<'a, Master> for bfd::ip_sh::sessions::session::Session<'a> {
 }
 
 impl<'a> YangContainer<'a, Master> for bfd::ip_sh::sessions::session::session_running::SessionRunning<'a> {
-    fn new(_master: &'a Master, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let sess = list_entry.as_session().unwrap();
+    type ParentListEntry = &'a Session;
+
+    fn new(_master: &'a Master, sess: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             session_index: Some(sess.id as u32),
             local_state: Some(sess.state.local_state),
@@ -193,8 +195,9 @@ impl<'a> YangContainer<'a, Master> for bfd::ip_sh::sessions::session::session_ru
 }
 
 impl<'a> YangContainer<'a, Master> for bfd::ip_sh::sessions::session::session_statistics::SessionStatistics {
-    fn new(_master: &'a Master, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let sess = list_entry.as_session().unwrap();
+    type ParentListEntry = &'a Session;
+
+    fn new(_master: &'a Master, sess: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             create_time: Some(sess.statistics.create_time).ignore_in_testing(),
             last_down_time: sess.statistics.last_down_time.ignore_in_testing(),

@@ -9,8 +9,7 @@ use std::net::Ipv4Addr;
 use std::sync::atomic;
 
 use derive_new::new;
-use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, YangOps};
+use holo_northbound::state::{ListIterator, Provider, YangContainer, YangList, YangOps};
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::mpls::Label;
 use holo_utils::num::SaturatingInto;
@@ -28,7 +27,7 @@ use crate::neighbor::{LabelAdvMode, LabelDistMode, Neighbor, NeighborFlags};
 use crate::northbound::yang_gen::{self, mpls_ldp};
 
 impl Provider for Instance {
-    type ListEntry<'a> = ListEntry<'a>;
+    type ListEntry<'a> = yang_gen::ops::ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
 
     fn top_level_node(&self) -> String {
@@ -38,20 +37,6 @@ impl Provider for Instance {
             self.name
         )
     }
-}
-
-#[derive(Debug, Default, EnumAsInner)]
-pub enum ListEntry<'a> {
-    #[default]
-    None,
-    AddrBinding(AddrBinding),
-    LabelBinding(LabelBinding),
-    Fec(&'a Fec),
-    Interface(&'a Interface),
-    InterfaceAdj(&'a Adjacency),
-    TargetedNbrAdj(&'a Adjacency),
-    Neighbor(&'a Neighbor),
-    NeighborAdj(&'a Adjacency),
 }
 
 #[derive(Debug)]
@@ -77,14 +62,12 @@ pub enum AdvertisementType {
     Received,
 }
 
-pub type ListIterator<'a> = Box<dyn Iterator<Item = ListEntry<'a>> + 'a>;
-
-impl ListEntryKind for ListEntry<'_> {}
-
 // ===== YANG impls =====
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::global::address_families::ipv4::Ipv4<'a> {
-    fn new(_instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(_instance: &'a Instance, _: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             label_distribution_control_mode: Some(LabelDistMode::Independent.to_yang()),
         })
@@ -92,7 +75,10 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::global::address_families::ipv
 }
 
 impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bindings::address::Address {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = AddrBinding;
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let neighbors = &instance.state.as_ref()?.neighbors;
 
         // Skip if there's no neighbor in the operational state.
@@ -101,27 +87,21 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bi
         }
 
         // Advertised addresses.
-        let advertised = instance.system.ipv4_addr_list.iter().map(|addr| {
-            let binding = AddrBinding::new(addr.ip(), AdvertisementType::Advertised, None);
-            ListEntry::AddrBinding(binding)
-        });
+        let advertised = instance.system.ipv4_addr_list.iter().map(|addr| AddrBinding::new(addr.ip(), AdvertisementType::Advertised, None));
 
         // Received addresses.
         let received = neighbors.iter().flat_map(|nbr| {
-            nbr.addr_list.iter().filter_map(move |addr| {
-                Ipv4Addr::get(*addr).map(|addr| {
-                    let binding = AddrBinding::new(addr, AdvertisementType::Received, Some(nbr.lsr_id));
-                    ListEntry::AddrBinding(binding)
-                })
-            })
+            nbr.addr_list
+                .iter()
+                .filter_map(move |addr| Ipv4Addr::get(*addr).map(|addr| AddrBinding::new(addr, AdvertisementType::Received, Some(nbr.lsr_id))))
         });
 
         // Chain advertised and received addresses.
-        Some(Box::new(advertised.chain(received)))
+        let iter = advertised.chain(received);
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let binding = list_entry.as_addr_binding().unwrap();
+    fn new(_instance: &'a Instance, binding: &Self::ListEntry) -> Self {
         Self {
             address: binding.addr,
             advertisement_type: Some(binding.adv_type),
@@ -130,8 +110,9 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bi
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::global::address_families::ipv4::bindings::address::peer::Peer {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let binding = list_entry.as_addr_binding().unwrap();
+    type ParentListEntry = AddrBinding;
+
+    fn new(_instance: &'a Instance, binding: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             lsr_id: binding.lsr_id,
             label_space_id: binding.lsr_id.map(|_lsr_id| 0),
@@ -140,18 +121,16 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::global::address_families::ipv
 }
 
 impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bindings::fec_label::FecLabel {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a Fec;
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let fecs = &instance.state.as_ref()?.fecs;
-        let iter = fecs
-            .values()
-            .filter(|fec| fec.inner.prefix.is_ipv4())
-            .filter(|fec| !fec.inner.upstream.is_empty() || !fec.inner.downstream.is_empty())
-            .map(ListEntry::Fec);
-        Some(Box::new(iter))
+        let iter = fecs.values().filter(|fec| fec.inner.prefix.is_ipv4()).filter(|fec| !fec.inner.upstream.is_empty() || !fec.inner.downstream.is_empty());
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let fec = list_entry.as_fec().unwrap();
+    fn new(_instance: &'a Instance, fec: &Self::ListEntry) -> Self {
         Self {
             fec: Ipv4Network::get(*fec.inner.prefix).unwrap(),
         }
@@ -159,29 +138,30 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bi
 }
 
 impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bindings::fec_label::peer::Peer<'a> {
-    fn iter(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let fec = list_entry.as_fec().unwrap();
+    type ParentListEntry = &'a Fec;
+    type ListEntry = LabelBinding;
 
+    fn iter(instance: &'a Instance, &fec: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         // Advertised label mappings.
-        let advertised = fec.inner.upstream.iter().map(|(lsr_id, mapping)| {
-            let binding = LabelBinding::new(*lsr_id, AdvertisementType::Advertised, mapping.label, true);
-            ListEntry::LabelBinding(binding)
-        });
+        let advertised = fec.inner.upstream.iter().map(|(lsr_id, mapping)| LabelBinding::new(*lsr_id, AdvertisementType::Advertised, mapping.label, true));
 
         // Received label mappings.
-        let received = fec.inner.downstream.iter().filter_map(|(lsr_id, mapping)| {
-            instance.state.as_ref().unwrap().neighbors.get_by_lsr_id(lsr_id).map(|(_, nbr)| {
-                let binding = LabelBinding::new(*lsr_id, AdvertisementType::Received, mapping.label, fec.is_nbr_nexthop(nbr));
-                ListEntry::LabelBinding(binding)
-            })
+        let received = fec.inner.downstream.iter().filter_map(move |(lsr_id, mapping)| {
+            instance
+                .state
+                .as_ref()
+                .unwrap()
+                .neighbors
+                .get_by_lsr_id(lsr_id)
+                .map(|(_, nbr)| LabelBinding::new(*lsr_id, AdvertisementType::Received, mapping.label, fec.is_nbr_nexthop(nbr)))
         });
 
         // Chain advertised and received label mappings.
-        Some(Box::new(advertised.chain(received)))
+        let iter = advertised.chain(received);
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let binding = list_entry.as_label_binding().unwrap();
+    fn new(_instance: &'a Instance, binding: &Self::ListEntry) -> Self {
         Self {
             lsr_id: binding.lsr_id,
             label_space_id: 0,
@@ -193,16 +173,18 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::global::address_families::ipv4::bi
 }
 
 impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::interfaces::interface::Interface<'a> {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a Interface;
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         if !instance.is_active() {
             return None;
         }
-        let iter = instance.interfaces.iter().filter(|iface| iface.is_active()).map(ListEntry::Interface);
-        Some(Box::new(iter))
+        let iter = instance.interfaces.iter().filter(|iface| iface.is_active());
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let iface = list_entry.as_interface().unwrap();
+    fn new(_instance: &'a Instance, iface: &Self::ListEntry) -> Self {
         Self {
             name: Cow::Borrowed(&iface.name),
             next_hello: iface.next_hello().map(|d| d.as_secs().saturating_into()).ignore_in_testing(),
@@ -211,14 +193,15 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::interfaces::interface::
 }
 
 impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::HelloAdjacency {
-    fn iter(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iface = list_entry.as_interface().unwrap();
-        let iter = instance.state.as_ref().unwrap().ipv4.adjacencies.iter_by_iface(&iface.name).into_iter().flatten().map(ListEntry::InterfaceAdj);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a Interface;
+    type ListEntry = &'a Adjacency;
+
+    fn iter(instance: &'a Instance, iface: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = instance.state.as_ref().unwrap().ipv4.adjacencies.iter_by_iface(&iface.name).into_iter().flatten();
+        Some(iter)
     }
 
-    fn new(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let adj = list_entry.as_interface_adj().unwrap();
+    fn new(instance: &'a Instance, adj: &Self::ListEntry) -> Self {
         let next_hello = adj.next_hello(&instance.interfaces, &instance.tneighbors);
         Self {
             adjacent_address: Ipv4Addr::get(adj.source.addr).unwrap(),
@@ -228,8 +211,9 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::interfaces::interface::
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::hello_holdtime::HelloHoldtime {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let adj = list_entry.as_interface_adj().unwrap();
+    type ParentListEntry = &'a Adjacency;
+
+    fn new(_instance: &'a Instance, adj: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             adjacent: Some(adj.holdtime_adjacent),
             negotiated: Some(adj.holdtime_negotiated),
@@ -239,8 +223,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interf
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let adj = list_entry.as_interface_adj().unwrap();
+    type ParentListEntry = &'a Adjacency;
+
+    fn new(_instance: &'a Instance, adj: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             discontinuity_time: Some(adj.discontinuity_time),
             hello_received: Some(adj.hello_rcvd),
@@ -251,8 +236,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interf
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interface::address_families::ipv4::hello_adjacencies::hello_adjacency::peer::Peer {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let adj = list_entry.as_interface_adj().unwrap();
+    type ParentListEntry = &'a Adjacency;
+
+    fn new(_instance: &'a Instance, adj: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             lsr_id: Some(adj.lsr_id),
             label_space_id: Some(0),
@@ -261,14 +247,16 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::interfaces::interf
 }
 
 impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::HelloAdjacency {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a Adjacency;
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let adjacencies = &instance.state.as_ref()?.ipv4.adjacencies;
-        let iter = adjacencies.iter().filter(|adj| adj.source.ifname.is_none()).map(ListEntry::TargetedNbrAdj);
-        Some(Box::new(iter))
+        let iter = adjacencies.iter().filter(|adj| adj.source.ifname.is_none());
+        Some(iter)
     }
 
-    fn new(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let adj = list_entry.as_targeted_nbr_adj().unwrap();
+    fn new(instance: &'a Instance, adj: &Self::ListEntry) -> Self {
         let next_hello = adj.next_hello(&instance.interfaces, &instance.tneighbors);
         Self {
             local_address: Ipv4Addr::get(adj.local_addr).unwrap(),
@@ -279,8 +267,9 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::discovery::targeted::address_famil
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::hello_holdtime::HelloHoldtime {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let adj = list_entry.as_targeted_nbr_adj().unwrap();
+    type ParentListEntry = &'a Adjacency;
+
+    fn new(_instance: &'a Instance, adj: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             adjacent: Some(adj.holdtime_adjacent),
             negotiated: Some(adj.holdtime_negotiated),
@@ -290,8 +279,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let adj = list_entry.as_targeted_nbr_adj().unwrap();
+    type ParentListEntry = &'a Adjacency;
+
+    fn new(_instance: &'a Instance, adj: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             discontinuity_time: Some(adj.discontinuity_time),
             hello_received: Some(adj.hello_rcvd),
@@ -302,8 +292,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_families::ipv4::hello_adjacencies::hello_adjacency::peer::Peer {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let adj = list_entry.as_targeted_nbr_adj().unwrap();
+    type ParentListEntry = &'a Adjacency;
+
+    fn new(_instance: &'a Instance, adj: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             lsr_id: Some(adj.lsr_id),
             label_space_id: Some(0),
@@ -312,14 +303,16 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::discovery::targeted::address_
 }
 
 impl<'a> YangList<'a, Instance> for mpls_ldp::peers::peer::Peer<'a> {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a Neighbor;
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let neighbors = &instance.state.as_ref()?.neighbors;
-        let iter = neighbors.iter().map(ListEntry::Neighbor);
-        Some(Box::new(iter))
+        let iter = neighbors.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let nbr = list_entry.as_neighbor().unwrap();
+    fn new(_instance: &'a Instance, nbr: &Self::ListEntry) -> Self {
         Self {
             lsr_id: nbr.lsr_id,
             label_space_id: 0,
@@ -331,14 +324,15 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::peers::peer::Peer<'a> {
 }
 
 impl<'a> YangList<'a, Instance> for mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::HelloAdjacency {
-    fn iter(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let nbr = list_entry.as_neighbor().unwrap();
-        let iter = instance.state.as_ref().unwrap().ipv4.adjacencies.iter_by_lsr_id(&nbr.lsr_id).into_iter().flatten().map(ListEntry::NeighborAdj);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a Neighbor;
+    type ListEntry = &'a Adjacency;
+
+    fn iter(instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = instance.state.as_ref().unwrap().ipv4.adjacencies.iter_by_lsr_id(&nbr.lsr_id).into_iter().flatten();
+        Some(iter)
     }
 
-    fn new(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let adj = list_entry.as_neighbor_adj().unwrap();
+    fn new(instance: &'a Instance, adj: &Self::ListEntry) -> Self {
         let next_hello = adj.next_hello(&instance.interfaces, &instance.tneighbors);
         Self {
             local_address: Ipv4Addr::get(adj.local_addr).unwrap(),
@@ -349,8 +343,9 @@ impl<'a> YangList<'a, Instance> for mpls_ldp::peers::peer::address_families::ipv
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::hello_holdtime::HelloHoldtime {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let adj = list_entry.as_neighbor_adj().unwrap();
+    type ParentListEntry = &'a Adjacency;
+
+    fn new(_instance: &'a Instance, adj: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             adjacent: Some(adj.holdtime_adjacent),
             negotiated: Some(adj.holdtime_negotiated),
@@ -360,8 +355,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::address_families
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::address_families::ipv4::hello_adjacencies::hello_adjacency::statistics::Statistics {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let adj = list_entry.as_neighbor_adj().unwrap();
+    type ParentListEntry = &'a Adjacency;
+
+    fn new(_instance: &'a Instance, adj: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             discontinuity_time: Some(adj.discontinuity_time),
             hello_received: Some(adj.hello_rcvd),
@@ -372,8 +368,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::address_families
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::label_advertisement_mode::LabelAdvertisementMode {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let nbr = list_entry.as_neighbor().unwrap();
+    type ParentListEntry = &'a Neighbor;
+
+    fn new(_instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             local: nbr.is_operational().then_some(LabelAdvMode::DownstreamUnsolicited),
             peer: nbr.rcvd_label_adv_mode,
@@ -383,8 +380,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::label_advertisem
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::received_peer_state::capability::end_of_lib::EndOfLib {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let nbr = list_entry.as_neighbor().unwrap();
+    type ParentListEntry = &'a Neighbor;
+
+    fn new(_instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             enabled: Some(nbr.flags.contains(NeighborFlags::CAP_UNREC_NOTIF)),
         })
@@ -392,8 +390,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::received_peer_st
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::received_peer_state::capability::typed_wildcard_fec::TypedWildcardFec {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let nbr = list_entry.as_neighbor().unwrap();
+    type ParentListEntry = &'a Neighbor;
+
+    fn new(_instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             enabled: Some(nbr.flags.contains(NeighborFlags::CAP_TYPED_WCARD)),
         })
@@ -401,8 +400,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::received_peer_st
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::session_holdtime::SessionHoldtime {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let nbr = list_entry.as_neighbor().unwrap();
+    type ParentListEntry = &'a Neighbor;
+
+    fn new(_instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             peer: nbr.kalive_holdtime_rcvd,
             negotiated: nbr.kalive_holdtime_negotiated,
@@ -412,8 +412,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::session_holdtime
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::tcp_connection::TcpConnection {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let nbr = list_entry.as_neighbor().unwrap();
+    type ParentListEntry = &'a Neighbor;
+
+    fn new(_instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<Self> {
         let conn_info = nbr.conn_info.as_ref()?;
         Some(Self {
             local_address: Some(conn_info.local_addr),
@@ -425,8 +426,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::tcp_connection::
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::statistics::Statistics {
-    fn new(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let nbr = list_entry.as_neighbor().unwrap();
+    type ParentListEntry = &'a Neighbor;
+
+    fn new(instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<Self> {
         let total_addresses = nbr.addr_list.len();
         let total_labels = nbr.rcvd_mappings.len();
         let total_fec_label_bindings = nbr.rcvd_mappings.keys().map(|prefix| instance.state.as_ref().unwrap().fecs.get(prefix).unwrap()).filter(|fec| fec.is_nbr_nexthop(nbr)).count();
@@ -440,8 +442,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::statistics::Stat
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::statistics::received::Received {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let nbr = list_entry.as_neighbor().unwrap();
+    type ParentListEntry = &'a Neighbor;
+
+    fn new(_instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<Self> {
         let msgs = &nbr.statistics.msgs_rcvd;
         Some(Self {
             total_octets: Some(msgs.total_bytes),
@@ -462,8 +465,9 @@ impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::statistics::rece
 }
 
 impl<'a> YangContainer<'a, Instance> for mpls_ldp::peers::peer::statistics::sent::Sent {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let nbr = list_entry.as_neighbor().unwrap();
+    type ParentListEntry = &'a Neighbor;
+
+    fn new(_instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<Self> {
         let msgs = &nbr.statistics.msgs_sent;
         Some(Self {
             total_octets: Some(msgs.total_bytes),

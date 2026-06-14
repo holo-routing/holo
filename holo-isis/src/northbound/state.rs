@@ -13,8 +13,7 @@ use std::fmt::Write;
 use std::sync::atomic;
 use std::time::Instant;
 
-use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, YangOps};
+use holo_northbound::state::{ListIterator, Provider, YangContainer, YangList, YangOps};
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::option::OptionExt;
@@ -39,7 +38,7 @@ use crate::route::{Nexthop, Route};
 use crate::spf::{SpfLogEntry, SpfScheduler};
 
 impl Provider for Instance {
-    type ListEntry<'a> = ListEntry<'a>;
+    type ListEntry<'a> = yang_gen::ops::ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = yang_gen::ops::YANG_OPS_STATE;
 
     fn top_level_node(&self) -> String {
@@ -47,61 +46,12 @@ impl Provider for Instance {
     }
 }
 
-#[derive(Debug, Default)]
-#[derive(EnumAsInner)]
-pub enum ListEntry<'a> {
-    #[default]
-    None,
-    SpfDelay(LevelNumber, &'a SpfScheduler),
-    SpfLog(&'a SpfLogEntry),
-    SpfTriggerLsp(&'a LspLogId),
-    LspLog(&'a LspLogEntry),
-    Hostname(SystemId, &'a String),
-    Lsdb(LevelNumber, &'a Lsdb),
-    LspEntry(&'a LspEntry),
-    RouterCap(&'a RouterCapTlv),
-    NodeTag(u32),
-    LabelBlockEntry(&'a LabelBlockEntry),
-    MultiTopologyEntry(&'a MultiTopologyEntry),
-    LegacyIsReach(LanId, Vec<&'a LegacyIsReach>),
-    LegacyIsReachInstance(u32, &'a LegacyIsReach),
-    ExtIsReach(LanId, Vec<&'a IsReach>),
-    ExtIsReachInstance(u32, &'a IsReach),
-    MtIsReach(u16, LanId, Vec<&'a IsReach>),
-    MtIsReachInstance(u32, &'a IsReach),
-    IsReachUnreservedBw(usize, f32),
-    AdjSidStlv(&'a AdjSidStlv),
-    AslaStlv(&'a AslaStlv),
-    Ipv4Reach(&'a LegacyIpv4Reach),
-    ExtIpv4Reach(&'a Ipv4Reach),
-    MtIpv4Reach(u16, &'a Ipv4Reach),
-    Ipv6Reach(&'a Ipv6Reach),
-    MtIpv6Reach(u16, &'a Ipv6Reach),
-    PrefixSidStlv(&'a PrefixSidStlv),
-    UnknownTlv(&'a UnknownTlv),
-    Route(IpNetwork, &'a Route),
-    Nexthop(&'a Nexthop),
-    SystemCounters(LevelNumber),
-    Interface(&'a Interface),
-    InterfacePacketCounters(&'a Interface, LevelNumber),
-    InterfaceSrmList(&'a Interface, LevelNumber),
-    InterfaceSsnList(&'a Interface, LevelNumber),
-    Adjacency(&'a Adjacency),
-    AdjacencySid(&'a AdjacencySid),
-    Msd(u8, u8),
-    MtCap(&'a MtCapabilityTlv),
-    SpbmService(&'a SpbmSiStlv),
-    SpbmIsid(&'a IsidEntry),
-}
-
-pub type ListIterator<'a> = Box<dyn Iterator<Item = ListEntry<'a>> + 'a>;
-
-impl ListEntryKind for ListEntry<'_> {}
-
 // ===== YANG impls =====
 
 impl<'a> YangContainer<'a, Instance> for isis::Isis {
-    fn new(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             discontinuity_time: instance.state.as_ref().map(|state| state.discontinuity_time).ignore_in_testing(),
         })
@@ -109,14 +59,16 @@ impl<'a> YangContainer<'a, Instance> for isis::Isis {
 }
 
 impl<'a> YangList<'a, Instance> for isis::spf_control::ietf_spf_delay::level::Level<'a> {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = (LevelNumber, &'a SpfScheduler);
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let spf_sched = &instance.state.as_ref()?.spf_sched;
-        let iter = instance.config.levels().map(|level| ListEntry::SpfDelay(level, spf_sched.get(level)));
-        Some(Box::new(iter))
+        let iter = instance.config.levels().map(|level| (level, spf_sched.get(level)));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (level, spf_sched) = list_entry.as_spf_delay().unwrap();
+    fn new(_instance: &'a Instance, (level, spf_sched): &Self::ListEntry) -> Self {
         Self {
             level: *level as u8,
             current_state: Some(spf_sched.delay_state.to_yang()),
@@ -130,14 +82,16 @@ impl<'a> YangList<'a, Instance> for isis::spf_control::ietf_spf_delay::level::Le
 }
 
 impl<'a> YangList<'a, Instance> for isis::spf_log::event::Event<'a> {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a SpfLogEntry;
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let spf_log = &instance.state.as_ref()?.spf_log;
-        let iter = spf_log.iter().map(ListEntry::SpfLog);
-        Some(Box::new(iter) as _).ignore_in_testing()
+        let iter = spf_log.iter();
+        Some(iter).ignore_in_testing()
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let log = list_entry.as_spf_log().unwrap();
+    fn new(_instance: &'a Instance, log: &Self::ListEntry) -> Self {
         Self {
             id: log.id,
             spf_type: Some(log.spf_type.to_yang()),
@@ -150,14 +104,15 @@ impl<'a> YangList<'a, Instance> for isis::spf_log::event::Event<'a> {
 }
 
 impl<'a> YangList<'a, Instance> for isis::spf_log::event::trigger_lsp::TriggerLsp {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let log = list_entry.as_spf_log().unwrap();
-        let iter = log.trigger_lsps.iter().map(ListEntry::SpfTriggerLsp);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a SpfLogEntry;
+    type ListEntry = &'a LspLogId;
+
+    fn iter(_instance: &'a Instance, log: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = log.trigger_lsps.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let lsp = list_entry.as_spf_trigger_lsp().unwrap();
+    fn new(_instance: &'a Instance, lsp: &Self::ListEntry) -> Self {
         Self {
             lsp: lsp.lsp_id,
             sequence: Some(lsp.seqno),
@@ -166,14 +121,16 @@ impl<'a> YangList<'a, Instance> for isis::spf_log::event::trigger_lsp::TriggerLs
 }
 
 impl<'a> YangList<'a, Instance> for isis::lsp_log::event::Event<'a> {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a LspLogEntry;
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp_log = &instance.state.as_ref()?.lsp_log;
-        let iter = lsp_log.iter().map(ListEntry::LspLog);
-        Some(Box::new(iter) as _).ignore_in_testing()
+        let iter = lsp_log.iter();
+        Some(iter).ignore_in_testing()
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let log = list_entry.as_lsp_log().unwrap();
+    fn new(_instance: &'a Instance, log: &Self::ListEntry) -> Self {
         Self {
             id: log.id,
             level: Some(log.level as u8),
@@ -184,8 +141,9 @@ impl<'a> YangList<'a, Instance> for isis::lsp_log::event::Event<'a> {
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::lsp_log::event::lsp::Lsp {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let log = list_entry.as_lsp_log().unwrap();
+    type ParentListEntry = &'a LspLogEntry;
+
+    fn new(_instance: &'a Instance, log: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             lsp: Some(log.lsp.lsp_id),
             sequence: Some(log.lsp.seqno),
@@ -194,14 +152,16 @@ impl<'a> YangContainer<'a, Instance> for isis::lsp_log::event::lsp::Lsp {
 }
 
 impl<'a> YangList<'a, Instance> for isis::hostnames::hostname::Hostname<'a> {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = (SystemId, &'a String);
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let hostnames = &instance.state.as_ref()?.hostnames;
-        let iter = hostnames.iter().map(|(system_id, hostname)| ListEntry::Hostname(*system_id, hostname));
-        Some(Box::new(iter))
+        let iter = hostnames.iter().map(|(system_id, hostname)| (*system_id, hostname));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (system_id, hostname) = list_entry.as_hostname().unwrap();
+    fn new(_instance: &'a Instance, (system_id, hostname): &Self::ListEntry) -> Self {
         Self {
             system_id: *system_id,
             hostname: Some(Cow::Borrowed(hostname)),
@@ -210,14 +170,16 @@ impl<'a> YangList<'a, Instance> for isis::hostnames::hostname::Hostname<'a> {
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::Levels {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = (LevelNumber, &'a Lsdb);
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsdb = &instance.state.as_ref()?.lsdb;
-        let iter = instance.config.levels().map(|level| ListEntry::Lsdb(level, lsdb.get(level)));
-        Some(Box::new(iter))
+        let iter = instance.config.levels().map(|level| (level, lsdb.get(level)));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (level, lsdb) = list_entry.as_lsdb().unwrap();
+    fn new(_instance: &'a Instance, (level, lsdb): &Self::ListEntry) -> Self {
         Self {
             level: *level as u8,
             lsp_count: Some(lsdb.lsp_count()),
@@ -226,14 +188,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::Levels {
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::Lsp<'a> {
-    fn iter(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, lsdb) = list_entry.as_lsdb().unwrap();
-        let iter = lsdb.iter(&instance.arenas.lsp_entries).map(ListEntry::LspEntry);
-        Some(Box::new(iter))
+    type ParentListEntry = (LevelNumber, &'a Lsdb);
+    type ListEntry = &'a LspEntry;
+
+    fn iter(instance: &'a Instance, (_, lsdb): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = lsdb.iter(&instance.arenas.lsp_entries);
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    fn new(_instance: &'a Instance, lse: &Self::ListEntry) -> Self {
         let lsp = &lse.data;
         let remaining_lifetime = lsp.rem_lifetime();
         let ipv4_addresses = lsp.tlvs.ipv4_addrs().copied();
@@ -261,8 +224,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::Lsp<'a> {
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::attributes::Attributes<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+
+    fn new(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<Self> {
         let lsp = &lse.data;
         Some(Self {
             lsp_flags: lsp.flags.to_yang_flags_iter(),
@@ -271,8 +235,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::attributes
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::authentication::Authentication<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+
+    fn new(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<Self> {
         let lsp = &lse.data;
         let auth_tlv = lsp.tlvs.auth.as_ref()?;
         let authentication_type = match auth_tlv {
@@ -303,15 +268,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::authentica
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_entries::topology::Topology {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = &'a MultiTopologyEntry;
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
-        let iter = lsp.tlvs.multi_topology().map(ListEntry::MultiTopologyEntry);
-        Some(Box::new(iter))
+        let iter = lsp.tlvs.multi_topology();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let mt = list_entry.as_multi_topology_entry().unwrap();
+    fn new(_instance: &'a Instance, mt: &Self::ListEntry) -> Self {
         Self {
             mt_id: Some(mt.mt_id),
         }
@@ -319,8 +285,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_entries::top
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_entries::topology::attributes::Attributes<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let mt = list_entry.as_multi_topology_entry().unwrap();
+    type ParentListEntry = &'a MultiTopologyEntry;
+
+    fn new(_instance: &'a Instance, mt: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             flags: mt.flags.to_yang_flags_iter(),
         })
@@ -328,15 +295,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_entries
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabilities::router_capability::RouterCapability {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = &'a RouterCapTlv;
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
-        let iter = lsp.tlvs.router_cap.iter().map(ListEntry::RouterCap);
-        Some(Box::new(iter))
+        let iter = lsp.tlvs.router_cap.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let router_cap = list_entry.as_router_cap().unwrap();
+    fn new(_instance: &'a Instance, router_cap: &Self::ListEntry) -> Self {
         Self {
             flooding_algorithm: router_cap.sub_tlvs.flooding_algo.as_ref().map(|stlv| stlv.get()),
         }
@@ -344,8 +312,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabili
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::router_capabilities::router_capability::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let router_cap = list_entry.as_router_cap().unwrap();
+    type ParentListEntry = &'a RouterCapTlv;
+
+    fn new(_instance: &'a Instance, router_cap: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             router_capability_flags: router_cap.flags.to_yang_flags_iter(),
         })
@@ -353,14 +322,15 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::router_cap
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabilities::router_capability::node_tags::node_tag::NodeTag {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let router_cap = list_entry.as_router_cap().unwrap();
-        let iter = router_cap.sub_tlvs.node_tags.iter().flat_map(|stlv| stlv.get().iter().copied()).map(ListEntry::NodeTag);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a RouterCapTlv;
+    type ListEntry = u32;
+
+    fn iter(_instance: &'a Instance, router_cap: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = router_cap.sub_tlvs.node_tags.iter().flat_map(|stlv| stlv.get().iter().copied());
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let node_tag = list_entry.as_node_tag().unwrap();
+    fn new(_instance: &'a Instance, node_tag: &Self::ListEntry) -> Self {
         Self {
             tag: Some(*node_tag),
         }
@@ -368,14 +338,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabili
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabilities::router_capability::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let router_cap = list_entry.as_router_cap().unwrap();
-        let iter = router_cap.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a RouterCapTlv;
+    type ListEntry = &'a UnknownTlv;
+
+    fn iter(_instance: &'a Instance, router_cap: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = router_cap.sub_tlvs.unknown.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let tlv = list_entry.as_unknown_tlv().unwrap();
+    fn new(_instance: &'a Instance, tlv: &Self::ListEntry) -> Self {
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
@@ -385,15 +356,16 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabili
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabilities::router_capability::node_msd_tlv::node_msds::NodeMsds {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let router_cap = list_entry.as_router_cap().unwrap();
+    type ParentListEntry = &'a RouterCapTlv;
+    type ListEntry = (u8, u8);
+
+    fn iter(_instance: &'a Instance, router_cap: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let node_msd = router_cap.sub_tlvs.node_msd.as_ref()?;
-        let iter = node_msd.get().iter().map(|(msd_type, msd_value)| ListEntry::Msd(*msd_type, *msd_value));
-        Some(Box::new(iter))
+        let iter = node_msd.get().iter().map(|(msd_type, msd_value)| (*msd_type, *msd_value));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (msd_type, msd_value) = list_entry.as_msd().unwrap();
+    fn new(_instance: &'a Instance, (msd_type, msd_value): &Self::ListEntry) -> Self {
         Self {
             msd_type: *msd_type,
             msd_value: Some(*msd_value),
@@ -402,8 +374,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabili
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::SrCapability<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let router_cap = list_entry.as_router_cap().unwrap();
+    type ParentListEntry = &'a RouterCapTlv;
+
+    fn new(_instance: &'a Instance, router_cap: &Self::ParentListEntry) -> Option<Self> {
         let sr_cap = &router_cap.sub_tlvs.sr_cap.as_ref()?;
         Some(Self {
             sr_capability_flag: sr_cap.flags.to_yang_flags_iter(),
@@ -412,15 +385,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::router_cap
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabilities::router_capability::sr_capability::global_blocks::global_block::GlobalBlock {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let router_cap = list_entry.as_router_cap().unwrap();
+    type ParentListEntry = &'a RouterCapTlv;
+    type ListEntry = &'a LabelBlockEntry;
+
+    fn iter(_instance: &'a Instance, router_cap: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let sr_cap = &router_cap.sub_tlvs.sr_cap.as_ref()?;
-        let iter = sr_cap.srgb_entries.iter().map(ListEntry::LabelBlockEntry);
-        Some(Box::new(iter))
+        let iter = sr_cap.srgb_entries.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let label_block = list_entry.as_label_block_entry().unwrap();
+    fn new(_instance: &'a Instance, label_block: &Self::ListEntry) -> Self {
         Self {
             range_size: Some(label_block.range),
             label_value: label_block.first.as_label().map(|label| label.get()),
@@ -430,8 +404,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabili
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::router_capabilities::router_capability::sr_algorithms::SrAlgorithms<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let router_cap = list_entry.as_router_cap().unwrap();
+    type ParentListEntry = &'a RouterCapTlv;
+
+    fn new(_instance: &'a Instance, router_cap: &Self::ParentListEntry) -> Option<Self> {
         let sr_algo = &router_cap.sub_tlvs.sr_algo.as_ref()?;
         let iter = sr_algo.get().iter().map(|algo| algo.to_yang());
         Some(Self {
@@ -441,15 +416,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::router_cap
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabilities::router_capability::local_blocks::local_block::LocalBlock {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let router_cap = list_entry.as_router_cap().unwrap();
+    type ParentListEntry = &'a RouterCapTlv;
+    type ListEntry = &'a LabelBlockEntry;
+
+    fn iter(_instance: &'a Instance, router_cap: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let srlb = router_cap.sub_tlvs.srlb.as_ref()?;
-        let iter = srlb.entries.iter().map(ListEntry::LabelBlockEntry);
-        Some(Box::new(iter))
+        let iter = srlb.entries.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let label_block = list_entry.as_label_block_entry().unwrap();
+    fn new(_instance: &'a Instance, label_block: &Self::ListEntry) -> Self {
         Self {
             range_size: Some(label_block.range),
             label_value: label_block.first.as_label().map(|label| label.get()),
@@ -459,15 +435,16 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::router_capabili
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = &'a UnknownTlv;
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
-        let iter = lsp.tlvs.unknown.iter().map(ListEntry::UnknownTlv);
-        Some(Box::new(iter))
+        let iter = lsp.tlvs.unknown.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let tlv = list_entry.as_unknown_tlv().unwrap();
+    fn new(_instance: &'a Instance, tlv: &Self::ListEntry) -> Self {
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
@@ -477,8 +454,10 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::unknown_tlvs::u
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::is_neighbor::neighbor::Neighbor {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = (LanId, Vec<&'a LegacyIsReach>);
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
         let iter = lsp
             .tlvs
@@ -488,13 +467,11 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::is_neighbor::ne
                 entries.entry(list_key).or_default().push(reach);
                 entries
             })
-            .into_iter()
-            .map(|(neighbor, entries)| ListEntry::LegacyIsReach(neighbor, entries));
-        Some(Box::new(iter))
+            .into_iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (neighbor, _) = list_entry.as_legacy_is_reach().unwrap();
+    fn new(_instance: &'a Instance, (neighbor, _): &Self::ListEntry) -> Self {
         Self {
             neighbor_id: *neighbor,
         }
@@ -502,14 +479,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::is_neighbor::ne
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::Instance {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, entries) = list_entry.as_legacy_is_reach().unwrap();
-        let iter = entries.clone().into_iter().enumerate().map(|(id, entry)| ListEntry::LegacyIsReachInstance(id as u32, entry));
-        Some(Box::new(iter))
+    type ParentListEntry = (LanId, Vec<&'a LegacyIsReach>);
+    type ListEntry = (u32, &'a LegacyIsReach);
+
+    fn iter(_instance: &'a Instance, (_, entries): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = entries.clone().into_iter().enumerate().map(|(id, entry)| (id as u32, entry));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (id, _) = list_entry.as_legacy_is_reach_instance().unwrap();
+    fn new(_instance: &'a Instance, (id, _): &Self::ListEntry) -> Self {
         Self {
             id: *id,
             i_e: Some(false),
@@ -518,8 +496,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::is_neighbor::ne
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::default_metric::DefaultMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_legacy_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a LegacyIsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: Some(reach.metric),
         })
@@ -527,8 +506,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::is_neighbo
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::delay_metric::DelayMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_legacy_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a LegacyIsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: reach.metric_delay,
             supported: Some(reach.metric_delay.is_some()),
@@ -537,8 +517,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::is_neighbo
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::expense_metric::ExpenseMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_legacy_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a LegacyIsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: reach.metric_expense,
             supported: Some(reach.metric_expense.is_some()),
@@ -547,8 +528,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::is_neighbo
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::is_neighbor::neighbor::instances::instance::error_metric::ErrorMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_legacy_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a LegacyIsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: reach.metric_error,
             supported: Some(reach.metric_error.is_some()),
@@ -557,8 +539,10 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::is_neighbo
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::Neighbor {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = (LanId, Vec<&'a IsReach>);
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
         let iter = lsp
             .tlvs
@@ -568,13 +552,11 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
                 entries.entry(list_key).or_default().push(reach);
                 entries
             })
-            .into_iter()
-            .map(|(neighbor, entries)| ListEntry::ExtIsReach(neighbor, entries));
-        Some(Box::new(iter))
+            .into_iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (neighbor, _) = list_entry.as_ext_is_reach().unwrap();
+    fn new(_instance: &'a Instance, (neighbor, _): &Self::ListEntry) -> Self {
         Self {
             neighbor_id: *neighbor,
         }
@@ -582,14 +564,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::Instance<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, entries) = list_entry.as_ext_is_reach().unwrap();
-        let iter = entries.clone().into_iter().enumerate().map(|(id, entry)| ListEntry::ExtIsReachInstance(id as u32, entry));
-        Some(Box::new(iter))
+    type ParentListEntry = (LanId, Vec<&'a IsReach>);
+    type ListEntry = (u32, &'a IsReach);
+
+    fn iter(_instance: &'a Instance, (_, entries): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = entries.clone().into_iter().enumerate().map(|(id, entry)| (id as u32, entry));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (id, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    fn new(_instance: &'a Instance, (id, reach): &Self::ListEntry) -> Self {
         Self {
             id: *id,
             metric: Some(reach.metric),
@@ -603,8 +586,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::LocalIfIpv4Addrs<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let iter = reach.sub_tlvs.ipv4_interface_addr.iter().map(|tlv| tlv.get());
         Some(Self {
             local_if_ipv4_addr: Some(Box::new(iter)),
@@ -613,8 +597,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::RemoteIfIpv4Addrs<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let iter = reach.sub_tlvs.ipv4_neighbor_addr.iter().map(|tlv| tlv.get());
         Some(Self {
             remote_if_ipv4_addr: Some(Box::new(iter)),
@@ -623,15 +608,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+    type ListEntry = (usize, f32);
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unreserved_bw = reach.sub_tlvs.unreserved_bw.as_ref()?;
-        let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::IsReachUnreservedBw(prio, bw));
-        Some(Box::new(iter))
+        let iter = unreserved_bw.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (priority, unreserved_bandwidth) = list_entry.as_is_reach_unreserved_bw().unwrap();
+    fn new(_instance: &'a Instance, (priority, unreserved_bandwidth): &Self::ListEntry) -> Self {
         Self {
             priority: Some(*priority as u8),
             unreserved_bandwidth: Some(*unreserved_bandwidth),
@@ -640,8 +626,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_delay::UnidirectionalLinkDelay {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_link_delay.as_ref()?;
         Some(Self {
             value: Some(stlv.delay),
@@ -650,8 +637,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_delay::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_link_delay.as_ref()?;
         Some(Self {
             unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -660,8 +648,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::min_max_unidirectional_link_delay::MinMaxUnidirectionalLinkDelay {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.min_max_uni_link_delay.as_ref()?;
         Some(Self {
             min_value: Some(stlv.min_delay),
@@ -671,8 +660,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::min_max_unidirectional_link_delay::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.min_max_uni_link_delay.as_ref()?;
         Some(Self {
             min_max_unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -681,8 +671,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_delay_variation::UnidirectionalLinkDelayVariation {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_delay_variation.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -691,8 +682,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_loss::UnidirectionalLinkLoss {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_link_loss.as_ref()?;
         Some(Self {
             value: Some(stlv.loss),
@@ -701,8 +693,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_loss::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_link_loss.as_ref()?;
         Some(Self {
             unidirectional_link_loss_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -711,8 +704,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_resid_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -721,8 +715,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_avail_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -731,8 +726,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_util_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -741,14 +737,15 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::AslaSubTlv {
-    fn iter(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
-        let iter = reach.sub_tlvs.asla.iter().map(ListEntry::AslaStlv);
-        Some(Box::new(iter))
+    type ParentListEntry = (u32, &'a IsReach);
+    type ListEntry = &'a AslaStlv;
+
+    fn iter(_provider: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.asla.iter();
+        Some(iter)
     }
 
-    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    fn new(_provider: &'a Instance, stlv: &Self::ListEntry) -> Self {
         Self {
             l_flag: Some(stlv.l_flag),
             sabm_length: Some(stlv.sabm_length),
@@ -762,8 +759,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::sabm::Sabm<'a> {
-    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_provider: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             sabm_bits: stlv.sabm.to_yang_flags_iter(),
         })
@@ -771,15 +769,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+    type ListEntry = (usize, f32);
+
+    fn iter(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unreserved_bw = stlv.sub_tlvs.unreserved_bw.as_ref()?;
-        let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::IsReachUnreservedBw(prio, bw));
-        Some(Box::new(iter))
+        let iter = unreserved_bw.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (priority, unreserved_bandwidth) = list_entry.as_is_reach_unreserved_bw().unwrap();
+    fn new(_instance: &'a Instance, (priority, unreserved_bandwidth): &Self::ListEntry) -> Self {
         Self {
             priority: Some(*priority as u8),
             unreserved_bandwidth: Some(*unreserved_bandwidth),
@@ -788,8 +787,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay::UnidirectionalLinkDelay {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_link_delay.as_ref()?;
         Some(Self {
             value: Some(stlv.delay),
@@ -798,8 +798,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_link_delay.as_ref()?;
         Some(Self {
             unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -808,8 +809,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::min_max_unidirectional_link_delay::MinMaxUnidirectionalLinkDelay {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.min_max_uni_link_delay.as_ref()?;
         Some(Self {
             min_value: Some(stlv.min_delay),
@@ -819,8 +821,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::min_max_unidirectional_link_delay::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.min_max_uni_link_delay.as_ref()?;
         Some(Self {
             min_max_unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -829,8 +832,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay_variation::UnidirectionalLinkDelayVariation {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_delay_variation.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -839,8 +843,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_loss::UnidirectionalLinkLoss {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_link_loss.as_ref()?;
         Some(Self {
             value: Some(stlv.loss),
@@ -849,8 +854,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_loss::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_link_loss.as_ref()?;
         Some(Self {
             unidirectional_link_loss_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -859,8 +865,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_resid_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -869,8 +876,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_avail_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -879,8 +887,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_util_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -889,14 +898,15 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
-    fn iter(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
-        let iter = stlv.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a AslaStlv;
+    type ListEntry = &'a UnknownTlv;
+
+    fn iter(_provider: &'a Instance, stlv: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = stlv.sub_tlvs.unknown.iter();
+        Some(iter)
     }
 
-    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let tlv = list_entry.as_unknown_tlv().unwrap();
+    fn new(_provider: &'a Instance, tlv: &Self::ListEntry) -> Self {
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
@@ -906,14 +916,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
-        let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
-        Some(Box::new(iter))
+    type ParentListEntry = (u32, &'a IsReach);
+    type ListEntry = &'a UnknownTlv;
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.unknown.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let tlv = list_entry.as_unknown_tlv().unwrap();
+    fn new(_instance: &'a Instance, tlv: &Self::ListEntry) -> Self {
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
@@ -923,15 +934,16 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::link_msd_sub_tlv::link_msds::LinkMsds {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+    type ListEntry = (u8, u8);
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let link_msd = &reach.sub_tlvs.link_msd.as_ref()?;
-        let iter = link_msd.get().iter().map(|(msd_type, msd_value)| ListEntry::Msd(*msd_type, *msd_value));
-        Some(Box::new(iter))
+        let iter = link_msd.get().iter().map(|(msd_type, msd_value)| (*msd_type, *msd_value));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (msd_type, msd_value) = list_entry.as_msd().unwrap();
+    fn new(_instance: &'a Instance, (msd_type, msd_value): &Self::ListEntry) -> Self {
         Self {
             msd_type: *msd_type,
             msd_value: Some(*msd_value),
@@ -940,14 +952,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::AdjSidSubTlv {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_ext_is_reach_instance().unwrap();
-        let iter = reach.sub_tlvs.adj_sids.iter().map(ListEntry::AdjSidStlv);
-        Some(Box::new(iter))
+    type ParentListEntry = (u32, &'a IsReach);
+    type ListEntry = &'a AdjSidStlv;
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.adj_sids.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let stlv = list_entry.as_adj_sid_stlv().unwrap();
+    fn new(_instance: &'a Instance, stlv: &Self::ListEntry) -> Self {
         Self {
             weight: Some(stlv.weight),
             neighbor_id: stlv.nbr_system_id,
@@ -958,8 +971,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::AdjSidFlags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_adj_sid_stlv().unwrap();
+    type ParentListEntry = &'a AdjSidStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             flag: stlv.flags.to_yang_flags_iter(),
         })
@@ -967,15 +981,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv4_internal_reachability::prefixes::Prefixes {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = &'a LegacyIpv4Reach;
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
-        let iter = lsp.tlvs.ipv4_internal_reach().map(ListEntry::Ipv4Reach);
-        Some(Box::new(iter))
+        let iter = lsp.tlvs.ipv4_internal_reach();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let reach = list_entry.as_ipv4_reach().unwrap();
+    fn new(_instance: &'a Instance, reach: &Self::ListEntry) -> Self {
         Self {
             ip_prefix: Some(reach.prefix.ip()),
             prefix_len: Some(reach.prefix.prefix()),
@@ -985,8 +1000,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv4_internal_r
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_internal_reachability::prefixes::default_metric::DefaultMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let reach = list_entry.as_ipv4_reach().unwrap();
+    type ParentListEntry = &'a LegacyIpv4Reach;
+
+    fn new(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: Some(reach.metric),
         })
@@ -994,8 +1010,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_inter
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_internal_reachability::prefixes::delay_metric::DelayMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let reach = list_entry.as_ipv4_reach().unwrap();
+    type ParentListEntry = &'a LegacyIpv4Reach;
+
+    fn new(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: reach.metric_delay,
             supported: Some(reach.metric_delay.is_some()),
@@ -1004,8 +1021,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_inter
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_internal_reachability::prefixes::expense_metric::ExpenseMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let reach = list_entry.as_ipv4_reach().unwrap();
+    type ParentListEntry = &'a LegacyIpv4Reach;
+
+    fn new(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: reach.metric_expense,
             supported: Some(reach.metric_expense.is_some()),
@@ -1014,8 +1032,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_inter
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_internal_reachability::prefixes::error_metric::ErrorMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let reach = list_entry.as_ipv4_reach().unwrap();
+    type ParentListEntry = &'a LegacyIpv4Reach;
+
+    fn new(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: reach.metric_error,
             supported: Some(reach.metric_error.is_some()),
@@ -1024,15 +1043,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_inter
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv4_external_reachability::prefixes::Prefixes {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = &'a LegacyIpv4Reach;
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
-        let iter = lsp.tlvs.ipv4_external_reach().map(ListEntry::Ipv4Reach);
-        Some(Box::new(iter))
+        let iter = lsp.tlvs.ipv4_external_reach();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let reach = list_entry.as_ipv4_reach().unwrap();
+    fn new(_instance: &'a Instance, reach: &Self::ListEntry) -> Self {
         Self {
             ip_prefix: Some(reach.prefix.ip()),
             prefix_len: Some(reach.prefix.prefix()),
@@ -1042,8 +1062,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv4_external_r
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_external_reachability::prefixes::default_metric::DefaultMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let reach = list_entry.as_ipv4_reach().unwrap();
+    type ParentListEntry = &'a LegacyIpv4Reach;
+
+    fn new(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: Some(reach.metric),
         })
@@ -1051,8 +1072,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_exter
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_external_reachability::prefixes::delay_metric::DelayMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let reach = list_entry.as_ipv4_reach().unwrap();
+    type ParentListEntry = &'a LegacyIpv4Reach;
+
+    fn new(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: reach.metric_delay,
             supported: Some(reach.metric_delay.is_some()),
@@ -1061,8 +1083,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_exter
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_external_reachability::prefixes::expense_metric::ExpenseMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let reach = list_entry.as_ipv4_reach().unwrap();
+    type ParentListEntry = &'a LegacyIpv4Reach;
+
+    fn new(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: reach.metric_expense,
             supported: Some(reach.metric_expense.is_some()),
@@ -1071,8 +1094,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_exter
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_external_reachability::prefixes::error_metric::ErrorMetric {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let reach = list_entry.as_ipv4_reach().unwrap();
+    type ParentListEntry = &'a LegacyIpv4Reach;
+
+    fn new(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             metric: reach.metric_error,
             supported: Some(reach.metric_error.is_some()),
@@ -1081,15 +1105,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv4_exter
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_reachability::prefixes::Prefixes {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = &'a Ipv4Reach;
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
-        let iter = lsp.tlvs.ext_ipv4_reach().map(ListEntry::ExtIpv4Reach);
-        Some(Box::new(iter))
+        let iter = lsp.tlvs.ext_ipv4_reach();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let reach = list_entry.as_ext_ipv4_reach().unwrap();
+    fn new(_instance: &'a Instance, reach: &Self::ListEntry) -> Self {
         Self {
             up_down: Some(reach.up_down),
             ip_prefix: Some(reach.prefix.ip()),
@@ -1105,14 +1130,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_r
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_reachability::prefixes::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let reach = list_entry.as_ext_ipv4_reach().unwrap();
-        let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a Ipv4Reach;
+    type ListEntry = &'a UnknownTlv;
+
+    fn iter(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.unknown.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let tlv = list_entry.as_unknown_tlv().unwrap();
+    fn new(_instance: &'a Instance, tlv: &Self::ListEntry) -> Self {
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
@@ -1122,14 +1148,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_r
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let reach = list_entry.as_ext_ipv4_reach().unwrap();
-        let iter = reach.sub_tlvs.prefix_sids.values().map(ListEntry::PrefixSidStlv);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a Ipv4Reach;
+    type ListEntry = &'a PrefixSidStlv;
+
+    fn iter(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.prefix_sids.values();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let stlv = list_entry.as_prefix_sid_stlv().unwrap();
+    fn new(_instance: &'a Instance, stlv: &Self::ListEntry) -> Self {
         Self {
             algorithm: Some(stlv.algo.to_yang()),
             label_value: stlv.sid.as_label().map(|label| label.get()),
@@ -1139,8 +1166,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_ipv4_r
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_ipv4_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PrefixSidFlags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_prefix_sid_stlv().unwrap();
+    type ParentListEntry = &'a PrefixSidStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             flag: stlv.flags.to_yang_flags_iter(),
         })
@@ -1148,8 +1176,10 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::Neighbor {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = (u16, LanId, Vec<&'a IsReach>);
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
         let iter = lsp
             .tlvs
@@ -1160,12 +1190,11 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
                 entries
             })
             .into_iter()
-            .map(|((mt_id, neighbor), entries)| ListEntry::MtIsReach(mt_id, neighbor, entries));
-        Some(Box::new(iter))
+            .map(|((mt_id, neighbor), entries)| (mt_id, neighbor, entries));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (mt_id, neighbor, _) = list_entry.as_mt_is_reach().unwrap();
+    fn new(_instance: &'a Instance, (mt_id, neighbor, _): &Self::ListEntry) -> Self {
         Self {
             mt_id: Some(*mt_id),
             neighbor_id: Some(*neighbor),
@@ -1174,14 +1203,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::Instance<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, _, entries) = list_entry.as_mt_is_reach().unwrap();
-        let iter = entries.clone().into_iter().enumerate().map(|(id, entry)| ListEntry::MtIsReachInstance(id as u32, entry));
-        Some(Box::new(iter))
+    type ParentListEntry = (u16, LanId, Vec<&'a IsReach>);
+    type ListEntry = (u32, &'a IsReach);
+
+    fn iter(_instance: &'a Instance, (_, _, entries): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = entries.clone().into_iter().enumerate().map(|(id, entry)| (id as u32, entry));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (id, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    fn new(_instance: &'a Instance, (id, reach): &Self::ListEntry) -> Self {
         Self {
             id: *id,
             metric: Some(reach.metric),
@@ -1195,8 +1225,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::local_if_ipv4_addrs::LocalIfIpv4Addrs<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let iter = reach.sub_tlvs.ipv4_interface_addr.iter().map(|tlv| tlv.get());
         Some(Self {
             local_if_ipv4_addr: Some(Box::new(iter)),
@@ -1205,8 +1236,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::remote_if_ipv4_addrs::RemoteIfIpv4Addrs<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let iter = reach.sub_tlvs.ipv4_neighbor_addr.iter().map(|tlv| tlv.get());
         Some(Self {
             remote_if_ipv4_addr: Some(Box::new(iter)),
@@ -1215,15 +1247,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+    type ListEntry = (usize, f32);
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unreserved_bw = reach.sub_tlvs.unreserved_bw.as_ref()?;
-        let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::IsReachUnreservedBw(prio, bw));
-        Some(Box::new(iter))
+        let iter = unreserved_bw.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (priority, unreserved_bandwidth) = list_entry.as_is_reach_unreserved_bw().unwrap();
+    fn new(_instance: &'a Instance, (priority, unreserved_bandwidth): &Self::ListEntry) -> Self {
         Self {
             priority: Some(*priority as u8),
             unreserved_bandwidth: Some(*unreserved_bandwidth),
@@ -1232,8 +1265,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_delay::UnidirectionalLinkDelay {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_link_delay.as_ref()?;
         Some(Self {
             value: Some(stlv.delay),
@@ -1242,8 +1276,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_delay::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_link_delay.as_ref()?;
         Some(Self {
             unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -1252,8 +1287,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::min_max_unidirectional_link_delay::MinMaxUnidirectionalLinkDelay {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.min_max_uni_link_delay.as_ref()?;
         Some(Self {
             min_value: Some(stlv.min_delay),
@@ -1263,8 +1299,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::min_max_unidirectional_link_delay::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.min_max_uni_link_delay.as_ref()?;
         Some(Self {
             min_max_unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -1273,8 +1310,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_delay_variation::UnidirectionalLinkDelayVariation {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_delay_variation.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -1283,8 +1321,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_loss::UnidirectionalLinkLoss {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_link_loss.as_ref()?;
         Some(Self {
             value: Some(stlv.loss),
@@ -1293,8 +1332,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_loss::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_link_loss.as_ref()?;
         Some(Self {
             unidirectional_link_loss_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -1303,8 +1343,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_resid_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -1313,8 +1354,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_avail_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -1323,8 +1365,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+
+    fn new(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<Self> {
         let stlv = reach.sub_tlvs.uni_util_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -1333,14 +1376,15 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::AslaSubTlv {
-    fn iter(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
-        let iter = reach.sub_tlvs.asla.iter().map(ListEntry::AslaStlv);
-        Some(Box::new(iter))
+    type ParentListEntry = (u32, &'a IsReach);
+    type ListEntry = &'a AslaStlv;
+
+    fn iter(_provider: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.asla.iter();
+        Some(iter)
     }
 
-    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    fn new(_provider: &'a Instance, stlv: &Self::ListEntry) -> Self {
         Self {
             l_flag: Some(stlv.l_flag),
             sabm_length: Some(stlv.sabm_length),
@@ -1354,8 +1398,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::sabm::Sabm<'a> {
-    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_provider: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             sabm_bits: stlv.sabm.to_yang_flags_iter(),
         })
@@ -1363,15 +1408,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unreserved_bandwidths::unreserved_bandwidth::UnreservedBandwidth {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+    type ListEntry = (usize, f32);
+
+    fn iter(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unreserved_bw = stlv.sub_tlvs.unreserved_bw.as_ref()?;
-        let iter = unreserved_bw.iter().map(|(prio, bw)| ListEntry::IsReachUnreservedBw(prio, bw));
-        Some(Box::new(iter))
+        let iter = unreserved_bw.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (priority, unreserved_bandwidth) = list_entry.as_is_reach_unreserved_bw().unwrap();
+    fn new(_instance: &'a Instance, (priority, unreserved_bandwidth): &Self::ListEntry) -> Self {
         Self {
             priority: Some(*priority as u8),
             unreserved_bandwidth: Some(*unreserved_bandwidth),
@@ -1380,8 +1426,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay::UnidirectionalLinkDelay {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_link_delay.as_ref()?;
         Some(Self {
             value: Some(stlv.delay),
@@ -1390,8 +1437,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_link_delay.as_ref()?;
         Some(Self {
             unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -1400,8 +1448,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::min_max_unidirectional_link_delay::MinMaxUnidirectionalLinkDelay {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.min_max_uni_link_delay.as_ref()?;
         Some(Self {
             min_value: Some(stlv.min_delay),
@@ -1411,8 +1460,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::min_max_unidirectional_link_delay::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.min_max_uni_link_delay.as_ref()?;
         Some(Self {
             min_max_unidirectional_link_delay_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -1421,8 +1471,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_delay_variation::UnidirectionalLinkDelayVariation {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_delay_variation.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -1431,8 +1482,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_loss::UnidirectionalLinkLoss {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_link_loss.as_ref()?;
         Some(Self {
             value: Some(stlv.loss),
@@ -1441,8 +1493,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_loss::flags::Flags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_link_loss.as_ref()?;
         Some(Self {
             unidirectional_link_loss_subtlv_flags: stlv.flags.to_yang_flags_iter(),
@@ -1451,8 +1504,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_residual_bandwidth::UnidirectionalLinkResidualBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_resid_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -1461,8 +1515,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_available_bandwidth::UnidirectionalLinkAvailableBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_avail_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -1471,8 +1526,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unidirectional_link_utilized_bandwidth::UnidirectionalLinkUtilizedBandwidth {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
+    type ParentListEntry = &'a AslaStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         let stlv = stlv.sub_tlvs.uni_util_bw.as_ref()?;
         Some(Self {
             value: Some(stlv.get()),
@@ -1481,14 +1537,15 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
-    fn iter(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let stlv = list_entry.as_asla_stlv().unwrap();
-        let iter = stlv.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a AslaStlv;
+    type ListEntry = &'a UnknownTlv;
+
+    fn iter(_provider: &'a Instance, stlv: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = stlv.sub_tlvs.unknown.iter();
+        Some(iter)
     }
 
-    fn new(_provider: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let tlv = list_entry.as_unknown_tlv().unwrap();
+    fn new(_provider: &'a Instance, tlv: &Self::ListEntry) -> Self {
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
@@ -1496,15 +1553,17 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
         }
     }
 }
+
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
-        let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
-        Some(Box::new(iter))
+    type ParentListEntry = (u32, &'a IsReach);
+    type ListEntry = &'a UnknownTlv;
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.unknown.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let tlv = list_entry.as_unknown_tlv().unwrap();
+    fn new(_instance: &'a Instance, tlv: &Self::ListEntry) -> Self {
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
@@ -1514,15 +1573,16 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::link_msd_sub_tlv::link_msds::LinkMsds {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
+    type ParentListEntry = (u32, &'a IsReach);
+    type ListEntry = (u8, u8);
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let link_msd = reach.sub_tlvs.link_msd.as_ref()?;
-        let iter = link_msd.get().iter().map(|(msd_type, msd_value)| ListEntry::Msd(*msd_type, *msd_value));
-        Some(Box::new(iter))
+        let iter = link_msd.get().iter().map(|(msd_type, msd_value)| (*msd_type, *msd_value));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (msd_type, msd_value) = list_entry.as_msd().unwrap();
+    fn new(_instance: &'a Instance, (msd_type, msd_value): &Self::ListEntry) -> Self {
         Self {
             msd_type: *msd_type,
             msd_value: Some(*msd_value),
@@ -1531,14 +1591,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::AdjSidSubTlv {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_mt_is_reach_instance().unwrap();
-        let iter = reach.sub_tlvs.adj_sids.iter().map(ListEntry::AdjSidStlv);
-        Some(Box::new(iter))
+    type ParentListEntry = (u32, &'a IsReach);
+    type ListEntry = &'a AdjSidStlv;
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.adj_sids.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let stlv = list_entry.as_adj_sid_stlv().unwrap();
+    fn new(_instance: &'a Instance, stlv: &Self::ListEntry) -> Self {
         Self {
             weight: Some(stlv.weight),
             neighbor_id: stlv.nbr_system_id,
@@ -1549,8 +1610,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::adj_sid_sub_tlvs::adj_sid_sub_tlv::adj_sid_flags::AdjSidFlags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_adj_sid_stlv().unwrap();
+    type ParentListEntry = &'a AdjSidStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             flag: stlv.flags.to_yang_flags_iter(),
         })
@@ -1558,15 +1620,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::Prefixes {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = (u16, &'a Ipv4Reach);
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
-        let iter = lsp.tlvs.mt_ipv4_reach().map(|(mt_id, entry)| ListEntry::MtIpv4Reach(mt_id, entry));
-        Some(Box::new(iter))
+        let iter = lsp.tlvs.mt_ipv4_reach();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (mt_id, reach) = list_entry.as_mt_ipv4_reach().unwrap();
+    fn new(_instance: &'a Instance, (mt_id, reach): &Self::ListEntry) -> Self {
         Self {
             mt_id: Some(*mt_id),
             up_down: Some(reach.up_down),
@@ -1583,14 +1646,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_mt_ipv4_reach().unwrap();
-        let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
-        Some(Box::new(iter))
+    type ParentListEntry = (u16, &'a Ipv4Reach);
+    type ListEntry = &'a UnknownTlv;
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.unknown.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let tlv = list_entry.as_unknown_tlv().unwrap();
+    fn new(_instance: &'a Instance, tlv: &Self::ListEntry) -> Self {
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
@@ -1600,14 +1664,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_mt_ipv4_reach().unwrap();
-        let iter = reach.sub_tlvs.prefix_sids.values().map(ListEntry::PrefixSidStlv);
-        Some(Box::new(iter))
+    type ParentListEntry = (u16, &'a Ipv4Reach);
+    type ListEntry = &'a PrefixSidStlv;
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.prefix_sids.values();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let stlv = list_entry.as_prefix_sid_stlv().unwrap();
+    fn new(_instance: &'a Instance, stlv: &Self::ListEntry) -> Self {
         Self {
             algorithm: Some(stlv.algo.to_yang()),
             label_value: stlv.sid.as_label().map(|label| label.get()),
@@ -1617,8 +1682,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_extended_ipv4_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PrefixSidFlags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_prefix_sid_stlv().unwrap();
+    type ParentListEntry = &'a PrefixSidStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             flag: stlv.flags.to_yang_flags_iter(),
         })
@@ -1626,15 +1692,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_extende
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachability::prefixes::Prefixes {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = (u16, &'a Ipv6Reach);
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
-        let iter = lsp.tlvs.mt_ipv6_reach().map(|(mt_id, entry)| ListEntry::MtIpv6Reach(mt_id, entry));
-        Some(Box::new(iter))
+        let iter = lsp.tlvs.mt_ipv6_reach();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (mt_id, reach) = list_entry.as_mt_ipv6_reach().unwrap();
+    fn new(_instance: &'a Instance, (mt_id, reach): &Self::ListEntry) -> Self {
         Self {
             mt_id: Some(*mt_id),
             up_down: Some(reach.up_down),
@@ -1651,14 +1718,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachab
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachability::prefixes::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_mt_ipv6_reach().unwrap();
-        let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
-        Some(Box::new(iter))
+    type ParentListEntry = (u16, &'a Ipv6Reach);
+    type ListEntry = &'a UnknownTlv;
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.unknown.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let tlv = list_entry.as_unknown_tlv().unwrap();
+    fn new(_instance: &'a Instance, tlv: &Self::ListEntry) -> Self {
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
@@ -1668,14 +1736,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachab
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, reach) = list_entry.as_mt_ipv6_reach().unwrap();
-        let iter = reach.sub_tlvs.prefix_sids.values().map(ListEntry::PrefixSidStlv);
-        Some(Box::new(iter))
+    type ParentListEntry = (u16, &'a Ipv6Reach);
+    type ListEntry = &'a PrefixSidStlv;
+
+    fn iter(_instance: &'a Instance, (_, reach): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.prefix_sids.values();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let stlv = list_entry.as_prefix_sid_stlv().unwrap();
+    fn new(_instance: &'a Instance, stlv: &Self::ListEntry) -> Self {
         Self {
             algorithm: Some(stlv.algo.to_yang()),
             label_value: stlv.sid.as_label().map(|label| label.get()),
@@ -1685,8 +1754,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachab
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_ipv6_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PrefixSidFlags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_prefix_sid_stlv().unwrap();
+    type ParentListEntry = &'a PrefixSidStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             flag: stlv.flags.to_yang_flags_iter(),
         })
@@ -1694,15 +1764,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_ipv6_re
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachability::prefixes::Prefixes {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = &'a Ipv6Reach;
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
-        let iter = lsp.tlvs.ipv6_reach().map(ListEntry::Ipv6Reach);
-        Some(Box::new(iter))
+        let iter = lsp.tlvs.ipv6_reach();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let reach = list_entry.as_ipv6_reach().unwrap();
+    fn new(_instance: &'a Instance, reach: &Self::ListEntry) -> Self {
         Self {
             up_down: Some(reach.up_down),
             ip_prefix: Some(reach.prefix.ip()),
@@ -1718,14 +1789,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachabili
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachability::prefixes::unknown_tlvs::unknown_tlv::UnknownTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let reach = list_entry.as_ipv6_reach().unwrap();
-        let iter = reach.sub_tlvs.unknown.iter().map(ListEntry::UnknownTlv);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a Ipv6Reach;
+    type ListEntry = &'a UnknownTlv;
+
+    fn iter(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.unknown.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let tlv = list_entry.as_unknown_tlv().unwrap();
+    fn new(_instance: &'a Instance, tlv: &Self::ListEntry) -> Self {
         Self {
             r#type: Some(tlv.tlv_type as u16),
             length: Some(tlv.length as u16),
@@ -1735,14 +1807,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachabili
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::PrefixSidSubTlv<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let reach = list_entry.as_ipv6_reach().unwrap();
-        let iter = reach.sub_tlvs.prefix_sids.values().map(ListEntry::PrefixSidStlv);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a Ipv6Reach;
+    type ListEntry = &'a PrefixSidStlv;
+
+    fn iter(_instance: &'a Instance, reach: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = reach.sub_tlvs.prefix_sids.values();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let stlv = list_entry.as_prefix_sid_stlv().unwrap();
+    fn new(_instance: &'a Instance, stlv: &Self::ListEntry) -> Self {
         Self {
             algorithm: Some(stlv.algo.to_yang()),
             label_value: stlv.sid.as_label().map(|label| label.get()),
@@ -1752,8 +1825,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::ipv6_reachabili
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv6_reachability::prefixes::prefix_sid_sub_tlvs::prefix_sid_sub_tlv::prefix_sid_flags::PrefixSidFlags<'a> {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let stlv = list_entry.as_prefix_sid_stlv().unwrap();
+    type ParentListEntry = &'a PrefixSidStlv;
+
+    fn new(_instance: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             flag: stlv.flags.to_yang_flags_iter(),
         })
@@ -1761,8 +1835,9 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::ipv6_reach
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::purge_originator_identification::PurgeOriginatorIdentification {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+
+    fn new(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<Self> {
         let lsp = &lse.data;
         Some(Self {
             originator: lsp.tlvs.purge_originator_id.as_ref().map(|tlv| tlv.system_id),
@@ -1772,15 +1847,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::purge_orig
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_capability::MtCapability {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let lse = list_entry.as_lsp_entry().unwrap();
+    type ParentListEntry = &'a LspEntry;
+    type ListEntry = &'a MtCapabilityTlv;
+
+    fn iter(_instance: &'a Instance, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsp = &lse.data;
-        let iter = lsp.tlvs.mt_cap.iter().map(ListEntry::MtCap);
-        Some(Box::new(iter))
+        let iter = lsp.tlvs.mt_cap.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let mt_cap = list_entry.as_mt_cap().unwrap();
+    fn new(_instance: &'a Instance, mt_cap: &Self::ListEntry) -> Self {
         Self {
             mt_id: Some(mt_cap.mt_id),
             overload: Some(mt_cap.overload),
@@ -1789,14 +1865,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_capability::
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_capability::spbm_service::SpbmService<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let mt_cap = list_entry.as_mt_cap().unwrap();
-        let iter = mt_cap.sub_tlvs.spbm_si.iter().map(ListEntry::SpbmService);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a MtCapabilityTlv;
+    type ListEntry = &'a SpbmSiStlv;
+
+    fn iter(_instance: &'a Instance, mt_cap: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = mt_cap.sub_tlvs.spbm_si.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let spbm_si = list_entry.as_spbm_service().unwrap();
+    fn new(_instance: &'a Instance, spbm_si: &Self::ListEntry) -> Self {
         Self {
             bmac: Some(Cow::Owned(MacAddr::from(spbm_si.bmac).to_string())),
             base_vid: Some(spbm_si.base_vid),
@@ -1805,14 +1882,15 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_capability::
 }
 
 impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_capability::spbm_service::isid::Isid {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let spbm_si = list_entry.as_spbm_service().unwrap();
-        let iter = spbm_si.isid_entries.iter().map(ListEntry::SpbmIsid);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a SpbmSiStlv;
+    type ListEntry = &'a IsidEntry;
+
+    fn iter(_instance: &'a Instance, spbm_si: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = spbm_si.isid_entries.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let isid = list_entry.as_spbm_isid().unwrap();
+    fn new(_instance: &'a Instance, isid: &Self::ListEntry) -> Self {
         Self {
             value: Some(isid.isid),
             transmit: Some(isid.flags.contains(IsidFlags::T)),
@@ -1822,8 +1900,9 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_capability::
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::database::levels::fingerprint::Fingerprint {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (_, lsdb) = list_entry.as_lsdb().unwrap();
+    type ParentListEntry = (LevelNumber, &'a Lsdb);
+
+    fn new(_instance: &'a Instance, (_, lsdb): &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             value: Some(lsdb.fingerprint()),
             last_update: lsdb.fingerprint_last_update().map(|time| time.elapsed().as_secs() as u32),
@@ -1833,14 +1912,16 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::fingerprint::Fi
 }
 
 impl<'a> YangList<'a, Instance> for isis::local_rib::route::Route {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
+    type ParentListEntry = ();
+    type ListEntry = (IpNetwork, &'a Route);
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let rib = instance.state.as_ref()?.rib(instance.config.level_type);
-        let iter = rib.iter().map(|(destination, route)| ListEntry::Route(*destination, route));
-        Some(Box::new(iter))
+        let iter = rib.iter().map(|(destination, route)| (*destination, route));
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (prefix, route) = list_entry.as_route().unwrap();
+    fn new(_instance: &'a Instance, (prefix, route): &Self::ListEntry) -> Self {
         Self {
             prefix: *prefix,
             metric: Some(route.metric),
@@ -1851,14 +1932,15 @@ impl<'a> YangList<'a, Instance> for isis::local_rib::route::Route {
 }
 
 impl<'a> YangList<'a, Instance> for isis::local_rib::route::next_hops::next_hop::NextHop<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let (_, route) = list_entry.as_route().unwrap();
-        let iter = route.nexthops.values().map(ListEntry::Nexthop);
-        Some(Box::new(iter))
+    type ParentListEntry = (IpNetwork, &'a Route);
+    type ListEntry = &'a Nexthop;
+
+    fn iter(_instance: &'a Instance, (_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = route.nexthops.values();
+        Some(iter)
     }
 
-    fn new(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let nexthop = list_entry.as_nexthop().unwrap();
+    fn new(instance: &'a Instance, nexthop: &Self::ListEntry) -> Self {
         let iface = &instance.arenas.interfaces[nexthop.iface_idx];
         Self {
             next_hop: nexthop.addr,
@@ -1868,13 +1950,15 @@ impl<'a> YangList<'a, Instance> for isis::local_rib::route::next_hops::next_hop:
 }
 
 impl<'a> YangList<'a, Instance> for isis::system_counters::level::Level {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iter = instance.config.levels().map(ListEntry::SystemCounters);
-        Some(Box::new(iter) as _).ignore_in_testing()
+    type ParentListEntry = ();
+    type ListEntry = LevelNumber;
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = instance.config.levels();
+        Some(iter).ignore_in_testing()
     }
 
-    fn new(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let level = list_entry.as_system_counters().unwrap();
+    fn new(instance: &'a Instance, level: &Self::ListEntry) -> Self {
         let mut corrupted_lsps = None;
         let mut authentication_type_fails = None;
         let mut authentication_fails = None;
@@ -1921,13 +2005,15 @@ impl<'a> YangList<'a, Instance> for isis::system_counters::level::Level {
 }
 
 impl<'a> YangList<'a, Instance> for isis::interfaces::interface::Interface<'a> {
-    fn iter(instance: &'a Instance, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iter = instance.arenas.interfaces.iter().map(ListEntry::Interface);
-        Some(Box::new(iter))
+    type ParentListEntry = ();
+    type ListEntry = &'a Interface;
+
+    fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = instance.arenas.interfaces.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let iface = list_entry.as_interface().unwrap();
+    fn new(_instance: &'a Instance, iface: &Self::ListEntry) -> Self {
         let state = if iface.state.active { "up" } else { "down" };
         Self {
             name: Cow::Borrowed(&iface.name),
@@ -1940,14 +2026,15 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::Interface<'a> {
 }
 
 impl<'a> YangList<'a, Instance> for isis::interfaces::interface::adjacencies::adjacency::Adjacency<'a> {
-    fn iter(instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iface = list_entry.as_interface().unwrap();
-        let iter = iface.adjacencies(&instance.arenas.adjacencies).map(ListEntry::Adjacency);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a Interface;
+    type ListEntry = &'a Adjacency;
+
+    fn iter(instance: &'a Instance, iface: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = iface.adjacencies(&instance.arenas.adjacencies);
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let adj = list_entry.as_adjacency().unwrap();
+    fn new(_instance: &'a Instance, adj: &Self::ListEntry) -> Self {
         let area_addresses = adj.area_addrs.iter().map(Cow::Borrowed);
         let ipv4_addresses = adj.ipv4_addrs.iter().copied();
         let ipv6_addresses = adj.ipv6_addrs.iter().copied();
@@ -1973,14 +2060,15 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::adjacencies::ad
 }
 
 impl<'a> YangList<'a, Instance> for isis::interfaces::interface::adjacencies::adjacency::adjacency_sid::AdjacencySid<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let adj = list_entry.as_adjacency().unwrap();
-        let iter = adj.adj_sids.iter().map(ListEntry::AdjacencySid);
-        Some(Box::new(iter))
+    type ParentListEntry = &'a Adjacency;
+    type ListEntry = &'a AdjacencySid;
+
+    fn iter(_instance: &'a Instance, adj: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = adj.adj_sids.iter();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let adj_sid = list_entry.as_adjacency_sid().unwrap();
+    fn new(_instance: &'a Instance, adj_sid: &Self::ListEntry) -> Self {
         Self {
             value: Some(adj_sid.label.get()),
             address_family: Some(adj_sid.af.to_yang()),
@@ -1991,8 +2079,9 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::adjacencies::ad
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::event_counters::EventCounters {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let iface = list_entry.as_interface().unwrap();
+    type ParentListEntry = &'a Interface;
+
+    fn new(_instance: &'a Instance, iface: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             adjacency_changes: Some(iface.state.event_counters.adjacency_changes),
             adjacency_number: Some(iface.state.event_counters.adjacency_number),
@@ -2009,14 +2098,15 @@ impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::event_coun
 }
 
 impl<'a> YangList<'a, Instance> for isis::interfaces::interface::packet_counters::level::Level {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iface = list_entry.as_interface().unwrap();
-        let iter = iface.config.levels().map(|level| ListEntry::InterfacePacketCounters(iface, level));
-        Some(Box::new(iter) as _).ignore_in_testing()
+    type ParentListEntry = &'a Interface;
+    type ListEntry = (&'a Interface, LevelNumber);
+
+    fn iter(_instance: &'a Instance, &iface: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = iface.config.levels().map(move |level| (iface, level));
+        Some(iter).ignore_in_testing()
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (_, level) = list_entry.as_interface_packet_counters().unwrap();
+    fn new(_instance: &'a Instance, (_, level): &Self::ListEntry) -> Self {
         Self {
             level: *level as u8,
         }
@@ -2024,8 +2114,9 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::packet_counters
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_counters::level::iih::Iih {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (iface, level) = list_entry.as_interface_packet_counters().unwrap();
+    type ParentListEntry = (&'a Interface, LevelNumber);
+
+    fn new(_instance: &'a Instance, (iface, level): &Self::ParentListEntry) -> Option<Self> {
         let packet_counters = iface.state.packet_counters.get(*level);
         Some(Self {
             r#in: Some(packet_counters.iih_in),
@@ -2035,8 +2126,9 @@ impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_cou
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_counters::level::lsp::Lsp {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (iface, level) = list_entry.as_interface_packet_counters().unwrap();
+    type ParentListEntry = (&'a Interface, LevelNumber);
+
+    fn new(_instance: &'a Instance, (iface, level): &Self::ParentListEntry) -> Option<Self> {
         let packet_counters = iface.state.packet_counters.get(*level);
         Some(Self {
             r#in: Some(packet_counters.lsp_in),
@@ -2046,8 +2138,9 @@ impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_cou
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_counters::level::psnp::Psnp {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (iface, level) = list_entry.as_interface_packet_counters().unwrap();
+    type ParentListEntry = (&'a Interface, LevelNumber);
+
+    fn new(_instance: &'a Instance, (iface, level): &Self::ParentListEntry) -> Option<Self> {
         let packet_counters = iface.state.packet_counters.get(*level);
         Some(Self {
             r#in: Some(packet_counters.psnp_in),
@@ -2057,8 +2150,9 @@ impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_cou
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_counters::level::csnp::Csnp {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (iface, level) = list_entry.as_interface_packet_counters().unwrap();
+    type ParentListEntry = (&'a Interface, LevelNumber);
+
+    fn new(_instance: &'a Instance, (iface, level): &Self::ParentListEntry) -> Option<Self> {
         let packet_counters = iface.state.packet_counters.get(*level);
         Some(Self {
             r#in: Some(packet_counters.csnp_in),
@@ -2068,8 +2162,9 @@ impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_cou
 }
 
 impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_counters::level::unknown::Unknown {
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<Self> {
-        let (iface, level) = list_entry.as_interface_packet_counters().unwrap();
+    type ParentListEntry = (&'a Interface, LevelNumber);
+
+    fn new(_instance: &'a Instance, (iface, level): &Self::ParentListEntry) -> Option<Self> {
         let packet_counters = iface.state.packet_counters.get(*level);
         Some(Self {
             r#in: Some(packet_counters.unknown_in),
@@ -2078,14 +2173,15 @@ impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_cou
 }
 
 impl<'a> YangList<'a, Instance> for isis::interfaces::interface::srm::level::Level<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iface = list_entry.as_interface().unwrap();
-        let iter = LevelType::All.into_iter().filter(|level| !iface.state.srm_list.get(*level).is_empty()).map(|level| ListEntry::InterfaceSrmList(iface, level));
-        Some(Box::new(iter) as _).only_in_testing()
+    type ParentListEntry = &'a Interface;
+    type ListEntry = (&'a Interface, LevelNumber);
+
+    fn iter(_instance: &'a Instance, &iface: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = LevelType::All.into_iter().filter(|level| !iface.state.srm_list.get(*level).is_empty()).map(move |level| (iface, level));
+        Some(iter).only_in_testing()
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (iface, level) = list_entry.as_interface_srm_list().unwrap();
+    fn new(_instance: &'a Instance, (iface, level): &Self::ListEntry) -> Self {
         Self {
             level: *level as u8,
             lsp_id: Some(Box::new(iface.state.srm_list.get(*level).keys().copied())),
@@ -2094,14 +2190,15 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::srm::level::Lev
 }
 
 impl<'a> YangList<'a, Instance> for isis::interfaces::interface::ssn::level::Level<'a> {
-    fn iter(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {
-        let iface = list_entry.as_interface().unwrap();
-        let iter = LevelType::All.into_iter().filter(|level| !iface.state.ssn_list.get(*level).is_empty()).map(|level| ListEntry::InterfaceSsnList(iface, level));
-        Some(Box::new(iter) as _).only_in_testing()
+    type ParentListEntry = &'a Interface;
+    type ListEntry = (&'a Interface, LevelNumber);
+
+    fn iter(_instance: &'a Instance, &iface: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = LevelType::All.into_iter().filter(|level| !iface.state.ssn_list.get(*level).is_empty()).map(move |level| (iface, level));
+        Some(iter).only_in_testing()
     }
 
-    fn new(_instance: &'a Instance, list_entry: &ListEntry<'a>) -> Self {
-        let (iface, level) = list_entry.as_interface_ssn_list().unwrap();
+    fn new(_instance: &'a Instance, (iface, level): &Self::ListEntry) -> Self {
         Self {
             level: *level as u8,
             lsp_id: Some(Box::new(iface.state.ssn_list.get(*level).keys().copied())),

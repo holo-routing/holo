@@ -16,6 +16,8 @@ use crate::version::{Ripng, Ripv2, Version};
 
 // RIP version-specific code.
 pub trait NorthboundVersion<V: Version> {
+    type ListEntry<'a>: northbound::state::ListEntryKind;
+
     const YANG_OPS_STATE: northbound::state::YangOps<Instance<V>>;
     const YANG_OPS_RPC: northbound::rpc::YangOps<Instance<V>>;
 
@@ -49,6 +51,8 @@ pub mod yang_gen {
 // ===== impl Ripv2 =====
 
 impl NorthboundVersion<Self> for Ripv2 {
+    type ListEntry<'a> = yang_gen::ops::ripv2::ListEntry<'a>;
+
     const YANG_OPS_STATE: northbound::state::YangOps<Instance<Self>> = yang_gen::ops::ripv2::YANG_OPS_STATE;
     const YANG_OPS_RPC: northbound::rpc::YangOps<Instance<Self>> = yang_gen::ops::ripv2::YANG_OPS_RPC;
 
@@ -64,6 +68,8 @@ impl NorthboundVersion<Self> for Ripv2 {
 // ===== impl Ripng =====
 
 impl NorthboundVersion<Self> for Ripng {
+    type ListEntry<'a> = yang_gen::ops::ripng::ListEntry<'a>;
+
     const YANG_OPS_STATE: northbound::state::YangOps<Instance<Self>> = yang_gen::ops::ripng::YANG_OPS_STATE;
     const YANG_OPS_RPC: northbound::rpc::YangOps<Instance<Self>> = yang_gen::ops::ripng::YANG_OPS_RPC;
 

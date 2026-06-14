@@ -90,8 +90,10 @@ fn gen_impl_blocks_state(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
                 "impl<'a> YangContainer<'a, Provider> for {module}::{struct_name}{lifetime}"
             );
             println!("{{");
+            println!("{indent1}type ParentListEntry = (); // TODO");
+            println!();
             println!(
-                "{indent1}fn new(_provider: &'a Provider, _list_entry: &ListEntry<'a>) -> Option<Self> {{"
+                "{indent1}fn new(_provider: &'a Provider, _: &Self::ParentListEntry) -> Option<Self> {{"
             );
             println!("{indent2}Some(Self {{");
             for snode in fields
@@ -117,14 +119,17 @@ fn gen_impl_blocks_state(yang_ctx: &Context, modules: Vec<SchemaModule<'_>>) {
                 "impl<'a> YangList<'a, Provider> for {module}::{struct_name}{lifetime}"
             );
             println!("{{");
+            println!("{indent1}type ParentListEntry = (); // TODO");
+            println!("{indent1}type ListEntry = (); // TODO");
+            println!();
             println!(
-                "{indent1}fn iter(_provider: &'a Provider, _list_entry: &ListEntry<'a>) -> Option<ListIterator<'a>> {{"
+                "{indent1}fn iter(_provider: &'a Provider, _list_entry: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {{"
             );
-            println!("{indent2}todo!()");
+            println!("{indent2}None::<std::iter::Empty<_>>");
             println!("{indent1}}}");
             println!();
             println!(
-                "{indent1}fn new(_provider: &'a Provider, _list_entry: &ListEntry<'a>) -> Self {{"
+                "{indent1}fn new(_provider: &'a Provider, _list_entry: &Self::ListEntry) -> Self {{"
             );
             println!("{indent2}Self {{");
             for snode in fields

@@ -6,8 +6,7 @@
 
 use std::borrow::Cow;
 
-use enum_as_inner::EnumAsInner;
-use holo_northbound::state::{ListEntryKind, Provider, YangContainer, YangList, YangOps};
+use holo_northbound::state::{ListIterator, Provider, YangContainer, YangList, YangOps};
 use holo_utils::num::SaturatingInto;
 use holo_utils::option::OptionExt;
 use holo_yang::ToYang;
@@ -23,7 +22,7 @@ impl<V> Provider for Instance<V>
 where
     V: Version,
 {
-    type ListEntry<'a> = ListEntry<'a, V>;
+    type ListEntry<'a> = V::ListEntry<'a>;
     const YANG_OPS: YangOps<Self> = V::YANG_OPS_STATE;
 
     fn top_level_node(&self) -> String {
@@ -31,24 +30,12 @@ where
     }
 }
 
-#[derive(Debug, Default)]
-#[derive(EnumAsInner)]
-pub enum ListEntry<'a, V: Version> {
-    #[default]
-    None,
-    Interface(&'a Interface<V>),
-    Neighbor(&'a Neighbor<V>),
-    Route(&'a Route<V>),
-}
-
-pub type ListIterator<'a, V> = Box<dyn Iterator<Item = ListEntry<'a, V>> + 'a>;
-
-impl<V> ListEntryKind for ListEntry<'_, V> where V: Version {}
-
 // ===== YANG impls =====
 
 impl<'a, V: Version> YangContainer<'a, Instance<V>> for rip::Rip {
-    fn new(instance: &'a Instance<V>, _list_entry: &ListEntry<'a, V>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(instance: &'a Instance<V>, _: &Self::ParentListEntry) -> Option<Self> {
         let instance_state = instance.state.as_ref()?;
         let next_triggered_update = instance_state.next_triggered_update().map(|d| d.as_secs().saturating_into());
         Some(Self {
@@ -59,21 +46,23 @@ impl<'a, V: Version> YangContainer<'a, Instance<V>> for rip::Rip {
 }
 
 impl<'a, V: Version> YangList<'a, Instance<V>> for rip::interfaces::interface::Interface<'a> {
-    fn iter(instance: &'a Instance<V>, _list_entry: &ListEntry<'a, V>) -> Option<ListIterator<'a, V>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a Interface<V>;
+
+    fn iter(instance: &'a Instance<V>, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         if !instance.is_active() {
             return None;
         };
-        let iter = instance.interfaces.iter().map(ListEntry::Interface);
-        Some(Box::new(iter))
+        let iter = instance.interfaces.iter();
+        Some(iter)
     }
 
-    fn new(instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Self {
-        let iface = list_entry.as_interface().unwrap();
+    fn new(instance: &'a Instance<V>, iface: &Self::ListEntry) -> Self {
+        // The same update interval is shared by all interfaces.
         let mut next_full_update = None;
         if let Some(instance_state) = &instance.state
             && iface.state.active
         {
-            // The same update interval is shared by all interfaces.
             next_full_update = Some(instance_state.next_update().as_secs().saturating_into());
         }
         Self {
@@ -86,8 +75,9 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for rip::interfaces::interface::I
 }
 
 impl<'a, V: Version> YangContainer<'a, Instance<V>> for rip::interfaces::interface::statistics::Statistics {
-    fn new(_instance: &'a Instance<V>, list_entry: &ListEntry<'a, V>) -> Option<Self> {
-        let iface = list_entry.as_interface().unwrap();
+    type ParentListEntry = &'a Interface<V>;
+
+    fn new(_instance: &'a Instance<V>, iface: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
             discontinuity_time: iface.state.statistics.discontinuity_time,
             bad_packets_rcvd: Some(iface.state.statistics.bad_packets_rcvd),
@@ -99,14 +89,16 @@ impl<'a, V: Version> YangContainer<'a, Instance<V>> for rip::interfaces::interfa
 }
 
 impl<'a> YangList<'a, Instance<Ripv2>> for rip::ipv4::neighbors::neighbor::Neighbor {
-    fn iter(instance: &'a Instance<Ripv2>, _list_entry: &ListEntry<'a, Ripv2>) -> Option<ListIterator<'a, Ripv2>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a Neighbor<Ripv2>;
+
+    fn iter(instance: &'a Instance<Ripv2>, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let neighbors = &instance.state.as_ref()?.neighbors;
-        let iter = neighbors.values().map(ListEntry::Neighbor);
-        Some(Box::new(iter))
+        let iter = neighbors.values();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance<Ripv2>, list_entry: &ListEntry<'a, Ripv2>) -> Self {
-        let nbr = list_entry.as_neighbor().unwrap();
+    fn new(_instance: &'a Instance<Ripv2>, nbr: &Self::ListEntry) -> Self {
         Self {
             ipv4_address: nbr.addr,
             last_update: Some(nbr.last_update).ignore_in_testing(),
@@ -117,14 +109,16 @@ impl<'a> YangList<'a, Instance<Ripv2>> for rip::ipv4::neighbors::neighbor::Neigh
 }
 
 impl<'a> YangList<'a, Instance<Ripv2>> for rip::ipv4::routes::route::Route<'a> {
-    fn iter(instance: &'a Instance<Ripv2>, _list_entry: &ListEntry<'a, Ripv2>) -> Option<ListIterator<'a, Ripv2>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a Route<Ripv2>;
+
+    fn iter(instance: &'a Instance<Ripv2>, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let routes = &instance.state.as_ref()?.routes;
-        let iter = routes.values().map(ListEntry::Route);
-        Some(Box::new(iter))
+        let iter = routes.values();
+        Some(iter)
     }
 
-    fn new(instance: &'a Instance<Ripv2>, list_entry: &ListEntry<'a, Ripv2>) -> Self {
-        let route = list_entry.as_route().unwrap();
+    fn new(instance: &'a Instance<Ripv2>, route: &Self::ListEntry) -> Self {
         Self {
             ipv4_prefix: route.prefix,
             next_hop: route.nexthop,
@@ -141,14 +135,16 @@ impl<'a> YangList<'a, Instance<Ripv2>> for rip::ipv4::routes::route::Route<'a> {
 }
 
 impl<'a> YangList<'a, Instance<Ripng>> for rip::ipv6::neighbors::neighbor::Neighbor {
-    fn iter(instance: &'a Instance<Ripng>, _list_entry: &ListEntry<'a, Ripng>) -> Option<ListIterator<'a, Ripng>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a Neighbor<Ripng>;
+
+    fn iter(instance: &'a Instance<Ripng>, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let neighbors = &instance.state.as_ref()?.neighbors;
-        let iter = neighbors.values().map(ListEntry::Neighbor);
-        Some(Box::new(iter))
+        let iter = neighbors.values();
+        Some(iter)
     }
 
-    fn new(_instance: &'a Instance<Ripng>, list_entry: &ListEntry<'a, Ripng>) -> Self {
-        let nbr = list_entry.as_neighbor().unwrap();
+    fn new(_instance: &'a Instance<Ripng>, nbr: &Self::ListEntry) -> Self {
         Self {
             ipv6_address: nbr.addr,
             last_update: Some(nbr.last_update).ignore_in_testing(),
@@ -159,14 +155,16 @@ impl<'a> YangList<'a, Instance<Ripng>> for rip::ipv6::neighbors::neighbor::Neigh
 }
 
 impl<'a> YangList<'a, Instance<Ripng>> for rip::ipv6::routes::route::Route<'a> {
-    fn iter(instance: &'a Instance<Ripng>, _list_entry: &ListEntry<'a, Ripng>) -> Option<ListIterator<'a, Ripng>> {
+    type ParentListEntry = ();
+    type ListEntry = &'a Route<Ripng>;
+
+    fn iter(instance: &'a Instance<Ripng>, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let routes = &instance.state.as_ref()?.routes;
-        let iter = routes.values().map(ListEntry::Route);
-        Some(Box::new(iter))
+        let iter = routes.values();
+        Some(iter)
     }
 
-    fn new(instance: &'a Instance<Ripng>, list_entry: &ListEntry<'a, Ripng>) -> Self {
-        let route = list_entry.as_route().unwrap();
+    fn new(instance: &'a Instance<Ripng>, route: &Self::ListEntry) -> Self {
         Self {
             ipv6_prefix: route.prefix,
             next_hop: route.nexthop,
@@ -183,7 +181,9 @@ impl<'a> YangList<'a, Instance<Ripng>> for rip::ipv6::routes::route::Route<'a> {
 }
 
 impl<'a, V: Version> YangContainer<'a, Instance<V>> for rip::statistics::Statistics {
-    fn new(instance: &'a Instance<V>, _list_entry: &ListEntry<'a, V>) -> Option<Self> {
+    type ParentListEntry = ();
+
+    fn new(instance: &'a Instance<V>, _: &Self::ParentListEntry) -> Option<Self> {
         let statistics = &instance.state.as_ref()?.statistics;
         Some(Self {
             discontinuity_time: statistics.discontinuity_time,

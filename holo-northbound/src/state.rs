@@ -44,23 +44,45 @@ pub trait ListEntryKind: std::fmt::Debug + Default {
 
 // Implemented by all auto-generated YANG container structs that hold state
 // data.
-pub trait YangContainer<'a, P: Provider> {
-    fn new(provider: &'a P, list_entry: &P::ListEntry<'a>) -> Option<Self>
+pub trait YangContainer<'a, P> {
+    // Entry of the enclosing list, or () for top-level containers.
+    type ParentListEntry: 'a;
+
+    fn new(provider: &'a P, parent: &Self::ParentListEntry) -> Option<Self>
     where
         Self: Sized + 'a;
 }
 
 // Implemented by all auto-generated YANG list structs that hold state data.
-pub trait YangList<'a, P: Provider> {
+//
+// The generated glue feeds each entry from the parent's `iter` straight into
+// the child's `iter`, so a `ParentListEntry`/`ListEntry` mismatch fails to
+// compile.
+pub trait YangList<'a, P>: Sized {
+    // Entry of the enclosing list, or () for top-level lists.
+    type ParentListEntry: 'a;
+    // Data carried by each entry of this list.
+    type ListEntry: 'a;
+
     fn iter(
         provider: &'a P,
-        list_entry: &P::ListEntry<'a>,
-    ) -> Option<ListIterator<'a, P>>;
+        parent: &Self::ParentListEntry,
+    ) -> Option<impl ListIterator<'a, Self::ListEntry>>;
 
-    fn new(provider: &'a P, list_entry: &P::ListEntry<'a>) -> Self
-    where
-        Self: Sized + 'a;
+    fn new(provider: &'a P, list_entry: &Self::ListEntry) -> Self;
+
+    // Task handling the child node identified by the given module name.
+    fn child_task(
+        _list_entry: &Self::ListEntry,
+        _module_name: &str,
+    ) -> Option<NbDaemonSender> {
+        None
+    }
 }
+
+// Iterator over the entries of a YANG list.
+pub trait ListIterator<'a, T>: Iterator<Item = T> + 'a {}
+impl<'a, T, I> ListIterator<'a, T> for I where I: Iterator<Item = T> + 'a {}
 
 // Static dispatch tables generated from YANG models.
 pub struct YangOps<P: Provider> {
@@ -79,13 +101,14 @@ pub struct YangContainerOps<P: Provider> {
 
 // Type aliases.
 type YangListIterFn<P: Provider> =
-    for<'a> fn(&'a P, &P::ListEntry<'a>) -> Option<ListIterator<'a, P>>;
+    for<'a> fn(
+        &'a P,
+        &P::ListEntry<'a>,
+    ) -> Option<Box<dyn Iterator<Item = P::ListEntry<'a>> + 'a>>;
 type YangListNewFn<P: Provider> =
-    for<'a> fn(&'a P, &P::ListEntry<'a>) -> Box<dyn YangObject + 'a>;
+    for<'a> fn(&'a P, &P::ListEntry<'a>) -> Option<Box<dyn YangObject + 'a>>;
 type YangContainerNewFn<P: Provider> =
     for<'a> fn(&'a P, &P::ListEntry<'a>) -> Option<Box<dyn YangObject + 'a>>;
-type ListIterator<'a, P: Provider> =
-    Box<dyn Iterator<Item = P::ListEntry<'a>> + 'a>;
 type GetReceiver = oneshot::Receiver<Result<api::daemon::GetResponse, Error>>;
 
 // ===== helper functions =====
@@ -132,7 +155,9 @@ where
         && let Some(list_iter) = (list_ops.iter)(provider, parent_list_entry)
     {
         for list_entry in list_iter {
-            let obj = (list_ops.new)(provider, &list_entry);
+            let Some(obj) = (list_ops.new)(provider, &list_entry) else {
+                continue;
+            };
 
             // Get list keys.
             let keys = obj.list_keys();
@@ -346,7 +371,9 @@ where
             {
                 let is_target = rest.is_empty();
                 for entry in list_iter {
-                    let obj = (list_ops.new)(provider, &entry);
+                    let Some(obj) = (list_ops.new)(provider, &entry) else {
+                        continue;
+                    };
                     let keys = obj.list_keys();
 
                     // Filter by provided keys (no keys = match all).

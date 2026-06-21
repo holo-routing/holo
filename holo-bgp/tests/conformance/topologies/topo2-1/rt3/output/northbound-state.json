@@ -12,13 +12,13 @@
                   {
                     "name": "iana-bgp-types:ipv4-unicast",
                     "statistics": {
-                      "total-prefixes": 6
+                      "total-prefixes": 5
                     }
                   }
                 ]
               },
               "statistics": {
-                "total-prefixes": 6
+                "total-prefixes": 5
               }
             },
             "neighbors": {
@@ -27,7 +27,7 @@
                   "remote-address": "10.0.4.2",
                   "local-address": "10.0.4.3",
                   "peer-type": "external",
-                  "identifier": "2.2.2.2",
+                  "identifier": "10.0.4.2",
                   "timers": {
                     "negotiated-hold-time": 90
                   },
@@ -37,7 +37,7 @@
                         "name": "iana-bgp-types:ipv4-unicast",
                         "prefixes": {
                           "received": 4,
-                          "sent": 4,
+                          "sent": 3,
                           "installed": 4
                         }
                       }
@@ -114,7 +114,7 @@
                   "remote-address": "10.0.5.6",
                   "local-address": "10.0.5.3",
                   "peer-type": "external",
-                  "identifier": "6.6.6.6",
+                  "identifier": "10.0.7.6",
                   "timers": {
                     "negotiated-hold-time": 90
                   },
@@ -124,7 +124,7 @@
                         "name": "iana-bgp-types:ipv4-unicast",
                         "prefixes": {
                           "received": 4,
-                          "sent": 3,
+                          "sent": 2,
                           "installed": 4
                         }
                       }
@@ -202,12 +202,6 @@
             "rib": {
               "attr-sets": {
                 "attr-set": [
-                  {
-                    "index": "9414355416643581871",
-                    "attributes": {
-                      "origin": "incomplete"
-                    }
-                  },
                   {
                     "index": "8894633214946229520",
                     "attributes": {
@@ -376,12 +370,6 @@
                               "attr-index": "8894633214946229520"
                             },
                             {
-                              "prefix": "3.3.3.3/32",
-                              "origin": "ietf-routing:direct",
-                              "path-id": 0,
-                              "attr-index": "9414355416643581871"
-                            },
-                            {
                               "prefix": "4.4.4.4/32",
                               "origin": "10.0.5.6",
                               "path-id": 0,
@@ -472,12 +460,6 @@
                               "routes": {
                                 "route": [
                                   {
-                                    "prefix": "3.3.3.3/32",
-                                    "path-id": 0,
-                                    "attr-index": "9414355416643581871",
-                                    "eligible-route": true
-                                  },
-                                  {
                                     "prefix": "4.4.4.4/32",
                                     "path-id": 0,
                                     "attr-index": "15224571994302835816",
@@ -501,12 +483,6 @@
                             "adj-rib-out-post": {
                               "routes": {
                                 "route": [
-                                  {
-                                    "prefix": "3.3.3.3/32",
-                                    "path-id": 0,
-                                    "attr-index": "9414355416643581871",
-                                    "eligible-route": true
-                                  },
                                   {
                                     "prefix": "4.4.4.4/32",
                                     "path-id": 0,
@@ -606,12 +582,6 @@
                                     "path-id": 0,
                                     "attr-index": "8894633214946229520",
                                     "eligible-route": true
-                                  },
-                                  {
-                                    "prefix": "3.3.3.3/32",
-                                    "path-id": 0,
-                                    "attr-index": "9414355416643581871",
-                                    "eligible-route": true
                                   }
                                 ]
                               }
@@ -629,12 +599,6 @@
                                     "prefix": "2.2.2.2/32",
                                     "path-id": 0,
                                     "attr-index": "8894633214946229520",
-                                    "eligible-route": true
-                                  },
-                                  {
-                                    "prefix": "3.3.3.3/32",
-                                    "path-id": 0,
-                                    "attr-index": "9414355416643581871",
                                     "eligible-route": true
                                   }
                                 ]

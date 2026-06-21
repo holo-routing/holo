@@ -317,10 +317,14 @@ fn process_nbr_reach_prefixes<A>(
     }
 
     // Initialize route origin and type.
+    let Some(identifier) = nbr.identifier else {
+        return;
+    };
     let origin = RouteOrigin::Neighbor {
-        identifier: nbr.identifier.unwrap(),
+        identifier,
         remote_addr: nbr.remote_addr,
     };
+
     let route_type = match nbr.peer_type {
         PeerType::Internal => RouteType::Internal,
         PeerType::External => RouteType::External,

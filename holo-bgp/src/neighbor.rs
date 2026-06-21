@@ -232,7 +232,7 @@ impl Neighbor {
     /// Returns true if the collision prevention procedure led to the closure of a connection
     ///     binded to a neighbor that is not the one sending the OPEN Message.
     ///
-    /// Rturns false it returns false meaning it has not yet been handled, and the session to be
+    /// Returns false if the collision has not yet been handled, and the session to be
     ///     closed is the one that has just sent this OPEN message. This will be handled in
     ///     fsm_event()
     pub(crate) fn collision_prevention(
@@ -245,30 +245,25 @@ impl Neighbor {
             (instance.config.identifier, current_peer_id)
             && current_peer_id == incoming_peer_id
             && local_id < current_peer_id
-        {
-            if let Some((_, nbr)) = neighbors.iter_mut().find(|(_, n)| {
+            && let Some((_, nbr)) = neighbors.iter_mut().find(|(_, n)| {
                 matches!(
                     n.state,
                     fsm::State::OpenConfirm | fsm::State::OpenSent
                 )
-            }) {
-                let msg = NotificationMsg::new(
-                    ErrorCode::Cease,
-                    CeaseSubcode::ConnectionCollisionResolution,
-                );
+            })
+        {
+            let msg = NotificationMsg::new(
+                ErrorCode::Cease,
+                CeaseSubcode::ConnectionCollisionResolution,
+            );
 
-                nbr.in_collision = false;
-                nbr.session_close(
-                    &mut instance.state.rib,
-                    instance.tx,
-                    Some(msg),
-                );
-                nbr.state = fsm::State::Idle;
-                return true;
-            }
+            nbr.in_collision = false;
+            nbr.session_close(&mut instance.state.rib, instance.tx, Some(msg));
+            nbr.state = fsm::State::Idle;
+            return true;
         }
 
-        return false;
+        false
     }
 
     // Injects an event into the neighbor's FSM.

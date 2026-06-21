@@ -67,6 +67,7 @@ pub struct Neighbor {
     pub tasks: NeighborTasks,
     pub update_queues: NeighborUpdateQueues,
     pub msg_txp: Option<UnboundedSender<NbrTxMsg>>,
+    pub in_collision: bool,
 }
 
 // BGP peer type.
@@ -214,7 +215,60 @@ impl Neighbor {
             tasks: Default::default(),
             update_queues: Default::default(),
             msg_txp: None,
+            in_collision: false,
         }
+    }
+
+    /// Carries out the collision prevention procedure.
+    ///
+    /// # Arguments
+    /// * `current_peer_id` - peer ID that we have saved locally.
+    /// * `incoming_peer_id` - peer ID from the incoming OpenMsg.
+    /// * `instance`
+    /// * `neighbors` - list of neighbors. Needed when filtering through those with matching characteristics
+    ///
+    /// * Returns
+    ///
+    /// Returns true if the collision prevention procedure led to the closure of a connection
+    ///     binded to a neighbor that is not the one sending the OPEN Message.
+    ///
+    /// Rturns false it returns false meaning it has not yet been handled, and the session to be
+    ///     closed is the one that has just sent this OPEN message. This will be handled in
+    ///     fsm_event()
+    pub(crate) fn collision_prevention(
+        current_peer_id: Option<Ipv4Addr>,
+        incoming_peer_id: Ipv4Addr,
+        instance: &mut InstanceUpView<'_>,
+        neighbors: &mut Neighbors,
+    ) -> bool {
+        if let (Some(local_id), Some(current_peer_id)) =
+            (instance.config.identifier, current_peer_id)
+            && current_peer_id == incoming_peer_id
+            && local_id < current_peer_id
+        {
+            if let Some((_, nbr)) = neighbors.iter_mut().find(|(_, n)| {
+                matches!(
+                    n.state,
+                    fsm::State::OpenConfirm | fsm::State::OpenSent
+                )
+            }) {
+                let msg = NotificationMsg::new(
+                    ErrorCode::Cease,
+                    CeaseSubcode::ConnectionCollisionResolution,
+                );
+
+                nbr.in_collision = false;
+                nbr.session_close(
+                    &mut instance.state.rib,
+                    instance.tx,
+                    Some(msg),
+                );
+                nbr.state = fsm::State::Idle;
+                return true;
+            }
+        }
+
+        return false;
     }
 
     // Injects an event into the neighbor's FSM.
@@ -381,6 +435,14 @@ impl Neighbor {
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdOpen(_msg) => {
+                    if self.in_collision {
+                        let error_code = ErrorCode::Cease;
+                        let error_subcode =
+                            CeaseSubcode::ConnectionCollisionResolution;
+                        let msg =
+                            NotificationMsg::new(error_code, error_subcode);
+                        self.session_close(rib, instance.tx, Some(msg));
+                    }
                     // TODO: collision detection
                     Some(fsm::State::Idle)
                 }
@@ -716,6 +778,16 @@ impl Neighbor {
         instance: &mut InstanceUpView<'_>,
         msg: OpenMsg,
     ) -> fsm::State {
+        // Check for a collision.
+        if self.in_collision {
+            let error_code = ErrorCode::Cease;
+            let error_subcode = CeaseSubcode::ConnectionCollisionResolution;
+            let msg = NotificationMsg::new(error_code, error_subcode);
+            let rib = &mut instance.state.rib;
+            self.session_close(rib, instance.tx, Some(msg));
+            return fsm::State::Idle;
+        }
+
         use crate::packet::iana::OpenMessageErrorSubcode as ErrorSubcode;
 
         // Validate the received message.

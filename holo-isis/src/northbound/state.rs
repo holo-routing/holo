@@ -18,7 +18,7 @@ use holo_utils::crypto::CryptoAlgo;
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::option::OptionExt;
 use holo_utils::protocol::Protocol;
-use holo_yang::types::{HexStr, TimerValueMillis, TimerValueSecs16, Timeticks};
+use holo_yang::types::{HexStr, HexString, TimerValueMillis, TimerValueSecs16, Timeticks};
 use holo_yang::{ToYang, ToYangFlags};
 use ipnetwork::IpNetwork;
 
@@ -748,10 +748,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
     fn new(_provider: &'a Instance, stlv: &Self::ListEntry) -> Self {
         Self {
             l_flag: Some(stlv.l_flag),
-            sabm_length: Some(stlv.sabm_length),
-            udabm_length: Some(stlv.udabm_length),
             te_metric: stlv.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
-            admin_group: stlv.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
+            admin_group: stlv.sub_tlvs.admin_group.as_ref().map(|tlv| HexString(tlv.get().to_be_bytes().to_vec())),
             max_bandwidth: stlv.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
             max_reservable_bandwidth: stlv.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
         }
@@ -763,7 +761,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
 
     fn new(_provider: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
-            sabm_bits: stlv.sabm.to_yang_flags_iter(),
+            sabm_bit: stlv.sabm.to_yang_flags_iter(),
         })
     }
 }
@@ -1387,10 +1385,8 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
     fn new(_provider: &'a Instance, stlv: &Self::ListEntry) -> Self {
         Self {
             l_flag: Some(stlv.l_flag),
-            sabm_length: Some(stlv.sabm_length),
-            udabm_length: Some(stlv.udabm_length),
             te_metric: stlv.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
-            admin_group: stlv.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
+            admin_group: stlv.sub_tlvs.admin_group.as_ref().map(|tlv| HexString(tlv.get().to_be_bytes().to_vec())),
             max_bandwidth: stlv.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
             max_reservable_bandwidth: stlv.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
         }
@@ -1402,7 +1398,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
 
     fn new(_provider: &'a Instance, stlv: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
-            sabm_bits: stlv.sabm.to_yang_flags_iter(),
+            sabm_bit: stlv.sabm.to_yang_flags_iter(),
         })
     }
 }

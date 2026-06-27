@@ -274,6 +274,16 @@ impl ToYang for HexString {
     }
 }
 
+impl TryFromYang for HexString {
+    fn try_from_yang(value: &str) -> Option<Self> {
+        let bytes: Result<Vec<u8>, _> = value
+            .split(':')
+            .map(|s| u8::from_str_radix(s, 16))
+            .collect();
+        bytes.ok().map(HexString)
+    }
+}
+
 // ===== impl HexStr =====
 
 impl ToYang for HexStr<'_> {

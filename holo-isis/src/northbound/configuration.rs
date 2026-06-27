@@ -21,6 +21,7 @@ use holo_utils::keychain::{Key, Keychains};
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
+use holo_yang::types::HexString;
 use holo_yang::{ToYang, TryFromYang};
 use ipnetwork::IpNetwork;
 use prefix_trie::joint::map::JointPrefixMap;
@@ -2009,7 +2010,9 @@ fn load_callbacks() -> Callbacks<Instance> {
             let iface = &mut instance.arenas.interfaces[iface_idx];
             let asla_cfg = iface.config.asla.get_mut(&app).unwrap();
 
-            let admin_group = args.dnode.get_u32();
+            let admin_group = args.dnode.get_string();
+            let admin_group = HexString::try_from_yang(&admin_group).unwrap();
+            let admin_group = admin_group.0.iter().fold(0u32, |acc, &b| (acc << 8) | u32::from(b));
             asla_cfg.admin_group = Some(admin_group);
 
             let event_queue = args.event_queue;

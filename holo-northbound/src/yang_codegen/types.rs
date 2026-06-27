@@ -189,6 +189,11 @@ fn typedef_spec(typedef_name: &str) -> Option<TypeSpec> {
             rust_type: "HexString",
             copy_semantics: false,
         }),
+        // ietf-te-types
+        "admin-group" => Some(TypeSpec {
+            rust_type: "HexString",
+            copy_semantics: true,
+        }),
         // ietf-routing-types
         "bandwidth-ieee-float32" => Some(TypeSpec {
             rust_type: "f32",

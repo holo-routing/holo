@@ -57,6 +57,8 @@ pub static HMAC_APAD: Lazy<Vec<u8>> = Lazy::new(|| {
 // ===== impl CryptoAlgo =====
 
 impl CryptoAlgo {
+    pub const MAX_DIGEST_SIZE: usize = 64;
+
     pub fn digest_size(&self) -> u8 {
         match self {
             CryptoAlgo::ClearText => unreachable!(),

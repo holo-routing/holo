@@ -51,10 +51,11 @@ impl AuthMethod {
 
 // ===== helper functions =====
 
-fn hmac_digest<H: EagerHash>(data: &[u8], key: &[u8]) -> Vec<u8> {
-    // Compute the message digest.
+fn hmac_digest<H: EagerHash>(segments: &[&[u8]], key: &[u8]) -> Vec<u8> {
     let mut mac = Hmac::<H>::new_from_slice(key).unwrap();
-    mac.update(data);
+    for segment in segments {
+        mac.update(segment);
+    }
     let digest = mac.finalize();
     digest.into_bytes().to_vec()
 }
@@ -62,16 +63,16 @@ fn hmac_digest<H: EagerHash>(data: &[u8], key: &[u8]) -> Vec<u8> {
 // ===== global functions =====
 
 pub(crate) fn message_digest(
-    data: &[u8],
+    segments: &[&[u8]],
     algo: CryptoAlgo,
     key: &[u8],
 ) -> Vec<u8> {
     match algo {
-        CryptoAlgo::HmacMd5 => hmac_digest::<Md5>(data, key),
-        CryptoAlgo::HmacSha1 => hmac_digest::<Sha1>(data, key),
-        CryptoAlgo::HmacSha256 => hmac_digest::<Sha256>(data, key),
-        CryptoAlgo::HmacSha384 => hmac_digest::<Sha384>(data, key),
-        CryptoAlgo::HmacSha512 => hmac_digest::<Sha512>(data, key),
+        CryptoAlgo::HmacMd5 => hmac_digest::<Md5>(segments, key),
+        CryptoAlgo::HmacSha1 => hmac_digest::<Sha1>(segments, key),
+        CryptoAlgo::HmacSha256 => hmac_digest::<Sha256>(segments, key),
+        CryptoAlgo::HmacSha384 => hmac_digest::<Sha384>(segments, key),
+        CryptoAlgo::HmacSha512 => hmac_digest::<Sha512>(segments, key),
         _ => {
             // Other algorithms can't be configured.
             unreachable!()

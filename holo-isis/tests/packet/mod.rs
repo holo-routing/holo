@@ -30,10 +30,10 @@ fn test_encode_pdu(bytes_expected: &[u8], pdu: &Pdu, auth: &Option<&Key>) {
 }
 
 fn test_decode_pdu(bytes: &[u8], pdu_expected: &Pdu, auth: &Option<&Key>) {
-    let bytes = Bytes::copy_from_slice(bytes);
+    let mut bytes = Bytes::copy_from_slice(bytes);
     let auth = auth.cloned().map(AuthMethod::ManualKey);
     let mut pdu_actual =
-        Pdu::decode(bytes.clone(), auth.as_ref(), auth.as_ref()).unwrap();
+        Pdu::decode(&mut bytes, auth.as_ref(), auth.as_ref()).unwrap();
     if let Pdu::Lsp(pdu) = &mut pdu_actual {
         pdu.raw = bytes;
     }

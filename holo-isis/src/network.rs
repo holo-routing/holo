@@ -218,10 +218,10 @@ pub(crate) async fn read_loop(
 
                 // Decode packet.
                 let offset = if broadcast { LLC_HDR.len() } else { 0 };
-                let bytes =
+                let mut bytes =
                     Bytes::copy_from_slice(&iov[0].deref()[offset..bytes]);
                 let pdu = Pdu::decode(
-                    bytes.clone(),
+                    &mut bytes,
                     hello_auth.load().as_ref().as_ref(),
                     global_auth.load().as_ref().as_ref(),
                 );

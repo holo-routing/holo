@@ -198,12 +198,16 @@ pub struct SnpTlvs {
 
 impl Pdu {
     // Decodes IS-IS PDU from a bytes buffer.
+    //
+    // Once the PDU Length field has been validated, the input buffer is
+    // trimmed to that length, stripping any trailing data (e.g. Ethernet
+    // padding).
     pub fn decode(
-        mut buf: Bytes,
+        buf_orig: &mut Bytes,
         hello_auth: Option<&AuthMethod>,
         global_auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
-        let buf_orig = buf.clone();
+        let mut buf = buf_orig.clone();
 
         // Decode PDU common header.
         let hdr = Header::decode(&mut buf)?;
@@ -587,7 +591,7 @@ impl Hello {
     fn decode(
         hdr: Header,
         buf: &mut Bytes,
-        buf_orig: Bytes,
+        buf_orig: &mut Bytes,
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse circuit type.
@@ -611,7 +615,7 @@ impl Hello {
         }
 
         // Parse PDU length.
-        let _pdu_len = decode_pdu_length(&hdr, buf, &buf_orig)?;
+        let _pdu_len = decode_pdu_length(&hdr, buf, buf_orig)?;
 
         // Parse custom fields.
         let variant = if hdr.pdu_type == PduType::HelloP2P {
@@ -741,7 +745,7 @@ impl Hello {
 
         // Validate the PDU authentication.
         if let Some(auth) = auth {
-            Pdu::decode_auth_validate(&buf_orig, false, auth, tlv_auth)?;
+            Pdu::decode_auth_validate(buf_orig, false, auth, tlv_auth)?;
         }
 
         Ok(Hello {
@@ -985,11 +989,11 @@ impl Lsp {
     fn decode(
         hdr: Header,
         buf: &mut Bytes,
-        buf_orig: Bytes,
+        buf_orig: &mut Bytes,
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
-        let pdu_len = decode_pdu_length(&hdr, buf, &buf_orig)?;
+        let pdu_len = decode_pdu_length(&hdr, buf, buf_orig)?;
 
         // Parse remaining lifetime.
         let rem_lifetime = buf.try_get_u16()?;
@@ -1216,7 +1220,7 @@ impl Lsp {
         // Validate the PDU authentication.
         if let Some(auth) = auth {
             let tlv_auth =
-                Pdu::decode_auth_validate(&buf_orig, true, auth, tlv_auth)?;
+                Pdu::decode_auth_validate(buf_orig, true, auth, tlv_auth)?;
             tlvs.auth = Some(tlv_auth);
         }
 
@@ -1868,11 +1872,11 @@ impl Snp {
     fn decode(
         hdr: Header,
         buf: &mut Bytes,
-        buf_orig: Bytes,
+        buf_orig: &mut Bytes,
         auth: Option<&AuthMethod>,
     ) -> DecodeResult<Self> {
         // Parse PDU length.
-        let _pdu_len = decode_pdu_length(&hdr, buf, &buf_orig)?;
+        let _pdu_len = decode_pdu_length(&hdr, buf, buf_orig)?;
 
         // Parse source ID.
         let source = LanId::decode(buf)?;
@@ -1946,7 +1950,7 @@ impl Snp {
 
         // Validate the PDU authentication.
         if let Some(auth) = auth {
-            Pdu::decode_auth_validate(&buf_orig, false, auth, tlv_auth)?;
+            Pdu::decode_auth_validate(buf_orig, false, auth, tlv_auth)?;
         }
 
         Ok(Snp {
@@ -2076,7 +2080,7 @@ fn lsp_base_time() -> Option<Instant> {
 fn decode_pdu_length(
     hdr: &Header,
     buf: &mut Bytes,
-    buf_orig: &[u8],
+    buf_orig: &mut Bytes,
 ) -> DecodeResult<u16> {
     let pdu_len = buf.try_get_u16()?;
 
@@ -2092,6 +2096,7 @@ fn decode_pdu_length(
     if pdu_len < buf_orig.len() as u16 {
         let eth_padding = buf_orig.len() - pdu_len as usize;
         buf.truncate(buf.len() - eth_padding);
+        buf_orig.truncate(pdu_len as usize);
     }
 
     Ok(pdu_len)

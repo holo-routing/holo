@@ -1049,7 +1049,7 @@ fn test_decode_lsp_crypto_auth_short_digest() {
     ];
 
     let auth = AuthMethod::ManualKey(KEY_HMAC_SHA256.clone());
-    let result = Pdu::decode(Bytes::from(bytes), Some(&auth), Some(&auth));
+    let result = Pdu::decode(&mut Bytes::from(bytes), Some(&auth), Some(&auth));
     assert!(result.is_err());
 }
 
@@ -1072,6 +1072,6 @@ fn test_decode_lsp_short_pdu_length() {
         0x01,
     ];
 
-    let result = Pdu::decode(Bytes::from(bytes), None, None);
+    let result = Pdu::decode(&mut Bytes::from(bytes), None, None);
     assert!(result.is_err());
 }

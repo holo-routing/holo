@@ -13,6 +13,6 @@ use holo_isis::packet::pdu::Pdu;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
-    let bytes = Bytes::copy_from_slice(data);
-    let _ = Pdu::decode(bytes, None, None);
+    let mut bytes = Bytes::copy_from_slice(data);
+    let _ = Pdu::decode(&mut bytes, None, None);
 });

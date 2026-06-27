@@ -36,8 +36,8 @@ repository = "https://github.com/holo-routing/holo"
 arbitrary = { version = "1.4", features = ["derive"] }
 arc-swap = "1.9"
 base64 = "0.22"
-bitflags = { version = "2.11", features = ["serde"] }
-bytes = { version = "1.11", features = ["serde"] }
+bitflags = { version = "2.13", features = ["serde"] }
+bytes = { version = "1.12", features = ["serde"] }
 capctl = "0.2"
 check_keyword = "0.4"
 clap = "2.33"
@@ -51,33 +51,33 @@ enum-as-inner = "0.7"
 fletcher = "1.0"
 futures = "0.3"
 generational-arena = "0.2"
-hmac = "0.12"
+hmac = "0.13"
 internet-checksum = "0.2"
 ipnetwork = { version = "0.21", features = ["serde"] }
-itertools = "0.14"
+itertools = "0.15"
 libc = "0.2"
 maplit = "1.0"
-md-5 = "0.10"
+md-5 = "0.11"
 nix = { version = "0.31", features = ["fs", "net", "socket", "uio", "user"] }
 netlink-packet-core = "0.8"
 netlink-packet-route = "0.30"
 netlink-sys = "0.8"
 num-derive = "0.4"
 num-traits = "0.2"
-phf = { version = "0.13", features = ["macros"] }
+phf = { version = "0.14", features = ["macros"] }
 pickledb = "0.5"
 prefix-trie = { version = "0.9", default-features = false, features = ["ipnetwork"]  }
 prost = "0.14"
-rand = { version = "0.9", features = ["thread_rng"] }
+rand = { version = "0.10", features = ["thread_rng"] }
 regex = { version = "1.12", default-features = false, features = ["std", "perf"] }
 rtnetlink = "0.21"
 rustc_tools_util = "0.4.2"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
-serde_with = "3.18"
-sha1 = "0.10"
-sha2 = "0.10"
-similar = "2.7"
+serde_with = "3.21"
+sha1 = "0.11"
+sha2 = "0.11"
+similar = "3.1"
 smallvec = { version = "1.15", features = ["serde"] }
 socket2 = { version = "0.6", features = ["all"] }
 sysctl = "0.7"

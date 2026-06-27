@@ -7,7 +7,7 @@
 use std::time::Duration;
 
 use itertools::Itertools;
-use rand::Rng;
+use rand::RngExt;
 
 use crate::debug::Debug;
 use crate::instance::InstanceUpView;

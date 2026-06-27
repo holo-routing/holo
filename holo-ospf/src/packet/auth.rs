@@ -9,13 +9,8 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
 
 use derive_new::new;
-use hmac::Hmac;
-use hmac::digest::block_buffer::Eager;
-use hmac::digest::core_api::{
-    BlockSizeUser, BufferKindUser, CoreProxy, FixedOutputCore, UpdateCore,
-};
-use hmac::digest::typenum::{IsLess, Le, NonZero, U256};
-use hmac::digest::{HashMarker, Mac, OutputSizeUser};
+use hmac::digest::{Mac, OutputSizeUser};
+use hmac::{EagerHash, Hmac, KeyInit};
 use holo_utils::crypto::{CryptoAlgo, CryptoProtocolId, HMAC_APAD};
 use holo_utils::ip::{Ipv4AddrExt, Ipv6AddrExt};
 use holo_utils::keychain::{Key, Keychain};
@@ -60,22 +55,14 @@ fn keyed_md5_digest(data: &[u8], key: &[u8]) -> [u8; 16] {
     ctx.finalize().into()
 }
 
-fn hmac_sha_digest<H>(
+fn hmac_sha_digest<H: EagerHash>(
     data: &[u8],
     key: &[u8],
     proto_id: Option<CryptoProtocolId>,
     src: Option<&IpAddr>,
 ) -> Vec<u8>
 where
-    H: CoreProxy,
-    H::Core: HashMarker
-        + UpdateCore
-        + FixedOutputCore
-        + BufferKindUser<BufferKind = Eager>
-        + Default
-        + Clone,
-    <H::Core as BlockSizeUser>::BlockSize: IsLess<U256>,
-    Le<<H::Core as BlockSizeUser>::BlockSize, U256>: NonZero,
+    <H as EagerHash>::Core: OutputSizeUser,
 {
     let mut key = key;
     let key_proto: Vec<u8>;

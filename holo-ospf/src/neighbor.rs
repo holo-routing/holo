@@ -12,7 +12,7 @@ use chrono::{DateTime, Utc};
 use holo_utils::bfd;
 use holo_utils::task::{IntervalTask, TimeoutTask};
 use nsm::{Event, State};
-use rand::RngCore;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 
 use crate::area::Area;

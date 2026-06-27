@@ -18,7 +18,7 @@ use holo_utils::ibus::{IbusMsg, IbusSender};
 use holo_utils::ip::{IpAddrExt, IpAddrKind};
 use holo_utils::socket::{TTL_MAX, UdpSocket};
 use holo_utils::task::{IntervalTask, TimeoutTask};
-use rand::RngCore;
+use rand::Rng;
 use tokio::sync::mpsc::Sender;
 
 use crate::debug::Debug;

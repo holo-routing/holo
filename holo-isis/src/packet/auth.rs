@@ -6,13 +6,8 @@
 
 use std::sync::Arc;
 
-use hmac::Hmac;
-use hmac::digest::block_buffer::Eager;
-use hmac::digest::core_api::{
-    BlockSizeUser, BufferKindUser, CoreProxy, FixedOutputCore, UpdateCore,
-};
-use hmac::digest::typenum::{IsLess, Le, NonZero, U256};
-use hmac::digest::{HashMarker, Mac};
+use hmac::digest::Mac;
+use hmac::{EagerHash, Hmac, KeyInit};
 use holo_utils::crypto::CryptoAlgo;
 use holo_utils::keychain::{Key, Keychain};
 use md5::Md5;
@@ -56,18 +51,7 @@ impl AuthMethod {
 
 // ===== helper functions =====
 
-fn hmac_digest<H>(data: &[u8], key: &[u8]) -> Vec<u8>
-where
-    H: CoreProxy,
-    H::Core: HashMarker
-        + UpdateCore
-        + FixedOutputCore
-        + BufferKindUser<BufferKind = Eager>
-        + Default
-        + Clone,
-    <H::Core as BlockSizeUser>::BlockSize: IsLess<U256>,
-    Le<<H::Core as BlockSizeUser>::BlockSize, U256>: NonZero,
-{
+fn hmac_digest<H: EagerHash>(data: &[u8], key: &[u8]) -> Vec<u8> {
     // Compute the message digest.
     let mut mac = Hmac::<H>::new_from_slice(key).unwrap();
     mac.update(data);

@@ -198,6 +198,7 @@ Holo supports the following Internet Standards:
 * RFC 9479 - IS-IS Application-Specific Link Attributes
 * draft-ietf-bier-lsr-non-mpls-extensions-03 - LSR Extensions for BIER non-MPLS Encapsulation
 * draft-ietf-lsr-distoptflood-12 - IS-IS Distributed Flooding Reduction
+* draft-westphal-lsr-isis-database-checksumming-00 - IS-IS Database Fingerprinting
 
 ##### MPLS LDP
 

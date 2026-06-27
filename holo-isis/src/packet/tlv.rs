@@ -37,8 +37,8 @@ use crate::packet::iana::{
 use crate::packet::pdu::serde_lsp_rem_lifetime_filter;
 use crate::packet::subtlvs::MsdStlv;
 use crate::packet::subtlvs::capability::{
-    FloodingAlgoStlv, NodeAdminTagStlv, SrAlgoStlv, SrCapabilitiesStlv,
-    SrLocalBlockStlv,
+    FadStlv, FapmStlv, FloodingAlgoStlv, NodeAdminTagStlv, SrAlgoStlv,
+    SrCapabilitiesStlv, SrLocalBlockStlv,
 };
 use crate::packet::subtlvs::prefix::{
     BierInfoStlv, Ipv4SourceRidStlv, Ipv6SourceRidStlv, PrefixAttrFlags,
@@ -367,6 +367,7 @@ pub struct Ipv4ReachStlvs {
     pub ipv4_source_rid: Option<Ipv4SourceRidStlv>,
     pub ipv6_source_rid: Option<Ipv6SourceRidStlv>,
     pub prefix_sids: BTreeMap<IgpAlgoType, PrefixSidStlv>,
+    pub fapm: BTreeMap<u8, FapmStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -402,6 +403,7 @@ pub struct Ipv6ReachStlvs {
     pub ipv4_source_rid: Option<Ipv4SourceRidStlv>,
     pub ipv6_source_rid: Option<Ipv6SourceRidStlv>,
     pub prefix_sids: BTreeMap<IgpAlgoType, PrefixSidStlv>,
+    pub fapm: BTreeMap<u8, FapmStlv>,
     pub bier: Vec<BierInfoStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -446,6 +448,7 @@ pub struct RouterCapStlvs {
     pub srlb: Option<SrLocalBlockStlv>,
     pub node_msd: Option<MsdStlv>,
     pub node_tags: Vec<NodeAdminTagStlv>,
+    pub fad: Vec<FadStlv>,
     pub flooding_algo: Option<FloodingAlgoStlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -1569,7 +1572,7 @@ impl IsReachTlv {
                 stlv.encode(buf);
             }
             if let Some(stlv) = &entry.sub_tlvs.ext_admin_group {
-                stlv.encode(buf);
+                stlv.encode(NeighborStlvType::ExtendedAdminGroup, buf);
             }
             for stlv in &entry.sub_tlvs.ipv4_interface_addr {
                 stlv.encode(buf);
@@ -1921,6 +1924,17 @@ impl Ipv4ReachTlv {
                                 Err(error) => error.log(),
                             }
                         }
+                        Some(PrefixStlvType::FlexAlgoPrefixMetric) => {
+                            match FapmStlv::decode(stlv_len, &mut buf_stlv) {
+                                Ok(stlv) => {
+                                    sub_tlvs
+                                        .fapm
+                                        .entry(stlv.flex_algo)
+                                        .or_insert(stlv);
+                                }
+                                Err(error) => error.log(),
+                            }
+                        }
                         _ => {
                             // Save unknown Sub-TLV.
                             sub_tlvs.unknown.push(UnknownTlv::new(
@@ -1973,7 +1987,8 @@ impl Ipv4ReachTlv {
             let has_subtlvs = entry.sub_tlvs.prefix_attr_flags.is_some()
                 || entry.sub_tlvs.ipv4_source_rid.is_some()
                 || entry.sub_tlvs.ipv6_source_rid.is_some()
-                || !entry.sub_tlvs.prefix_sids.is_empty();
+                || !entry.sub_tlvs.prefix_sids.is_empty()
+                || !entry.sub_tlvs.fapm.is_empty();
             if has_subtlvs {
                 control |= Self::CONTROL_SUBTLVS;
             }
@@ -1999,6 +2014,9 @@ impl Ipv4ReachTlv {
                     stlv.encode(buf);
                 }
                 for stlv in entry.sub_tlvs.prefix_sids.values() {
+                    stlv.encode(buf);
+                }
+                for stlv in entry.sub_tlvs.fapm.values() {
                     stlv.encode(buf);
                 }
 
@@ -2085,6 +2103,7 @@ impl Ipv4ReachStlvs {
             || self.ipv4_source_rid.is_some()
             || self.ipv6_source_rid.is_some()
             || !self.prefix_sids.is_empty()
+            || !self.fapm.is_empty()
         {
             len += 1;
         }
@@ -2098,6 +2117,9 @@ impl Ipv4ReachStlvs {
             len += stlv.len();
         }
         for stlv in self.prefix_sids.values() {
+            len += stlv.len();
+        }
+        for stlv in self.fapm.values() {
             len += stlv.len();
         }
 
@@ -2224,6 +2246,17 @@ impl Ipv6ReachTlv {
                                 Err(error) => error.log(),
                             }
                         }
+                        Some(PrefixStlvType::FlexAlgoPrefixMetric) => {
+                            match FapmStlv::decode(stlv_len, &mut buf_stlv) {
+                                Ok(stlv) => {
+                                    sub_tlvs
+                                        .fapm
+                                        .entry(stlv.flex_algo)
+                                        .or_insert(stlv);
+                                }
+                                Err(error) => error.log(),
+                            }
+                        }
                         Some(PrefixStlvType::BierInfo) => {
                             match BierInfoStlv::decode(stlv_len, &mut buf_stlv)
                             {
@@ -2287,6 +2320,7 @@ impl Ipv6ReachTlv {
                 || entry.sub_tlvs.ipv4_source_rid.is_some()
                 || entry.sub_tlvs.ipv6_source_rid.is_some()
                 || !entry.sub_tlvs.prefix_sids.is_empty()
+                || !entry.sub_tlvs.fapm.is_empty()
                 || !entry.sub_tlvs.bier.is_empty();
             if has_subtlvs {
                 flags |= Self::FLAG_SUBTLVS;
@@ -2321,6 +2355,9 @@ impl Ipv6ReachTlv {
                     stlv.encode(buf);
                 }
                 for stlv in entry.sub_tlvs.prefix_sids.values() {
+                    stlv.encode(buf);
+                }
+                for stlv in entry.sub_tlvs.fapm.values() {
                     stlv.encode(buf);
                 }
                 for stlv in &entry.sub_tlvs.bier {
@@ -2410,6 +2447,7 @@ impl Ipv6ReachStlvs {
             || self.ipv4_source_rid.is_some()
             || self.ipv6_source_rid.is_some()
             || !self.prefix_sids.is_empty()
+            || !self.fapm.is_empty()
             || !self.bier.is_empty()
         {
             len += 1;
@@ -2424,6 +2462,9 @@ impl Ipv6ReachStlvs {
             len += stlv.len();
         }
         for stlv in self.prefix_sids.values() {
+            len += stlv.len();
+        }
+        for stlv in self.fapm.values() {
             len += stlv.len();
         }
         for stlv in self.bier.iter() {
@@ -2585,6 +2626,12 @@ impl RouterCapTlv {
                         Err(error) => error.log(),
                     }
                 }
+                Some(RouterCapStlvType::FlexAlgoDefinition) => {
+                    match FadStlv::decode(stlv_len, &mut buf_stlv) {
+                        Ok(stlv) => sub_tlvs.fad.push(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 Some(RouterCapStlvType::FloodingAlgo) => {
                     if sub_tlvs.flooding_algo.is_some() {
                         continue;
@@ -2632,6 +2679,9 @@ impl RouterCapTlv {
         for stlv in &self.sub_tlvs.node_tags {
             stlv.encode(buf);
         }
+        for stlv in &self.sub_tlvs.fad {
+            stlv.encode(buf);
+        }
         if let Some(stlv) = &self.sub_tlvs.flooding_algo {
             stlv.encode(buf);
         }
@@ -2656,6 +2706,9 @@ impl Tlv for RouterCapTlv {
             len += stlv.len();
         }
         for stlv in &self.sub_tlvs.node_tags {
+            len += stlv.len();
+        }
+        for stlv in &self.sub_tlvs.fad {
             len += stlv.len();
         }
         if let Some(stlv) = &self.sub_tlvs.flooding_algo {

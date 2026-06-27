@@ -17,7 +17,7 @@ use crate::error::AdjacencyRejectError;
 use crate::interface::InterfaceType;
 use crate::lsdb::LspLogReason;
 use crate::northbound::configuration::{ExtendedSeqNumMode, InstanceTraceOption, InterfaceTraceOption, MetricType, StandardApp};
-use crate::packet::iana::{AslaSabmFlags, FloodingAlgo, MtId};
+use crate::packet::iana::{AslaSabmFlags, FadFlags, FloodingAlgo, IgpAlgoType, IgpMetricType, MtId};
 use crate::packet::pdu::LspFlags;
 use crate::packet::subtlvs::capability::SrCapabilitiesFlags;
 use crate::packet::subtlvs::neighbor::{AdjSidFlags, MinMaxUniLinkDelayFlags, UniLinkDelayFlags, UniLinkLossFlags};
@@ -309,6 +309,35 @@ impl ToYang for SpfType {
             SpfType::Full => "full".into(),
             SpfType::RouteOnly => "route-only".into(),
         }
+    }
+}
+
+impl ToYang for IgpMetricType {
+    fn to_yang(&self) -> Cow<'static, str> {
+        match self {
+            IgpMetricType::IgpMetric => "iana-igp-metric-types:igp-metric".into(),
+            IgpMetricType::MinUniLinkDelay => "iana-igp-metric-types:min-unidirectional-link-delay".into(),
+            IgpMetricType::TeDefaultMetric => "iana-igp-metric-types:te-default-metric".into(),
+        }
+    }
+}
+
+impl ToYang for IgpAlgoType {
+    fn to_yang(&self) -> Cow<'static, str> {
+        match self {
+            IgpAlgoType::Spf => "iana-igp-algo-types:algo-spf".into(),
+            IgpAlgoType::StrictSpf => "iana-igp-algo-types:algo-strict-spf".into(),
+        }
+    }
+}
+
+impl ToYangFlags for FadFlags {
+    fn to_yang_flags(&self) -> Vec<&'static str> {
+        let mut flags = vec![];
+        if self.contains(FadFlags::M) {
+            flags.push("ietf-isis-flex-algo:m-flag");
+        }
+        flags
     }
 }
 

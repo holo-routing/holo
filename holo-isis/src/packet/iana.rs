@@ -160,6 +160,7 @@ bitflags! {
 pub enum PrefixStlvType {
     PrefixSid = 3,
     PrefixAttributeFlags = 4,
+    FlexAlgoPrefixMetric = 6,
     Ipv4SourceRouterId = 11,
     Ipv6SourceRouterId = 12,
     BierInfo = 32,
@@ -178,8 +179,62 @@ pub enum RouterCapStlvType {
     NodeAdminTag = 21,
     SrLocalBlock = 22,
     NodeMsd = 23,
+    FlexAlgoDefinition = 26,
     // FIXME: TBD1 in https://datatracker.ietf.org/doc/html/draft-prz-lsr-interop-flood-reduction-architecture-01#section-2.4
     FloodingAlgo = 40,
+}
+
+// IS-IS Sub-Sub-TLVs for Flexible Algorithm Definition Sub-TLV.
+//
+// IANA registry:
+// https://www.iana.org/assignments/isis-tlv-codepoints/isis-tlv-codepoints.xhtml#isis-sub-sub-tlvs-flexible-algorithm-definition-sub-tlv
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum FadStlvType {
+    ExcludeAdminGroup = 1,
+    IncludeAnyAdminGroup = 2,
+    IncludeAllAdminGroup = 3,
+    Flags = 4,
+    ExcludeSrlg = 5,
+}
+
+// IGP Metric-Type.
+//
+// IANA registry:
+// https://www.iana.org/assignments/igp-parameters/igp-parameters.xhtml#igp-metric-type
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(FromPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum IgpMetricType {
+    IgpMetric = 0,
+    MinUniLinkDelay = 1,
+    TeDefaultMetric = 2,
+}
+
+// IGP Algorithm Types.
+//
+// IANA registry:
+// https://www.iana.org/assignments/igp-parameters/igp-parameters.xhtml#igp-algorithm-types
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(FromPrimitive)]
+#[derive(Deserialize, Serialize)]
+pub enum IgpAlgoType {
+    Spf = 0,
+    StrictSpf = 1,
+}
+
+// IGP Flexible Algorithm Definition Flags.
+//
+// IANA registry:
+// https://www.iana.org/assignments/igp-parameters/igp-parameters.xhtml#igp-flexible-algorithm-definition-flags
+bitflags! {
+    #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    #[derive(Deserialize, Serialize)]
+    #[serde(transparent)]
+    pub struct FadFlags: u8 {
+        const M = 0x80;
+    }
 }
 
 // IS-IS Sub-TLVs for the MT-Capability TLV (TLV 144).

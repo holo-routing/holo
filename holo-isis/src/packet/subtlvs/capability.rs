@@ -17,11 +17,16 @@ use holo_utils::mpls::Label;
 use holo_utils::sr::{IgpAlgoType, Sid};
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
+use tracing::debug_span;
 
 use crate::packet::error::{TlvDecodeError, TlvDecodeResult};
-use crate::packet::iana::{LabelBindingStlvType, RouterCapStlvType};
+use crate::packet::iana::{
+    FadFlags, FadStlvType, LabelBindingStlvType, PrefixStlvType,
+    RouterCapStlvType,
+};
+use crate::packet::subtlvs::neighbor::ExtAdminGroupStlv;
 use crate::packet::tlv::{
-    TLV_HDR_SIZE, TLV_MAX_LEN, tlv_encode_end, tlv_encode_start,
+    TLV_HDR_SIZE, TLV_MAX_LEN, UnknownTlv, tlv_encode_end, tlv_encode_start,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -71,6 +76,49 @@ pub struct NodeAdminTagStlv(BTreeSet<u32>);
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
 pub struct FloodingAlgoStlv(u8);
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct FadStlv {
+    pub flex_algo: u8,
+    pub metric_type: u8,
+    pub calc_type: u8,
+    pub priority: u8,
+    pub sub_tlvs: FadStlvs,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
+#[derive(Deserialize, Serialize)]
+pub struct FadStlvs {
+    pub exclude_admin_group: Option<ExtAdminGroupStlv>,
+    pub include_any_admin_group: Option<ExtAdminGroupStlv>,
+    pub include_all_admin_group: Option<ExtAdminGroupStlv>,
+    pub flags: Option<FadFlagsStlv>,
+    pub exclude_srlgs: Option<ExcludeSrlgsStlv>,
+    pub unknown: Vec<UnknownTlv>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct FadFlagsStlv(FadFlags);
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct ExcludeSrlgsStlv(Vec<u32>);
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct FapmStlv {
+    pub flex_algo: u8,
+    pub metric: u32,
+}
 
 // ===== impl SrCapabilitiesStlv =====
 
@@ -344,5 +392,255 @@ impl FloodingAlgoStlv {
 
     pub(crate) fn get(&self) -> u8 {
         self.0
+    }
+}
+
+// ===== impl FadStlv =====
+
+impl FadStlv {
+    const FIXED_SIZE: usize = 4;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if (stlv_len as usize) < Self::FIXED_SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        let flex_algo = buf.try_get_u8()?;
+        let metric_type = buf.try_get_u8()?;
+        let calc_type = buf.try_get_u8()?;
+        let priority = buf.try_get_u8()?;
+
+        let mut sub_tlvs = FadStlvs::default();
+        while buf.remaining() >= TLV_HDR_SIZE {
+            let sstlv_type = buf.try_get_u8()?;
+            let sstlv_etype = FadStlvType::from_u8(sstlv_type);
+
+            let sstlv_len = buf.try_get_u8()?;
+            if sstlv_len as usize > buf.remaining() {
+                return Err(TlvDecodeError::InvalidLength(sstlv_len));
+            }
+
+            let span = debug_span!(
+                "sub-sub-TLV",
+                r#type = sstlv_type,
+                length = sstlv_len
+            );
+            let _span_guard = span.enter();
+            let mut buf_sstlv = buf.copy_to_bytes(sstlv_len as usize);
+            match sstlv_etype {
+                Some(FadStlvType::ExcludeAdminGroup) => {
+                    if sub_tlvs.exclude_admin_group.is_some() {
+                        continue;
+                    }
+                    match ExtAdminGroupStlv::decode(sstlv_len, &mut buf_sstlv) {
+                        Ok(stlv) => sub_tlvs.exclude_admin_group = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(FadStlvType::IncludeAnyAdminGroup) => {
+                    if sub_tlvs.include_any_admin_group.is_some() {
+                        continue;
+                    }
+                    match ExtAdminGroupStlv::decode(sstlv_len, &mut buf_sstlv) {
+                        Ok(stlv) => {
+                            sub_tlvs.include_any_admin_group = Some(stlv)
+                        }
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(FadStlvType::IncludeAllAdminGroup) => {
+                    if sub_tlvs.include_all_admin_group.is_some() {
+                        continue;
+                    }
+                    match ExtAdminGroupStlv::decode(sstlv_len, &mut buf_sstlv) {
+                        Ok(stlv) => {
+                            sub_tlvs.include_all_admin_group = Some(stlv)
+                        }
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(FadStlvType::Flags) => {
+                    if sub_tlvs.flags.is_some() {
+                        continue;
+                    }
+                    match FadFlagsStlv::decode(sstlv_len, &mut buf_sstlv) {
+                        Ok(stlv) => sub_tlvs.flags = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                Some(FadStlvType::ExcludeSrlg) => {
+                    if sub_tlvs.exclude_srlgs.is_some() {
+                        continue;
+                    }
+                    match ExcludeSrlgsStlv::decode(sstlv_len, &mut buf_sstlv) {
+                        Ok(stlv) => sub_tlvs.exclude_srlgs = Some(stlv),
+                        Err(error) => error.log(),
+                    }
+                }
+                _ => {
+                    sub_tlvs.unknown.push(UnknownTlv::new(
+                        sstlv_type, sstlv_len, buf_sstlv,
+                    ));
+                }
+            }
+        }
+
+        Ok(FadStlv {
+            flex_algo,
+            metric_type,
+            calc_type,
+            priority,
+            sub_tlvs,
+        })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, RouterCapStlvType::FlexAlgoDefinition);
+        buf.put_u8(self.flex_algo);
+        buf.put_u8(self.metric_type);
+        buf.put_u8(self.calc_type);
+        buf.put_u8(self.priority);
+        if let Some(stlv) = &self.sub_tlvs.exclude_admin_group {
+            stlv.encode(FadStlvType::ExcludeAdminGroup, buf);
+        }
+        if let Some(stlv) = &self.sub_tlvs.include_any_admin_group {
+            stlv.encode(FadStlvType::IncludeAnyAdminGroup, buf);
+        }
+        if let Some(stlv) = &self.sub_tlvs.include_all_admin_group {
+            stlv.encode(FadStlvType::IncludeAllAdminGroup, buf);
+        }
+        if let Some(stlv) = &self.sub_tlvs.flags {
+            stlv.encode(buf);
+        }
+        if let Some(stlv) = &self.sub_tlvs.exclude_srlgs {
+            stlv.encode(buf);
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        let mut len = TLV_HDR_SIZE + Self::FIXED_SIZE;
+        if let Some(stlv) = &self.sub_tlvs.exclude_admin_group {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.sub_tlvs.include_any_admin_group {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.sub_tlvs.include_all_admin_group {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.sub_tlvs.flags {
+            len += stlv.len();
+        }
+        if let Some(stlv) = &self.sub_tlvs.exclude_srlgs {
+            len += stlv.len();
+        }
+        len
+    }
+}
+
+// ===== impl FadFlagsStlv =====
+
+impl FadFlagsStlv {
+    const SIZE: usize = 1;
+
+    pub(crate) fn decode(
+        sstlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if sstlv_len == 0 {
+            return Ok(FadFlagsStlv(FadFlags::from_bits_truncate(0)));
+        }
+        let flags = buf.try_get_u8()?;
+        Ok(FadFlagsStlv(FadFlags::from_bits_retain(flags)))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start = tlv_encode_start(buf, FadStlvType::Flags);
+        buf.put_u8(self.0.bits());
+        tlv_encode_end(buf, start);
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::SIZE
+    }
+
+    pub(crate) fn get(&self) -> FadFlags {
+        self.0
+    }
+}
+
+// ===== impl ExcludeSrlgsStlv =====
+
+impl ExcludeSrlgsStlv {
+    const SRLG_LEN: usize = 4;
+
+    pub(crate) fn decode(
+        sstlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if sstlv_len == 0
+            || !(sstlv_len as usize).is_multiple_of(Self::SRLG_LEN)
+        {
+            return Err(TlvDecodeError::InvalidLength(sstlv_len));
+        }
+        let mut srlgs = Vec::new();
+        while buf.remaining() >= Self::SRLG_LEN {
+            let srlg = buf.try_get_u32()?;
+            srlgs.push(srlg);
+        }
+        Ok(ExcludeSrlgsStlv(srlgs))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start = tlv_encode_start(buf, FadStlvType::ExcludeSrlg);
+        for srlg in &self.0 {
+            buf.put_u32(*srlg);
+        }
+        tlv_encode_end(buf, start);
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        TLV_HDR_SIZE + self.0.len() * Self::SRLG_LEN
+    }
+
+    pub(crate) fn get(&self) -> &[u32] {
+        &self.0
+    }
+}
+
+// ===== impl FapmStlv =====
+
+impl FapmStlv {
+    const SIZE: usize = 5;
+
+    pub(crate) fn decode(
+        stlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        if stlv_len as usize != Self::SIZE {
+            return Err(TlvDecodeError::InvalidLength(stlv_len));
+        }
+
+        let flex_algo = buf.try_get_u8()?;
+        let metric = buf.try_get_u32()?;
+
+        Ok(FapmStlv { flex_algo, metric })
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos =
+            tlv_encode_start(buf, PrefixStlvType::FlexAlgoPrefixMetric);
+        buf.put_u8(self.flex_algo);
+        buf.put_u32(self.metric);
+        tlv_encode_end(buf, start_pos);
+    }
+
+    pub(crate) fn len(&self) -> usize {
+        TLV_HDR_SIZE + Self::SIZE
     }
 }

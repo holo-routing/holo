@@ -1,0 +1,122 @@
+module holo-ietf-isis-flex-algo-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-isis-flex-algo-deviations";
+  prefix holo-ietf-isis-flex-algo-deviations;
+
+  import ietf-isis-flex-algo {
+    prefix isis-flex-algo;
+  }
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-isis {
+    prefix isis;
+  }
+
+  import ietf-te-types {
+    prefix te-types;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-isis-flex-algo
+     module.";
+
+  /*
+   * Type changes
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis-flex-algo:fad-tlvs/isis-flex-algo:fad-tlv/isis-flex-algo:fa-in-any-ag-sub-tlv/isis-flex-algo:extended-admin-group" {
+    deviate replace {
+      type te-types:extended-admin-group;
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:database/isis:levels/isis:lsp/isis:router-capabilities/isis:router-capability/isis-flex-algo:fad-tlvs/isis-flex-algo:fad-tlv/isis-flex-algo:fa-in-all-ag-sub-tlv/isis-flex-algo:extended-admin-group" {
+    deviate replace {
+      type te-types:extended-admin-group;
+    }
+  }
+
+  /*
+   * Not supported nodes
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-flex-algo:isis-flex-algo" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-flex-algo:isis-flex-algo/isis-flex-algo:flex-algo" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-flex-algo:isis-flex-algo/isis-flex-algo:flex-algo/isis-flex-algo:algo-number" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-flex-algo:isis-flex-algo/isis-flex-algo:flex-algo/isis-flex-algo:advertise-definition" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-flex-algo:isis-flex-algo/isis-flex-algo:flex-algo/isis-flex-algo:exclude-srlgs" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-flex-algo:isis-flex-algo/isis-flex-algo:flex-algo/isis-flex-algo:metric-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-flex-algo:isis-flex-algo/isis-flex-algo:flex-algo/isis-flex-algo:calc-type" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-flex-algo:isis-flex-algo/isis-flex-algo:flex-algo/isis-flex-algo:prefix-metric" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis-flex-algo:isis-flex-algo/isis-flex-algo:flex-algo/isis-flex-algo:priority" {
+    deviate not-supported;
+  }
+  */
+
+  deviation "/isis-flex-algo:flex-algo-not-supported" {
+    deviate not-supported;
+  }
+
+  /*
+  deviation "/isis-flex-algo:flex-algo-not-supported/isis-flex-algo:routing-protocol-name" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis-flex-algo:flex-algo-not-supported/isis-flex-algo:isis-level" {
+    deviate not-supported;
+  }
+  */
+
+  /*
+  deviation "/isis-flex-algo:flex-algo-not-supported/isis-flex-algo:algo-number" {
+    deviate not-supported;
+  }
+  */
+}

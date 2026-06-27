@@ -157,7 +157,7 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                         sub_tlvs: IsReachStlvs {
                             admin_group: Some(AdminGroupStlv::new(0x0f)),
                             ext_admin_group: Some(ExtAdminGroupStlv::new(
-                                vec![0x0f],
+                                vec![0x00, 0x00, 0x00, 0x0f],
                             )),
                             ipv4_interface_addr: vec![
                                 Ipv4InterfaceAddrStlv::new(ip4!("10.0.1.1")),
@@ -207,7 +207,9 @@ static LSP1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                                 udabm: 0,
                                 sub_tlvs: AslaStlvs {
                                     ext_admin_group: Some(
-                                        ExtAdminGroupStlv::new(vec![0x0f]),
+                                        ExtAdminGroupStlv::new(vec![
+                                            0x00, 0x00, 0x00, 0x0f,
+                                        ]),
                                     ),
                                     uni_link_delay: Some(
                                         UniLinkDelayStlv::new(

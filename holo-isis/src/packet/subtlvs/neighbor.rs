@@ -33,7 +33,7 @@ pub struct AdminGroupStlv(u32);
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(new)]
 #[derive(Deserialize, Serialize)]
-pub struct ExtAdminGroupStlv(Vec<u32>);
+pub struct ExtAdminGroupStlv(Vec<u8>);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(new)]
@@ -241,25 +241,21 @@ impl ExtAdminGroupStlv {
             return Err(TlvDecodeError::InvalidLength(stlv_len));
         }
 
-        let count = stlv_len as usize / 4;
-        let mut groups = Vec::with_capacity(count);
-        for _ in 0..count {
-            groups.push(buf.try_get_u32()?);
-        }
-
-        Ok(ExtAdminGroupStlv(groups))
+        let len = stlv_len as usize;
+        Ok(ExtAdminGroupStlv(buf.copy_to_bytes(len).to_vec()))
     }
 
     pub(crate) fn encode(&self, buf: &mut BytesMut) {
         let start_pos =
             tlv_encode_start(buf, NeighborStlvType::ExtendedAdminGroup);
-        for word in &self.0 {
-            buf.put_u32(*word);
-        }
+        buf.put_slice(&self.0);
+        // Pad to a 4-byte boundary.
+        let pad = (4 - self.0.len() % 4) % 4;
+        buf.put_bytes(0, pad);
         tlv_encode_end(buf, start_pos);
     }
 
-    pub(crate) fn get(&self) -> &[u32] {
+    pub(crate) fn get(&self) -> &[u8] {
         &self.0
     }
 }

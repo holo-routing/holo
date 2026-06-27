@@ -577,7 +577,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
             id: *id,
             metric: Some(reach.metric),
             admin_group: reach.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
-            extended_admin_group: reach.sub_tlvs.ext_admin_group.as_ref().map(|tlv| Box::new(tlv.get().iter().copied()) as _),
+            extended_admin_group: reach.sub_tlvs.ext_admin_group.as_ref().map(|tlv| HexStr(tlv.get())),
             te_metric: reach.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
             max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
             max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
@@ -736,7 +736,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::extended_i
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::AslaSubTlv {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::AslaSubTlv<'a> {
     type ParentListEntry = (u32, &'a IsReach);
     type ListEntry = &'a AslaStlv;
 
@@ -750,6 +750,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::extended_is_nei
             l_flag: Some(stlv.l_flag),
             te_metric: stlv.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
             admin_group: stlv.sub_tlvs.admin_group.as_ref().map(|tlv| HexString(tlv.get().to_be_bytes().to_vec())),
+            extended_admin_group: stlv.sub_tlvs.ext_admin_group.as_ref().map(|tlv| HexStr(tlv.get())),
             max_bandwidth: stlv.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
             max_reservable_bandwidth: stlv.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
         }
@@ -1214,7 +1215,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
             id: *id,
             metric: Some(reach.metric),
             admin_group: reach.sub_tlvs.admin_group.as_ref().map(|tlv| tlv.get()),
-            extended_admin_group: reach.sub_tlvs.ext_admin_group.as_ref().map(|tlv| Box::new(tlv.get().iter().copied()) as _),
+            extended_admin_group: reach.sub_tlvs.ext_admin_group.as_ref().map(|tlv| HexStr(tlv.get())),
             te_metric: reach.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
             max_bandwidth: reach.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
             max_reservable_bandwidth: reach.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
@@ -1373,7 +1374,7 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::lsp::mt_is_neig
     }
 }
 
-impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::AslaSubTlv {
+impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor::neighbor::instances::instance::asla_sub_tlvs::asla_sub_tlv::AslaSubTlv<'a> {
     type ParentListEntry = (u32, &'a IsReach);
     type ListEntry = &'a AslaStlv;
 
@@ -1387,6 +1388,7 @@ impl<'a> YangList<'a, Instance> for isis::database::levels::lsp::mt_is_neighbor:
             l_flag: Some(stlv.l_flag),
             te_metric: stlv.sub_tlvs.te_default_metric.as_ref().map(|tlv| tlv.get()),
             admin_group: stlv.sub_tlvs.admin_group.as_ref().map(|tlv| HexString(tlv.get().to_be_bytes().to_vec())),
+            extended_admin_group: stlv.sub_tlvs.ext_admin_group.as_ref().map(|tlv| HexStr(tlv.get())),
             max_bandwidth: stlv.sub_tlvs.max_link_bw.as_ref().map(|tlv| tlv.get()),
             max_reservable_bandwidth: stlv.sub_tlvs.max_resv_link_bw.as_ref().map(|tlv| tlv.get()),
         }

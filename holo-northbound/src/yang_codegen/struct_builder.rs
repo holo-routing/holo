@@ -310,7 +310,7 @@ impl<'a> StructBuilder<'a> {
             .snode
             .list_keys()
             .map(|snode| {
-                let field = format!("self.{}", &snode.rust_name(Case::Snake));
+                let field = format!("self.{}", snode.rust_name(Case::Snake));
                 let spec = snode.leaf_type().unwrap().spec();
                 match spec.rust_type {
                     "String" => field,

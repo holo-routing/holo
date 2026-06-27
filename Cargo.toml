@@ -99,6 +99,7 @@ field_reassign_with_default = "allow"
 large_enum_variant = "allow"
 manual_range_contains = "allow"
 match_single_binding = "allow"
+result_large_err = "allow"
 single_match = "allow"
 too_many_arguments = "allow"
 

@@ -20,7 +20,7 @@ use holo_yang::ToYang;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 
 use crate::northbound::configuration::NexthopSpecial;
-use crate::northbound::yang_gen::{self, routing};
+use crate::northbound::yang_gen::{self, network_instances, routing};
 use crate::rib::{Route, RouteFlags};
 use crate::{InstanceId, Master};
 
@@ -84,6 +84,32 @@ impl<'a> YangList<'a, Master> for routing::control_plane_protocols::control_plan
             | ("ietf-rip", Protocol::RIPV2 | Protocol::RIPNG) => Some(instance.nb_tx.clone()),
             _ => None,
         }
+    }
+}
+
+impl<'a> YangList<'a, Master> for network_instances::network_instance::NetworkInstance<'a> {
+    type ParentListEntry = ();
+    type ListEntry = &'a String;
+
+    fn iter(master: &'a Master, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        Some(master.network_instances.keys())
+    }
+
+    fn new(_master: &'a Master, name: &Self::ListEntry) -> Self {
+        Self {
+            name: Cow::Borrowed(name),
+        }
+    }
+}
+
+impl<'a> YangContainer<'a, Master> for network_instances::network_instance::state::State {
+    type ParentListEntry = &'a String;
+
+    fn new(master: &'a Master, name: &Self::ParentListEntry) -> Option<Self> {
+        let ni = master.network_instances.get(*name)?;
+        Some(Self {
+            table_id: ni.table_id,
+        })
     }
 }
 

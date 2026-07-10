@@ -1,0 +1,9 @@
+{"Ibus":{"RouterIdUpdate":"192.0.2.1"}}
+{"Protocol":{"TcpAccept":{"conn_info":{"local_addr":"192.0.2.1","local_port":179,"remote_addr":"192.0.2.2","remote_port":40000}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Open":{"version":4,"my_as":65001,"holdtime":90,"identifier":"192.0.2.2","capabilities":[{"MultiProtocol":{"afi":"Ipv4","safi":"LabeledVpn"}},{"MultiProtocol":{"afi":"Ipv6","safi":"LabeledVpn"}},{"FourOctetAsNumber":{"asn":65001}},"RouteRefresh"]}}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Keepalive":{}}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Update":{"mp_reach":{"L3vpnIpv4Unicast":{"prefixes":[{"label":16000,"rd":{"As2Administrator":{"asn":65000,"number":1}},"prefix":"192.0.2.0/24"}],"nexthop":"192.0.2.2"}},"attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65001]}]}},"ext_comm":[[0,2,253,232,0,0,0,100]]}}}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Update":{"mp_reach":{"L3vpnIpv6Unicast":{"prefixes":[{"label":16001,"rd":{"As2Administrator":{"asn":65000,"number":1}},"prefix":"2001:db8:100::/64"}],"nexthop":"2001:db8::2"}},"attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65001]}]}},"ext_comm":[[0,2,253,232,0,0,0,100]]}}}}}}}
+{"Ibus":{"NexthopUpd":{"addr":"192.0.2.2","metric":0}}}
+{"Ibus":{"NexthopUpd":{"addr":"2001:db8::2","metric":0}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Keepalive":{}}}}}}

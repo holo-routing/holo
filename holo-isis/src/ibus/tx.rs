@@ -66,6 +66,7 @@ pub(crate) fn route_install(
         } else {
             RouteKind::Unicast
         },
+        table_id: None,
         prefix: *destination,
         distance: distance.into(),
         metric: route.metric,
@@ -111,6 +112,7 @@ pub(crate) fn route_uninstall(
     // Uninstall route.
     let msg = RouteKeyMsg {
         protocol: Protocol::ISIS,
+        table_id: None,
         prefix: *destination,
     };
     ibus_tx.route_ip_del(msg);

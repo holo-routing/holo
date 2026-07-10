@@ -68,6 +68,7 @@ pub(crate) fn route_install<V>(
     let msg = RouteMsg {
         protocol: V::PROTOCOL,
         kind: RouteKind::Unicast,
+        table_id: None,
         prefix: (*destination).into(),
         distance: distance.into(),
         metric: route.metric(),
@@ -125,6 +126,7 @@ pub(crate) fn route_uninstall<V>(
     // Uninstall route.
     let msg = RouteKeyMsg {
         protocol: V::PROTOCOL,
+        table_id: None,
         prefix: (*destination).into(),
     };
     ibus_tx.route_ip_del(msg);

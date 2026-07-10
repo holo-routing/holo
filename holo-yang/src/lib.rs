@@ -385,6 +385,7 @@ pub static YANG_FEATURES: Lazy<HashMap<&'static str, Vec<&'static str>>> =
         hashmap! {
             "iana-bgp-types" => vec![
                 "clear-neighbors",
+                "add-paths",
                 "route-refresh",
                 "ttl-security",
             ],

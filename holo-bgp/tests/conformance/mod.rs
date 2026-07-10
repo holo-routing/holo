@@ -4,4 +4,5 @@
 // SPDX-License-Identifier: MIT
 //
 
+mod add_path;
 mod topologies;

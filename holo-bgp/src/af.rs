@@ -139,8 +139,14 @@ impl AddressFamily for Ipv4Unicast {
             msgs.extend(
                 prefixes.into_iter().chunks(max as usize).into_iter().map(
                     |chunk| {
+                        let (prefixes, mut path_ids): (Vec<_>, Vec<_>) =
+                            chunk.unzip();
+                        if path_ids.iter().all(|path_id| *path_id == 0) {
+                            path_ids.clear();
+                        }
                         let reach = ReachNlri {
-                            prefixes: chunk.collect(),
+                            prefixes,
+                            path_ids,
                             nexthop,
                         };
                         Message::Update(UpdateMsg {
@@ -163,9 +169,12 @@ impl AddressFamily for Ipv4Unicast {
             msgs.extend(
                 unreach.into_iter().chunks(max as usize).into_iter().map(
                     |chunk| {
-                        let unreach = UnreachNlri {
-                            prefixes: chunk.collect(),
-                        };
+                        let (prefixes, mut path_ids): (Vec<_>, Vec<_>) =
+                            chunk.unzip();
+                        if path_ids.iter().all(|path_id| *path_id == 0) {
+                            path_ids.clear();
+                        }
+                        let unreach = UnreachNlri { prefixes, path_ids };
                         Message::Update(UpdateMsg {
                             reach: None,
                             unreach: Some(unreach),
@@ -276,8 +285,14 @@ impl AddressFamily for Ipv6Unicast {
             msgs.extend(
                 prefixes.into_iter().chunks(max as usize).into_iter().map(
                     |chunk| {
+                        let (prefixes, mut path_ids): (Vec<_>, Vec<_>) =
+                            chunk.unzip();
+                        if path_ids.iter().all(|path_id| *path_id == 0) {
+                            path_ids.clear();
+                        }
                         let mp_reach = MpReachNlri::Ipv6Unicast {
-                            prefixes: chunk.collect(),
+                            prefixes,
+                            path_ids,
                             nexthop,
                             ll_nexthop,
                         };
@@ -304,9 +319,13 @@ impl AddressFamily for Ipv6Unicast {
             msgs.extend(
                 unreach.into_iter().chunks(max as usize).into_iter().map(
                     |chunk| {
-                        let mp_unreach = MpUnreachNlri::Ipv6Unicast {
-                            prefixes: chunk.collect(),
-                        };
+                        let (prefixes, mut path_ids): (Vec<_>, Vec<_>) =
+                            chunk.unzip();
+                        if path_ids.iter().all(|path_id| *path_id == 0) {
+                            path_ids.clear();
+                        }
+                        let mp_unreach =
+                            MpUnreachNlri::Ipv6Unicast { prefixes, path_ids };
                         Message::Update(UpdateMsg {
                             reach: None,
                             unreach: None,

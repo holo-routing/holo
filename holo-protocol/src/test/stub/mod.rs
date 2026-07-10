@@ -23,7 +23,7 @@ use crate::test::stub::northbound::NorthboundStub;
 use crate::test::{OutputChannelsRx, setup};
 use crate::{
     InstanceAggChannels, InstanceMsg, InstanceShared, ProtocolInstance,
-    spawn_protocol_task,
+    spawn_protocol_task_inner,
 };
 
 // Environment variable that controls if the test data needs to be updated or
@@ -101,7 +101,7 @@ where
 
     // Synchronizes the protocol instance to ensure all previously sent instance
     // messages were already received and processed.
-    async fn sync(&self) {
+    pub async fn sync(&self) {
         let (responder_tx, responder_rx) = oneshot::channel();
         let msg = TestMsg::Synchronize(SynchronizeMsg {
             responder: Some(responder_tx),
@@ -110,6 +110,27 @@ where
         responder_rx
             .await
             .expect("failed to receive Synchronize response");
+    }
+
+    pub async fn commit_replace(&mut self, config: &str) {
+        self.nb.commit_replace(config).await;
+    }
+
+    pub async fn state_json(&self) -> String {
+        let state = self.nb.get_state().await;
+        northbound::dtree_print(&state)
+    }
+
+    pub fn reset_output(&self) {
+        self.messages.reset_output();
+    }
+
+    pub fn take_ibus_output(&self) -> Vec<String> {
+        self.messages.ibus_output()
+    }
+
+    pub fn take_protocol_output(&self) -> Vec<String> {
+        self.messages.protocol_output()
     }
 
     fn assert_nb_notifications(
@@ -277,7 +298,7 @@ where
     let channels = InstanceAggChannels::default();
     let instance_tx = channels.tx.clone();
     let (test_tx, test_rx) = mpsc::channel(4);
-    let nb_daemon_tx = spawn_protocol_task::<P>(
+    let nb_daemon_tx = spawn_protocol_task_inner::<P>(
         name.to_owned(),
         &nb_provider_tx,
         &ibus_tx,

@@ -12,10 +12,10 @@ use holo_bgp::packet::attribute::{
     Aggregator, AsPath, AsPathSegment, AsPathSegmentType, Attrs, BaseAttrs,
     ClusterList, CommList,
 };
-use holo_bgp::packet::iana::Origin;
+use holo_bgp::packet::iana::{Afi, Origin, Safi};
 use holo_bgp::packet::message::{
-    DecodeCxt, Message, MpReachNlri, MpUnreachNlri, NegotiatedCapability,
-    ReachNlri, UnreachNlri, UpdateMsg,
+    AddPathMode, DecodeCxt, EncodeCxt, Message, MpReachNlri, MpUnreachNlri,
+    NegotiatedCapability, ReachNlri, UnreachNlri, UpdateMsg,
 };
 use holo_utils::bgp::{Comm, ExtComm, Extv6Comm, LargeComm};
 
@@ -72,16 +72,19 @@ static UPDATE2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
         Message::Update(UpdateMsg {
             reach: Some(ReachNlri {
                 prefixes: vec![net4!("10.0.255.1/32"), net4!("10.0.255.2/32")],
+                path_ids: vec![],
                 nexthop: ip4!("1.1.1.1"),
             }),
             unreach: Some(UnreachNlri {
                 prefixes: vec![net4!("10.0.1.0/24"), net4!("10.0.2.0/24")],
+                path_ids: vec![],
             }),
             mp_reach: Some(MpReachNlri::Ipv6Unicast {
                 prefixes: vec![
                     net6!("2001:db8:1::1/128"),
                     net6!("2001:db8:1::2/128"),
                 ],
+                path_ids: vec![],
                 nexthop: ip6!("3000::1"),
                 ll_nexthop: Some(ip6!("fe80::4207:bd19:111c:8411")),
             }),
@@ -90,6 +93,7 @@ static UPDATE2: Lazy<(Vec<u8>, Message)> = Lazy::new(|| {
                     net6!("2001:db8:2::1/128"),
                     net6!("2001:db8:2::2/128"),
                 ],
+                path_ids: vec![],
             }),
             attrs: Some(Attrs {
                 base: BaseAttrs {
@@ -161,6 +165,7 @@ fn test_decode_malformed_updates() {
         peer_type: PeerType::Internal,
         peer_as: 65550,
         reject_as_sets: true,
+        capabilities_adv: Default::default(),
         capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
     };
     for bytes in &[
@@ -189,4 +194,138 @@ fn test_decode_malformed_updates() {
             let _ = Message::decode(&bytes[0..msg_size], &cxt);
         }
     }
+}
+
+#[test]
+fn test_add_path_roundtrip() {
+    let msg = Message::Update(UpdateMsg {
+        reach: Some(ReachNlri {
+            prefixes: vec![net4!("10.0.255.1/32"), net4!("10.0.255.1/32")],
+            path_ids: vec![10, 20],
+            nexthop: ip4!("1.1.1.1"),
+        }),
+        unreach: Some(UnreachNlri {
+            prefixes: vec![net4!("10.0.1.0/24"), net4!("10.0.1.0/24")],
+            path_ids: vec![30, 40],
+        }),
+        mp_reach: Some(MpReachNlri::Ipv6Unicast {
+            prefixes: vec![
+                net6!("2001:db8:1::1/128"),
+                net6!("2001:db8:1::1/128"),
+            ],
+            path_ids: vec![50, 60],
+            nexthop: ip6!("3000::1"),
+            ll_nexthop: None,
+        }),
+        mp_unreach: Some(MpUnreachNlri::Ipv6Unicast {
+            prefixes: vec![
+                net6!("2001:db8:2::1/128"),
+                net6!("2001:db8:2::1/128"),
+            ],
+            path_ids: vec![70, 80],
+        }),
+        attrs: Some(Attrs {
+            base: BaseAttrs {
+                nexthop: Some(ip4!("1.1.1.1").into()),
+                ..Default::default()
+            },
+            comm: None,
+            ext_comm: None,
+            extv6_comm: None,
+            large_comm: None,
+            unknown: None,
+        }),
+    });
+    let caps = [
+        NegotiatedCapability::FourOctetAsNumber,
+        NegotiatedCapability::AddPath {
+            afi: Afi::Ipv4,
+            safi: Safi::Unicast,
+            mode: AddPathMode::ReceiveSend,
+        },
+        NegotiatedCapability::AddPath {
+            afi: Afi::Ipv6,
+            safi: Safi::Unicast,
+            mode: AddPathMode::ReceiveSend,
+        },
+    ]
+    .into();
+    let enc = EncodeCxt { capabilities: caps };
+    let dec = DecodeCxt {
+        peer_type: PeerType::Internal,
+        peer_as: 65550,
+        reject_as_sets: true,
+        capabilities_adv: Default::default(),
+        capabilities: enc.capabilities.clone(),
+    };
+
+    let bytes = msg.encode(&enc);
+    let decoded = Message::decode(&bytes, &dec).unwrap();
+    let Message::Update(decoded) = decoded else {
+        panic!("expected UPDATE");
+    };
+    assert_eq!(decoded.reach.unwrap().path_ids, vec![10, 20]);
+    assert_eq!(decoded.unreach.unwrap().path_ids, vec![30, 40]);
+    assert_eq!(
+        decoded.mp_reach.unwrap(),
+        MpReachNlri::Ipv6Unicast {
+            prefixes: vec![
+                net6!("2001:db8:1::1/128"),
+                net6!("2001:db8:1::1/128"),
+            ],
+            path_ids: vec![50, 60],
+            nexthop: ip6!("3000::1"),
+            ll_nexthop: None,
+        }
+    );
+    assert_eq!(
+        decoded.mp_unreach.unwrap(),
+        MpUnreachNlri::Ipv6Unicast {
+            prefixes: vec![
+                net6!("2001:db8:2::1/128"),
+                net6!("2001:db8:2::1/128"),
+            ],
+            path_ids: vec![70, 80],
+        }
+    );
+}
+
+#[test]
+fn test_add_path_ids_omitted_without_negotiation() {
+    let msg = Message::Update(UpdateMsg {
+        reach: None,
+        unreach: Some(UnreachNlri {
+            prefixes: vec![net4!("10.0.1.0/24")],
+            path_ids: vec![30],
+        }),
+        mp_reach: None,
+        mp_unreach: None,
+        attrs: None,
+    });
+    let enc = EncodeCxt {
+        capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
+    };
+    let dec = DecodeCxt {
+        peer_type: PeerType::Internal,
+        peer_as: 65550,
+        reject_as_sets: true,
+        capabilities_adv: Default::default(),
+        capabilities: enc.capabilities.clone(),
+    };
+
+    let bytes = msg.encode(&enc);
+    let decoded = Message::decode(&bytes, &dec).unwrap();
+    assert_eq!(
+        decoded,
+        Message::Update(UpdateMsg {
+            reach: None,
+            unreach: Some(UnreachNlri {
+                prefixes: vec![net4!("10.0.1.0/24")],
+                path_ids: vec![],
+            }),
+            mp_reach: None,
+            mp_unreach: None,
+            attrs: None,
+        })
+    );
 }

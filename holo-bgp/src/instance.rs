@@ -534,25 +534,26 @@ fn process_protocol_msg(
                 afi_safi,
                 nbr_addr,
                 routes,
+                path_ids,
             } => match (policy_type, afi_safi) {
                 (PolicyType::Import, AfiSafi::Ipv4Unicast) => {
                     events::process_nbr_policy_import::<Ipv4Unicast>(
-                        instance, neighbors, nbr_addr, routes,
+                        instance, neighbors, nbr_addr, routes, path_ids,
                     )?
                 }
                 (PolicyType::Import, AfiSafi::Ipv6Unicast) => {
                     events::process_nbr_policy_import::<Ipv6Unicast>(
-                        instance, neighbors, nbr_addr, routes,
+                        instance, neighbors, nbr_addr, routes, path_ids,
                     )?
                 }
                 (PolicyType::Export, AfiSafi::Ipv4Unicast) => {
                     events::process_nbr_policy_export::<Ipv4Unicast>(
-                        instance, neighbors, nbr_addr, routes,
+                        instance, neighbors, nbr_addr, routes, path_ids,
                     )?
                 }
                 (PolicyType::Export, AfiSafi::Ipv6Unicast) => {
                     events::process_nbr_policy_export::<Ipv6Unicast>(
-                        instance, neighbors, nbr_addr, routes,
+                        instance, neighbors, nbr_addr, routes, path_ids,
                     )?
                 }
             },

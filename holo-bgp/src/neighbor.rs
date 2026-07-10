@@ -33,10 +33,11 @@ use crate::packet::iana::{
     Afi, CeaseSubcode, ErrorCode, FsmErrorSubcode, Safi,
 };
 use crate::packet::message::{
-    Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
-    NegotiatedCapability, NotificationMsg, OpenMsg, RouteRefreshMsg,
+    AddPathMode, AddPathTuple, Capability, DecodeCxt, EncodeCxt, KeepaliveMsg,
+    Message, NegotiatedCapability, NotificationMsg, OpenMsg, RouteRefreshMsg,
+    negotiate_capabilities,
 };
-use crate::rib::{Rib, Route, RouteOrigin};
+use crate::rib::{AdjRibKey, Rib, Route, RouteOrigin};
 #[cfg(feature = "testing")]
 use crate::tasks::messages::ProtocolOutputMsg;
 use crate::tasks::messages::input::{NbrTimerMsg, TcpConnectMsg};
@@ -118,8 +119,8 @@ pub struct NeighborUpdateQueues {
 // Neighbor Tx update queue.
 #[derive(Debug)]
 pub struct NeighborUpdateQueue<A: AddressFamily> {
-    pub reach: BTreeMap<Attrs, BTreeSet<A::IpNetwork>>,
-    pub unreach: BTreeSet<A::IpNetwork>,
+    pub reach: BTreeMap<Attrs, BTreeSet<(A::IpNetwork, u32)>>,
+    pub unreach: BTreeSet<(A::IpNetwork, u32)>,
 }
 
 // Type aliases.
@@ -520,6 +521,7 @@ impl Neighbor {
     ) {
         // Store TCP connection information.
         self.conn_info = Some(conn_info);
+        let capabilities_adv = self.advertised_capabilities(instance.config);
 
         // Split TCP stream into two halves.
         let (read_half, write_half) = stream.into_split();
@@ -544,6 +546,7 @@ impl Neighbor {
             peer_type: self.peer_type,
             peer_as: self.config.peer_as,
             reject_as_sets: instance.config.reject_as_sets,
+            capabilities_adv,
             capabilities: Default::default(),
         };
         let tcp_rx_task = tasks::nbr_rx(
@@ -563,20 +566,10 @@ impl Neighbor {
     // Initializes the BGP session.
     fn session_init(&mut self, instance: &mut InstanceUpView<'_>) {
         // Compute the negotiated capabilities.
-        self.capabilities_nego = self
-            .capabilities_adv
-            .iter()
-            .map(|cap| cap.as_negotiated())
-            .collect::<BTreeSet<_>>()
-            .intersection(
-                &self
-                    .capabilities_rcvd
-                    .iter()
-                    .map(|cap| cap.as_negotiated())
-                    .collect::<BTreeSet<_>>(),
-            )
-            .cloned()
-            .collect();
+        self.capabilities_nego = negotiate_capabilities(
+            &self.capabilities_adv,
+            &self.capabilities_rcvd,
+        );
 
         // Update the Tx task with the negotiated capabilities.
         let msg = NbrTxMsg::UpdateCapabilities(self.capabilities_nego.clone());
@@ -669,32 +662,7 @@ impl Neighbor {
 
     // Sends a BGP OPEN message based on the local configuration.
     fn open_send(&mut self, instance_cfg: &InstanceCfg, identifier: Ipv4Addr) {
-        // Base capabilities.
-        let mut capabilities: BTreeSet<_> = [
-            Capability::RouteRefresh,
-            Capability::FourOctetAsNumber {
-                asn: instance_cfg.asn,
-            },
-        ]
-        .into();
-
-        // Multiprotocol capabilities.
-        if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv4Unicast)
-            && afi_safi.enabled
-        {
-            capabilities.insert(Capability::MultiProtocol {
-                afi: Afi::Ipv4,
-                safi: Safi::Unicast,
-            });
-        }
-        if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv6Unicast)
-            && afi_safi.enabled
-        {
-            capabilities.insert(Capability::MultiProtocol {
-                afi: Afi::Ipv6,
-                safi: Safi::Unicast,
-            });
-        }
+        let capabilities = self.advertised_capabilities(instance_cfg);
 
         // Keep track of the advertised capabilities.
         self.capabilities_adv.clone_from(&capabilities);
@@ -708,6 +676,97 @@ impl Neighbor {
             capabilities,
         });
         self.message_send(msg);
+    }
+
+    fn advertised_capabilities(
+        &self,
+        instance_cfg: &InstanceCfg,
+    ) -> BTreeSet<Capability> {
+        // Base capabilities.
+        let mut capabilities: BTreeSet<_> = [
+            Capability::RouteRefresh,
+            Capability::FourOctetAsNumber {
+                asn: instance_cfg.asn,
+            },
+        ]
+        .into();
+
+        let mut add_path_tuples = BTreeSet::new();
+
+        // Multiprotocol capabilities.
+        if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv4Unicast)
+            && afi_safi.enabled
+        {
+            capabilities.insert(Capability::MultiProtocol {
+                afi: Afi::Ipv4,
+                safi: Safi::Unicast,
+            });
+            if let Some(mode) =
+                self.add_path_mode(AfiSafi::Ipv4Unicast, instance_cfg)
+            {
+                add_path_tuples.insert(AddPathTuple {
+                    afi: Afi::Ipv4,
+                    safi: Safi::Unicast,
+                    mode,
+                });
+            }
+        }
+        if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv6Unicast)
+            && afi_safi.enabled
+        {
+            capabilities.insert(Capability::MultiProtocol {
+                afi: Afi::Ipv6,
+                safi: Safi::Unicast,
+            });
+            if let Some(mode) =
+                self.add_path_mode(AfiSafi::Ipv6Unicast, instance_cfg)
+            {
+                add_path_tuples.insert(AddPathTuple {
+                    afi: Afi::Ipv6,
+                    safi: Safi::Unicast,
+                    mode,
+                });
+            }
+        }
+
+        if !add_path_tuples.is_empty() {
+            capabilities.insert(Capability::AddPath(add_path_tuples));
+        }
+
+        capabilities
+    }
+
+    fn add_path_mode(
+        &self,
+        afi_safi: AfiSafi,
+        instance_cfg: &InstanceCfg,
+    ) -> Option<AddPathMode> {
+        let cfg = self.add_path_cfg(afi_safi, instance_cfg);
+        AddPathMode::from_directions(cfg.receive, cfg.send_all)
+    }
+
+    fn add_path_cfg(
+        &self,
+        afi_safi: AfiSafi,
+        instance_cfg: &InstanceCfg,
+    ) -> crate::northbound::configuration::AddPathCfg {
+        let global_cfg = instance_cfg
+            .afi_safi
+            .get(&afi_safi)
+            .map(|afi_safi| afi_safi.add_path);
+        if self.config.add_path.receive || self.config.add_path.send_all {
+            self.config.add_path
+        } else if let Some(cfg) = global_cfg {
+            cfg
+        } else {
+            self.config.add_path
+        }
+    }
+
+    pub(crate) fn add_path_tx_negotiated(&self, afi: Afi, safi: Safi) -> bool {
+        self.capabilities_nego
+            .iter()
+            .any(|cap| cap.add_path_tx(afi, safi))
     }
 
     // Processes the received OPEN message while in the OpenSent state.
@@ -922,10 +981,10 @@ impl Neighbor {
                         ineligible_reason: None,
                         reject_reason: None,
                     };
-                    (prefix, Box::new(route))
+                    (prefix, 0, Box::new(route))
                 })
             })
-            .filter(|(_, route)| self.distribute_filter(route))
+            .filter(|(_, _, route)| self.distribute_filter(route))
             .collect::<Vec<_>>();
 
         // Advertise the best routes.
@@ -946,27 +1005,46 @@ impl Neighbor {
     ) where
         A: AddressFamily,
     {
+        let global_add_path_send_all = instance
+            .config
+            .afi_safi
+            .get(&A::AFI_SAFI)
+            .map(|afi_safi| afi_safi.add_path.send_all)
+            .unwrap_or_default();
+        let add_path_all = events::add_path_send_all_enabled::<A>(
+            self,
+            global_add_path_send_all,
+        );
         let table = A::table(&mut instance.state.rib.tables);
         for (prefix, dest) in &table.prefixes {
-            let Some(adj_rib) = dest.adj_rib.get(&self.remote_addr) else {
-                continue;
-            };
-            let Some(route) = adj_rib.out_post() else {
-                continue;
-            };
+            for (key, adj_rib) in &dest.adj_rib {
+                if key.remote_addr != self.remote_addr {
+                    continue;
+                }
+                if !add_path_all && key.path_id != 0 {
+                    continue;
+                }
+                let Some(route) = adj_rib.out_post() else {
+                    continue;
+                };
 
-            // Update route's attributes before transmission.
-            let mut attrs = route.attrs.get();
-            rib::attrs_tx_update::<A>(
-                &mut attrs,
-                self,
-                instance.config.asn,
-                route.origin.is_local(),
-            );
+                // Update route's attributes before transmission.
+                let mut attrs = route.attrs.get();
+                rib::attrs_tx_update::<A>(
+                    &mut attrs,
+                    self,
+                    instance.config.asn,
+                    route.origin.is_local(),
+                );
 
-            // Update neighbor's Tx queue.
-            let update_queue = A::update_queue(&mut self.update_queues);
-            update_queue.reach.entry(attrs).or_default().insert(prefix);
+                // Update neighbor's Tx queue.
+                let update_queue = A::update_queue(&mut self.update_queues);
+                update_queue
+                    .reach
+                    .entry(attrs)
+                    .or_default()
+                    .insert((prefix, key.path_id));
+            }
         }
     }
 
@@ -978,7 +1056,14 @@ impl Neighbor {
         let table = A::table(&mut rib.tables);
         for (prefix, dest) in table.prefixes.iter_mut() {
             // Clear the Adj-RIB-In and Adj-RIB-Out.
-            if let Some(mut adj_rib) = dest.adj_rib.remove(&self.remote_addr) {
+            let keys = dest
+                .adj_rib
+                .keys()
+                .filter(|key| key.remote_addr == self.remote_addr)
+                .copied()
+                .collect::<Vec<_>>();
+            for key in keys {
+                let mut adj_rib = dest.adj_rib.remove(&key).unwrap();
                 // Update nexthop tracking.
                 if let Some(adj_in_route) = adj_rib.in_post() {
                     rib::nexthop_untrack(

@@ -166,7 +166,7 @@ impl<'a> YangContainer<'a, Instance> for bgp::neighbors::neighbor::afi_safis::af
         {
             prefixes
                 .values()
-                .filter_map(|dest| dest.adj_rib.get(addr))
+                .flat_map(|dest| dest.adj_rib.iter().filter(move |(key, _)| key.remote_addr == *addr).map(|(_, adj)| adj))
                 .fold((0, 0, 0), |(r, s, i), adj| (r + adj.in_pre().is_some() as u32, s + adj.out_post().is_some() as u32, i + adj.in_post().is_some() as u32))
         }
         let (r, s, i) = match afi_safi {
@@ -639,19 +639,24 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::Route<'a> {
     type ParentListEntry = &'a Neighbor;
-    type ListEntry = (Ipv4Network, &'a Route);
+    type ListEntry = (Ipv4Network, u32, &'a Route);
 
     fn iter(instance: &'a Instance, &nbr: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv4_unicast.prefixes.iter();
-        let iter = iter.filter_map(move |(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_pre()).map(|route| (prefix, route)));
+        let iter = iter.flat_map(move |(prefix, dest)| {
+            dest.adj_rib
+                .iter()
+                .filter(move |(key, _)| key.remote_addr == nbr.remote_addr)
+                .filter_map(move |(key, adj_rib)| adj_rib.in_pre().map(|route| (prefix, key.path_id, route)))
+        });
         Some(iter)
     }
 
-    fn new(_instance: &'a Instance, (prefix, route): &Self::ListEntry) -> Self {
+    fn new(_instance: &'a Instance, (prefix, path_id, route): &Self::ListEntry) -> Self {
         Self {
             prefix: *prefix,
-            path_id: 0,
+            path_id: *path_id,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
@@ -665,10 +670,10 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
 }
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::unknown_attributes::unknown_attribute::UnknownAttribute<'a> {
-    type ParentListEntry = (Ipv4Network, &'a Route);
+    type ParentListEntry = (Ipv4Network, u32, &'a Route);
     type ListEntry = &'a UnknownAttr;
 
-    fn iter(_instance: &'a Instance, (_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance, (_, _, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unknown = route.attrs.unknown.as_ref()?;
         let iter = unknown.iter();
         Some(iter)
@@ -689,19 +694,24 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::Route<'a> {
     type ParentListEntry = &'a Neighbor;
-    type ListEntry = (Ipv4Network, &'a Route);
+    type ListEntry = (Ipv4Network, u32, &'a Route);
 
     fn iter(instance: &'a Instance, &nbr: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv4_unicast.prefixes.iter();
-        let iter = iter.filter_map(move |(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_post()).map(|route| (prefix, route)));
+        let iter = iter.flat_map(move |(prefix, dest)| {
+            dest.adj_rib
+                .iter()
+                .filter(move |(key, _)| key.remote_addr == nbr.remote_addr)
+                .filter_map(move |(key, adj_rib)| adj_rib.in_post().map(|route| (prefix, key.path_id, route)))
+        });
         Some(iter)
     }
 
-    fn new(_instance: &'a Instance, (prefix, route): &Self::ListEntry) -> Self {
+    fn new(_instance: &'a Instance, (prefix, path_id, route): &Self::ListEntry) -> Self {
         Self {
             prefix: *prefix,
-            path_id: 0,
+            path_id: *path_id,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
@@ -716,10 +726,10 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
 }
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::unknown_attributes::unknown_attribute::UnknownAttribute<'a> {
-    type ParentListEntry = (Ipv4Network, &'a Route);
+    type ParentListEntry = (Ipv4Network, u32, &'a Route);
     type ListEntry = &'a UnknownAttr;
 
-    fn iter(_instance: &'a Instance, (_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance, (_, _, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unknown = route.attrs.unknown.as_ref()?;
         let iter = unknown.iter();
         Some(iter)
@@ -740,19 +750,24 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::Route<'a> {
     type ParentListEntry = &'a Neighbor;
-    type ListEntry = (Ipv4Network, &'a Route);
+    type ListEntry = (Ipv4Network, u32, &'a Route);
 
     fn iter(instance: &'a Instance, &nbr: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv4_unicast.prefixes.iter();
-        let iter = iter.filter_map(move |(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_pre()).map(|route| (prefix, route)));
+        let iter = iter.flat_map(move |(prefix, dest)| {
+            dest.adj_rib
+                .iter()
+                .filter(move |(key, _)| key.remote_addr == nbr.remote_addr)
+                .filter_map(move |(key, adj_rib)| adj_rib.out_pre().map(|route| (prefix, key.path_id, route)))
+        });
         Some(iter)
     }
 
-    fn new(_instance: &'a Instance, (prefix, route): &Self::ListEntry) -> Self {
+    fn new(_instance: &'a Instance, (prefix, path_id, route): &Self::ListEntry) -> Self {
         Self {
             prefix: *prefix,
-            path_id: 0,
+            path_id: *path_id,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
@@ -766,10 +781,10 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
 }
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::unknown_attributes::unknown_attribute::UnknownAttribute<'a> {
-    type ParentListEntry = (Ipv4Network, &'a Route);
+    type ParentListEntry = (Ipv4Network, u32, &'a Route);
     type ListEntry = &'a UnknownAttr;
 
-    fn iter(_instance: &'a Instance, (_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance, (_, _, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unknown = route.attrs.unknown.as_ref()?;
         let iter = unknown.iter();
         Some(iter)
@@ -790,19 +805,24 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::Route<'a> {
     type ParentListEntry = &'a Neighbor;
-    type ListEntry = (Ipv4Network, &'a Route);
+    type ListEntry = (Ipv4Network, u32, &'a Route);
 
     fn iter(instance: &'a Instance, &nbr: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv4_unicast.prefixes.iter();
-        let iter = iter.filter_map(move |(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_post()).map(|route| (prefix, route)));
+        let iter = iter.flat_map(move |(prefix, dest)| {
+            dest.adj_rib
+                .iter()
+                .filter(move |(key, _)| key.remote_addr == nbr.remote_addr)
+                .filter_map(move |(key, adj_rib)| adj_rib.out_post().map(|route| (prefix, key.path_id, route)))
+        });
         Some(iter)
     }
 
-    fn new(_instance: &'a Instance, (prefix, route): &Self::ListEntry) -> Self {
+    fn new(_instance: &'a Instance, (prefix, path_id, route): &Self::ListEntry) -> Self {
         Self {
             prefix: *prefix,
-            path_id: 0,
+            path_id: *path_id,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
@@ -816,10 +836,10 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
 }
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::unknown_attributes::unknown_attribute::UnknownAttribute<'a> {
-    type ParentListEntry = (Ipv4Network, &'a Route);
+    type ParentListEntry = (Ipv4Network, u32, &'a Route);
     type ListEntry = &'a UnknownAttr;
 
-    fn iter(_instance: &'a Instance, (_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance, (_, _, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unknown = route.attrs.unknown.as_ref()?;
         let iter = unknown.iter();
         Some(iter)
@@ -913,19 +933,24 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::Route<'a> {
     type ParentListEntry = &'a Neighbor;
-    type ListEntry = (Ipv6Network, &'a Route);
+    type ListEntry = (Ipv6Network, u32, &'a Route);
 
     fn iter(instance: &'a Instance, &nbr: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv6_unicast.prefixes.iter();
-        let iter = iter.filter_map(move |(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_pre()).map(|route| (prefix, route)));
+        let iter = iter.flat_map(move |(prefix, dest)| {
+            dest.adj_rib
+                .iter()
+                .filter(move |(key, _)| key.remote_addr == nbr.remote_addr)
+                .filter_map(move |(key, adj_rib)| adj_rib.in_pre().map(|route| (prefix, key.path_id, route)))
+        });
         Some(iter)
     }
 
-    fn new(_instance: &'a Instance, (prefix, route): &Self::ListEntry) -> Self {
+    fn new(_instance: &'a Instance, (prefix, path_id, route): &Self::ListEntry) -> Self {
         Self {
             prefix: *prefix,
-            path_id: 0,
+            path_id: *path_id,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
@@ -939,10 +964,10 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
 }
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_pre::routes::route::unknown_attributes::unknown_attribute::UnknownAttribute<'a> {
-    type ParentListEntry = (Ipv6Network, &'a Route);
+    type ParentListEntry = (Ipv6Network, u32, &'a Route);
     type ListEntry = &'a UnknownAttr;
 
-    fn iter(_instance: &'a Instance, (_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance, (_, _, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unknown = route.attrs.unknown.as_ref()?;
         let iter = unknown.iter();
         Some(iter)
@@ -963,19 +988,24 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::Route<'a> {
     type ParentListEntry = &'a Neighbor;
-    type ListEntry = (Ipv6Network, &'a Route);
+    type ListEntry = (Ipv6Network, u32, &'a Route);
 
     fn iter(instance: &'a Instance, &nbr: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv6_unicast.prefixes.iter();
-        let iter = iter.filter_map(move |(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.in_post()).map(|route| (prefix, route)));
+        let iter = iter.flat_map(move |(prefix, dest)| {
+            dest.adj_rib
+                .iter()
+                .filter(move |(key, _)| key.remote_addr == nbr.remote_addr)
+                .filter_map(move |(key, adj_rib)| adj_rib.in_post().map(|route| (prefix, key.path_id, route)))
+        });
         Some(iter)
     }
 
-    fn new(_instance: &'a Instance, (prefix, route): &Self::ListEntry) -> Self {
+    fn new(_instance: &'a Instance, (prefix, path_id, route): &Self::ListEntry) -> Self {
         Self {
             prefix: *prefix,
-            path_id: 0,
+            path_id: *path_id,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
@@ -990,10 +1020,10 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
 }
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_in_post::routes::route::unknown_attributes::unknown_attribute::UnknownAttribute<'a> {
-    type ParentListEntry = (Ipv6Network, &'a Route);
+    type ParentListEntry = (Ipv6Network, u32, &'a Route);
     type ListEntry = &'a UnknownAttr;
 
-    fn iter(_instance: &'a Instance, (_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance, (_, _, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unknown = route.attrs.unknown.as_ref()?;
         let iter = unknown.iter();
         Some(iter)
@@ -1014,19 +1044,24 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::Route<'a> {
     type ParentListEntry = &'a Neighbor;
-    type ListEntry = (Ipv6Network, &'a Route);
+    type ListEntry = (Ipv6Network, u32, &'a Route);
 
     fn iter(instance: &'a Instance, &nbr: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv6_unicast.prefixes.iter();
-        let iter = iter.filter_map(move |(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_pre()).map(|route| (prefix, route)));
+        let iter = iter.flat_map(move |(prefix, dest)| {
+            dest.adj_rib
+                .iter()
+                .filter(move |(key, _)| key.remote_addr == nbr.remote_addr)
+                .filter_map(move |(key, adj_rib)| adj_rib.out_pre().map(|route| (prefix, key.path_id, route)))
+        });
         Some(iter)
     }
 
-    fn new(_instance: &'a Instance, (prefix, route): &Self::ListEntry) -> Self {
+    fn new(_instance: &'a Instance, (prefix, path_id, route): &Self::ListEntry) -> Self {
         Self {
             prefix: *prefix,
-            path_id: 0,
+            path_id: *path_id,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
@@ -1040,10 +1075,10 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
 }
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_pre::routes::route::unknown_attributes::unknown_attribute::UnknownAttribute<'a> {
-    type ParentListEntry = (Ipv6Network, &'a Route);
+    type ParentListEntry = (Ipv6Network, u32, &'a Route);
     type ListEntry = &'a UnknownAttr;
 
-    fn iter(_instance: &'a Instance, (_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance, (_, _, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unknown = route.attrs.unknown.as_ref()?;
         let iter = unknown.iter();
         Some(iter)
@@ -1064,19 +1099,24 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::Route<'a> {
     type ParentListEntry = &'a Neighbor;
-    type ListEntry = (Ipv6Network, &'a Route);
+    type ListEntry = (Ipv6Network, u32, &'a Route);
 
     fn iter(instance: &'a Instance, &nbr: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let rib = &instance.state.as_ref()?.rib;
         let iter = rib.tables.ipv6_unicast.prefixes.iter();
-        let iter = iter.filter_map(move |(prefix, dest)| dest.adj_rib.get(&nbr.remote_addr).and_then(|adj_rib| adj_rib.out_post()).map(|route| (prefix, route)));
+        let iter = iter.flat_map(move |(prefix, dest)| {
+            dest.adj_rib
+                .iter()
+                .filter(move |(key, _)| key.remote_addr == nbr.remote_addr)
+                .filter_map(move |(key, adj_rib)| adj_rib.out_post().map(|route| (prefix, key.path_id, route)))
+        });
         Some(iter)
     }
 
-    fn new(_instance: &'a Instance, (prefix, route): &Self::ListEntry) -> Self {
+    fn new(_instance: &'a Instance, (prefix, path_id, route): &Self::ListEntry) -> Self {
         Self {
             prefix: *prefix,
-            path_id: 0,
+            path_id: *path_id,
             attr_index: Some(route.attrs.base.index),
             community_index: route.attrs.comm.as_ref().map(|c| c.index),
             ext_community_index: route.attrs.ext_comm.as_ref().map(|c| c.index),
@@ -1090,10 +1130,10 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
 }
 
 impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast::neighbors::neighbor::adj_rib_out_post::routes::route::unknown_attributes::unknown_attribute::UnknownAttribute<'a> {
-    type ParentListEntry = (Ipv6Network, &'a Route);
+    type ParentListEntry = (Ipv6Network, u32, &'a Route);
     type ListEntry = &'a UnknownAttr;
 
-    fn iter(_instance: &'a Instance, (_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance, (_, _, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let unknown = route.attrs.unknown.as_ref()?;
         let iter = unknown.iter();
         Some(iter)

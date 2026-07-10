@@ -50,6 +50,7 @@ pub(crate) fn neighbor_apply(
     nbr_addr: IpAddr,
     afi_safi: AfiSafi,
     routes: Vec<(IpNetwork, RoutePolicyInfo)>,
+    path_ids: Vec<u32>,
     policies: &[Arc<Policy>],
     match_sets: &MatchSets,
     default_policy: DefaultPolicyType,
@@ -78,6 +79,7 @@ pub(crate) fn neighbor_apply(
         nbr_addr,
         afi_safi,
         routes,
+        path_ids,
     });
 }
 

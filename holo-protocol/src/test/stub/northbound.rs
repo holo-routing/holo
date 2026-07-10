@@ -122,7 +122,7 @@ impl NorthboundStub {
         self.state_cache = Some(state);
     }
 
-    async fn get_state(&self) -> DataTree<'static> {
+    pub(super) async fn get_state(&self) -> DataTree<'static> {
         // Prepare request.
         let (responder_tx, responder_rx) = oneshot::channel();
         let request = api::daemon::Request::Get(api::daemon::GetRequest {
@@ -255,7 +255,7 @@ impl NorthboundStub {
 
 // ===== helper functions =====
 
-fn dtree_print(dtree: &DataTree<'static>) -> String {
+pub(super) fn dtree_print(dtree: &DataTree<'static>) -> String {
     dtree
         .print_string(DataFormat::JSON, DataPrinterFlags::WITH_SIBLINGS)
         .unwrap()

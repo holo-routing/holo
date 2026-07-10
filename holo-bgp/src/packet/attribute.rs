@@ -24,7 +24,7 @@ use crate::packet::iana::{Afi, AttrType, Origin, Safi};
 use crate::packet::message::{
     DecodeCxt, EncodeCxt, MpReachNlri, MpUnreachNlri, NegotiatedCapability,
     ReachNlri, decode_ipv4_prefix, decode_ipv6_prefix, encode_ipv4_prefix,
-    encode_ipv6_prefix,
+    encode_ipv6_prefix, path_id,
 };
 
 pub const ATTR_MIN_LEN: u16 = 3;
@@ -164,10 +164,10 @@ impl Attrs {
         // "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL
         // be encoded as the very first path attribute in an UPDATE message".
         if let Some(mp_reach) = mp_reach {
-            mp_reach.encode(buf);
+            mp_reach.encode(buf, cxt);
         }
         if let Some(mp_unreach) = mp_unreach {
-            mp_unreach.encode(buf);
+            mp_unreach.encode(buf, cxt);
         }
 
         // RFC 4271 - Section 5:
@@ -449,10 +449,10 @@ impl Attrs {
                     ClusterList::decode(&mut buf, cxt, &mut cluster_list)
                 }
                 AttrType::MpReachNlri => {
-                    MpReachNlri::decode(&mut buf, mp_reach)
+                    MpReachNlri::decode(&mut buf, cxt, mp_reach)
                 }
                 AttrType::MpUnreachNlri => {
-                    MpUnreachNlri::decode(&mut buf, mp_unreach)
+                    MpUnreachNlri::decode(&mut buf, cxt, mp_unreach)
                 }
                 AttrType::ExtCommunities => {
                     ExtComms::decode(&mut buf, &mut ext_comm)
@@ -1105,7 +1105,7 @@ impl ClusterList {
 impl MpReachNlri {
     pub const MIN_LEN: u16 = 5;
 
-    fn encode(&self, buf: &mut BytesMut) {
+    fn encode(&self, buf: &mut BytesMut, cxt: &EncodeCxt) {
         buf.put_u8((AttrFlags::OPTIONAL | AttrFlags::EXTENDED).bits());
         buf.put_u8(AttrType::MpReachNlri as u8);
 
@@ -1115,18 +1115,27 @@ impl MpReachNlri {
 
         // Encode attribute data.
         match self {
-            MpReachNlri::Ipv4Unicast { prefixes, nexthop } => {
+            MpReachNlri::Ipv4Unicast {
+                prefixes,
+                path_ids,
+                nexthop,
+            } => {
                 buf.put_u16(Afi::Ipv4 as u16);
                 buf.put_u8(Safi::Unicast as u8);
                 buf.put_u8(Ipv4Addr::LENGTH as u8);
                 buf.put_ipv4(nexthop);
                 buf.put_u8(0);
-                for prefix in prefixes {
+                let add_path = cxt.add_path_tx(Afi::Ipv4, Safi::Unicast);
+                for (pos, prefix) in prefixes.iter().enumerate() {
+                    if add_path {
+                        buf.put_u32(path_id(path_ids, pos));
+                    }
                     encode_ipv4_prefix(buf, prefix);
                 }
             }
             MpReachNlri::Ipv6Unicast {
                 prefixes,
+                path_ids,
                 nexthop,
                 ll_nexthop,
             } => {
@@ -1141,7 +1150,11 @@ impl MpReachNlri {
                     buf.put_ipv6(nexthop);
                 }
                 buf.put_u8(0);
-                for prefix in prefixes {
+                let add_path = cxt.add_path_tx(Afi::Ipv6, Safi::Unicast);
+                for (pos, prefix) in prefixes.iter().enumerate() {
+                    if add_path {
+                        buf.put_u32(path_id(path_ids, pos));
+                    }
                     encode_ipv6_prefix(buf, prefix);
                 }
             }
@@ -1154,6 +1167,7 @@ impl MpReachNlri {
 
     pub fn decode(
         buf: &mut Bytes,
+        cxt: &DecodeCxt,
         mp_reach: &mut Option<Self>,
     ) -> Result<(), AttrError> {
         if buf.remaining() < Self::MIN_LEN as usize {
@@ -1177,6 +1191,7 @@ impl MpReachNlri {
         match afi {
             Afi::Ipv4 => {
                 let mut prefixes = Vec::new();
+                let mut path_ids = Vec::new();
 
                 // Parse nexthop.
                 let nexthop_len = buf.try_get_u8()?;
@@ -1189,19 +1204,28 @@ impl MpReachNlri {
 
                 // Parse prefixes.
                 let _reserved = buf.try_get_u8()?;
+                let add_path = cxt.add_path_rx(Afi::Ipv4, Safi::Unicast);
                 while buf.remaining() > 0 {
+                    let path_id = if add_path { buf.try_get_u32()? } else { 0 };
                     if let Some(prefix) =
                         decode_ipv4_prefix(buf).map_err(|_| AttrError::Reset)?
                     {
                         prefixes.push(prefix);
+                        if add_path {
+                            path_ids.push(path_id);
+                        }
                     }
                 }
 
-                *mp_reach =
-                    Some(MpReachNlri::Ipv4Unicast { prefixes, nexthop });
+                *mp_reach = Some(MpReachNlri::Ipv4Unicast {
+                    prefixes,
+                    path_ids,
+                    nexthop,
+                });
             }
             Afi::Ipv6 => {
                 let mut prefixes = Vec::new();
+                let mut path_ids = Vec::new();
                 let mut ll_nexthop = None;
 
                 // Parse nexthops(s).
@@ -1219,16 +1243,22 @@ impl MpReachNlri {
 
                 // Parse prefixes.
                 let _reserved = buf.try_get_u8()?;
+                let add_path = cxt.add_path_rx(Afi::Ipv6, Safi::Unicast);
                 while buf.remaining() > 0 {
+                    let path_id = if add_path { buf.try_get_u32()? } else { 0 };
                     if let Some(prefix) =
                         decode_ipv6_prefix(buf).map_err(|_| AttrError::Reset)?
                     {
                         prefixes.push(prefix);
+                        if add_path {
+                            path_ids.push(path_id);
+                        }
                     }
                 }
 
                 *mp_reach = Some(MpReachNlri::Ipv6Unicast {
                     prefixes,
+                    path_ids,
                     nexthop,
                     ll_nexthop,
                 });
@@ -1244,7 +1274,7 @@ impl MpReachNlri {
 impl MpUnreachNlri {
     pub const MIN_LEN: u16 = 3;
 
-    fn encode(&self, buf: &mut BytesMut) {
+    fn encode(&self, buf: &mut BytesMut, cxt: &EncodeCxt) {
         buf.put_u8((AttrFlags::OPTIONAL | AttrFlags::EXTENDED).bits());
         buf.put_u8(AttrType::MpUnreachNlri as u8);
 
@@ -1254,17 +1284,25 @@ impl MpUnreachNlri {
 
         // Encode attribute data.
         match self {
-            MpUnreachNlri::Ipv4Unicast { prefixes } => {
+            MpUnreachNlri::Ipv4Unicast { prefixes, path_ids } => {
                 buf.put_u16(Afi::Ipv4 as u16);
                 buf.put_u8(Safi::Unicast as u8);
-                for prefix in prefixes {
+                let add_path = cxt.add_path_tx(Afi::Ipv4, Safi::Unicast);
+                for (pos, prefix) in prefixes.iter().enumerate() {
+                    if add_path {
+                        buf.put_u32(path_id(path_ids, pos));
+                    }
                     encode_ipv4_prefix(buf, prefix);
                 }
             }
-            MpUnreachNlri::Ipv6Unicast { prefixes } => {
+            MpUnreachNlri::Ipv6Unicast { prefixes, path_ids } => {
                 buf.put_u16(Afi::Ipv6 as u16);
                 buf.put_u8(Safi::Unicast as u8);
-                for prefix in prefixes {
+                let add_path = cxt.add_path_tx(Afi::Ipv6, Safi::Unicast);
+                for (pos, prefix) in prefixes.iter().enumerate() {
+                    if add_path {
+                        buf.put_u32(path_id(path_ids, pos));
+                    }
                     encode_ipv6_prefix(buf, prefix);
                 }
             }
@@ -1277,6 +1315,7 @@ impl MpUnreachNlri {
 
     pub fn decode(
         buf: &mut Bytes,
+        cxt: &DecodeCxt,
         mp_unreach: &mut Option<Self>,
     ) -> Result<(), AttrError> {
         if buf.remaining() < Self::MIN_LEN as usize {
@@ -1301,29 +1340,43 @@ impl MpUnreachNlri {
         match afi {
             Afi::Ipv4 => {
                 let mut prefixes = Vec::new();
+                let mut path_ids = Vec::new();
 
+                let add_path = cxt.add_path_rx(Afi::Ipv4, Safi::Unicast);
                 while buf.remaining() > 0 {
+                    let path_id = if add_path { buf.try_get_u32()? } else { 0 };
                     if let Some(prefix) =
                         decode_ipv4_prefix(buf).map_err(|_| AttrError::Reset)?
                     {
                         prefixes.push(prefix);
+                        if add_path {
+                            path_ids.push(path_id);
+                        }
                     }
                 }
 
-                *mp_unreach = Some(MpUnreachNlri::Ipv4Unicast { prefixes });
+                *mp_unreach =
+                    Some(MpUnreachNlri::Ipv4Unicast { prefixes, path_ids });
             }
             Afi::Ipv6 => {
                 let mut prefixes = Vec::new();
+                let mut path_ids = Vec::new();
 
+                let add_path = cxt.add_path_rx(Afi::Ipv6, Safi::Unicast);
                 while buf.remaining() > 0 {
+                    let path_id = if add_path { buf.try_get_u32()? } else { 0 };
                     if let Some(prefix) =
                         decode_ipv6_prefix(buf).map_err(|_| AttrError::Reset)?
                     {
                         prefixes.push(prefix);
+                        if add_path {
+                            path_ids.push(path_id);
+                        }
                     }
                 }
 
-                *mp_unreach = Some(MpUnreachNlri::Ipv6Unicast { prefixes });
+                *mp_unreach =
+                    Some(MpUnreachNlri::Ipv6Unicast { prefixes, path_ids });
             }
         }
 

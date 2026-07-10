@@ -56,8 +56,14 @@ pub struct RoutingTable<A: AddressFamily> {
 #[derive(Debug, Default)]
 pub struct Destination {
     pub local: Option<Box<LocalRoute>>,
-    pub adj_rib: BTreeMap<IpAddr, AdjRib>,
+    pub adj_rib: BTreeMap<AdjRibKey, AdjRib>,
     pub redistribute: Option<Box<Route>>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct AdjRibKey {
+    pub remote_addr: IpAddr,
+    pub path_id: u32,
 }
 
 #[derive(Debug, Default)]

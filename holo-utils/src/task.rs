@@ -221,6 +221,15 @@ impl TimeoutTask {
         }
     }
 
+    #[cfg(feature = "testing")]
+    pub fn new<F, Fut>(_timeout: Duration, _cb: F) -> TimeoutTask
+    where
+        F: FnOnce() -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
+    {
+        TimeoutTask {}
+    }
+
     /// Resets the timeout, regardless if it has already expired or not.
     ///
     /// If a new timeout value isn't specified, the last value will be reused.
@@ -313,6 +322,19 @@ impl IntervalTask {
         IntervalTask {
             inner: IntervalTaskInner::new(task, control_tx, next),
         }
+    }
+
+    #[cfg(feature = "testing")]
+    pub fn new<F, Fut>(
+        _interval: Duration,
+        _tick_on_start: bool,
+        _cb: F,
+    ) -> IntervalTask
+    where
+        F: FnMut() -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
+    {
+        IntervalTask {}
     }
 
     /// Resets the interval.

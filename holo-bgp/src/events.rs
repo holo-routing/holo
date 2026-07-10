@@ -4,6 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 use std::net::IpAddr;
 
 use chrono::Utc;
@@ -27,7 +29,9 @@ use crate::packet::message::{
     Capability, Message, MpReachNlri, MpUnreachNlri, RouteRefreshMsg, UpdateMsg,
 };
 use crate::policy::RoutePolicyInfo;
-use crate::rib::{AttrSetsCxt, Rib, Route, RouteOrigin, RoutingTable};
+use crate::rib::{
+    AdjRibKey, AttrSetsCxt, Rib, Route, RouteOrigin, RoutingTable,
+};
 use crate::tasks::messages::output::PolicyApplyMsg;
 use crate::{network, rib};
 
@@ -167,7 +171,7 @@ fn process_nbr_update(
             process_nbr_reach_prefixes::<Ipv4Unicast>(
                 nbr,
                 rib,
-                reach.prefixes,
+                nlri_paths(reach.prefixes, reach.path_ids),
                 attrs,
                 instance.config.asn,
                 instance.shared,
@@ -178,7 +182,7 @@ fn process_nbr_update(
             process_nbr_unreach_prefixes::<Ipv4Unicast>(
                 nbr,
                 rib,
-                reach.prefixes,
+                nlri_paths(reach.prefixes, reach.path_ids),
                 ibus_tx,
             );
         }
@@ -190,12 +194,16 @@ fn process_nbr_update(
     if let Some(mp_reach) = msg.mp_reach {
         if let Some(mut attrs) = msg.attrs {
             match mp_reach {
-                MpReachNlri::Ipv4Unicast { prefixes, nexthop } => {
+                MpReachNlri::Ipv4Unicast {
+                    prefixes,
+                    path_ids,
+                    nexthop,
+                } => {
                     attrs.base.nexthop = Some(nexthop.into());
                     process_nbr_reach_prefixes::<Ipv4Unicast>(
                         nbr,
                         rib,
-                        prefixes,
+                        nlri_paths(prefixes, path_ids),
                         attrs,
                         instance.config.asn,
                         instance.shared,
@@ -204,6 +212,7 @@ fn process_nbr_update(
                 }
                 MpReachNlri::Ipv6Unicast {
                     prefixes,
+                    path_ids,
                     nexthop,
                     ll_nexthop,
                 } => {
@@ -212,7 +221,7 @@ fn process_nbr_update(
                     process_nbr_reach_prefixes::<Ipv6Unicast>(
                         nbr,
                         rib,
-                        prefixes,
+                        nlri_paths(prefixes, path_ids),
                         attrs,
                         instance.config.asn,
                         instance.shared,
@@ -223,14 +232,24 @@ fn process_nbr_update(
         } else {
             // Treat as withdraw.
             match mp_reach {
-                MpReachNlri::Ipv4Unicast { prefixes, .. } => {
+                MpReachNlri::Ipv4Unicast {
+                    prefixes, path_ids, ..
+                } => {
                     process_nbr_unreach_prefixes::<Ipv4Unicast>(
-                        nbr, rib, prefixes, ibus_tx,
+                        nbr,
+                        rib,
+                        nlri_paths(prefixes, path_ids),
+                        ibus_tx,
                     );
                 }
-                MpReachNlri::Ipv6Unicast { prefixes, .. } => {
+                MpReachNlri::Ipv6Unicast {
+                    prefixes, path_ids, ..
+                } => {
                     process_nbr_unreach_prefixes::<Ipv6Unicast>(
-                        nbr, rib, prefixes, ibus_tx,
+                        nbr,
+                        rib,
+                        nlri_paths(prefixes, path_ids),
+                        ibus_tx,
                     );
                 }
             }
@@ -242,7 +261,7 @@ fn process_nbr_update(
         process_nbr_unreach_prefixes::<Ipv4Unicast>(
             nbr,
             rib,
-            unreach.prefixes,
+            nlri_paths(unreach.prefixes, unreach.path_ids),
             ibus_tx,
         );
     }
@@ -250,14 +269,20 @@ fn process_nbr_update(
     // Process multiprotocol unreachable NLRIs.
     if let Some(mp_unreach) = msg.mp_unreach {
         match mp_unreach {
-            MpUnreachNlri::Ipv4Unicast { prefixes } => {
+            MpUnreachNlri::Ipv4Unicast { prefixes, path_ids } => {
                 process_nbr_unreach_prefixes::<Ipv4Unicast>(
-                    nbr, rib, prefixes, ibus_tx,
+                    nbr,
+                    rib,
+                    nlri_paths(prefixes, path_ids),
+                    ibus_tx,
                 );
             }
-            MpUnreachNlri::Ipv6Unicast { prefixes } => {
+            MpUnreachNlri::Ipv6Unicast { prefixes, path_ids } => {
                 process_nbr_unreach_prefixes::<Ipv6Unicast>(
-                    nbr, rib, prefixes, ibus_tx,
+                    nbr,
+                    rib,
+                    nlri_paths(prefixes, path_ids),
+                    ibus_tx,
                 );
             }
         }
@@ -269,10 +294,21 @@ fn process_nbr_update(
     Ok(())
 }
 
+fn nlri_paths<T>(prefixes: Vec<T>, path_ids: Vec<u32>) -> Vec<(T, u32)> {
+    prefixes
+        .into_iter()
+        .enumerate()
+        .map(|(pos, prefix)| {
+            let path_id = path_ids.get(pos).copied().unwrap_or(0);
+            (prefix, path_id)
+        })
+        .collect()
+}
+
 fn process_nbr_reach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
-    nlri_prefixes: Vec<A::IpNetwork>,
+    nlri_prefixes: Vec<(A::IpNetwork, u32)>,
     mut attrs: Attrs,
     local_asn: u32,
     shared: &InstanceShared,
@@ -304,9 +340,15 @@ fn process_nbr_reach_prefixes<A>(
     // Update pre-policy Adj-RIB-In routes.
     let table = A::table(&mut rib.tables);
     let route_attrs = rib.attr_sets.get_route_attr_sets(&attrs);
-    for prefix in &nlri_prefixes {
+    for (prefix, path_id) in &nlri_prefixes {
         let dest = table.prefixes.entry(*prefix).or_default();
-        let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
+        let adj_rib = dest
+            .adj_rib
+            .entry(AdjRibKey {
+                remote_addr: nbr.remote_addr,
+                path_id: *path_id,
+            })
+            .or_default();
         let route = Route::new(origin, route_attrs.clone(), route_type);
         adj_rib.update_in_pre(Box::new(route), &mut rib.attr_sets);
     }
@@ -321,14 +363,16 @@ fn process_nbr_reach_prefixes<A>(
 
     // Enqueue import policy application.
     let rpinfo = RoutePolicyInfo::new(origin, route_type, None, None, attrs);
+    let path_ids = nlri_prefixes.iter().map(|(_, path_id)| *path_id).collect();
     let msg = PolicyApplyMsg::Neighbor {
         policy_type: PolicyType::Import,
         nbr_addr: nbr.remote_addr,
         afi_safi: A::AFI_SAFI,
         routes: nlri_prefixes
             .into_iter()
-            .map(|prefix| (prefix.into(), rpinfo.clone()))
+            .map(|(prefix, _)| (prefix.into(), rpinfo.clone()))
             .collect(),
+        path_ids,
         policies: apply_policy_cfg
             .import_policy
             .iter()
@@ -343,7 +387,7 @@ fn process_nbr_reach_prefixes<A>(
 fn process_nbr_unreach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
-    nlri_prefixes: Vec<A::IpNetwork>,
+    nlri_prefixes: Vec<(A::IpNetwork, u32)>,
     ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
@@ -355,11 +399,15 @@ fn process_nbr_unreach_prefixes<A>(
 
     // Remove routes from Adj-RIB-In.
     let table = A::table(&mut rib.tables);
-    for prefix in nlri_prefixes {
+    for (prefix, path_id) in nlri_prefixes {
         let Some(dest) = table.prefixes.get_mut(&prefix) else {
             continue;
         };
-        let Some(adj_rib) = dest.adj_rib.get_mut(&nbr.remote_addr) else {
+        let key = AdjRibKey {
+            remote_addr: nbr.remote_addr,
+            path_id,
+        };
+        let Some(adj_rib) = dest.adj_rib.get_mut(&key) else {
             continue;
         };
 
@@ -445,6 +493,7 @@ pub(crate) fn process_nbr_policy_import<A>(
     neighbors: &mut Neighbors,
     nbr_addr: IpAddr,
     prefixes: Vec<(IpNetwork, PolicyResult<RoutePolicyInfo>)>,
+    path_ids: Vec<u32>,
 ) -> Result<(), Error>
 where
     A: AddressFamily,
@@ -459,11 +508,18 @@ where
 
     let rib = &mut instance.state.rib;
     let table = A::table(&mut rib.tables);
-    for (prefix, result) in prefixes {
+    for (pos, (prefix, result)) in prefixes.into_iter().enumerate() {
+        let path_id = path_ids.get(pos).copied().unwrap_or(0);
         // Get RIB destination.
         let prefix = A::IpNetwork::get(prefix).unwrap();
         let dest = table.prefixes.entry(prefix).or_default();
-        let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
+        let adj_rib = dest
+            .adj_rib
+            .entry(AdjRibKey {
+                remote_addr: nbr.remote_addr,
+                path_id,
+            })
+            .or_default();
 
         // Update post-policy Adj-RIB-In routes.
         match result {
@@ -522,6 +578,7 @@ pub(crate) fn process_nbr_policy_export<A>(
     neighbors: &mut Neighbors,
     nbr_addr: IpAddr,
     prefixes: Vec<(IpNetwork, PolicyResult<RoutePolicyInfo>)>,
+    path_ids: Vec<u32>,
 ) -> Result<(), Error>
 where
     A: AddressFamily,
@@ -536,11 +593,18 @@ where
 
     let rib = &mut instance.state.rib;
     let table = A::table(&mut rib.tables);
-    for (prefix, result) in prefixes {
+    for (pos, (prefix, result)) in prefixes.into_iter().enumerate() {
+        let path_id = path_ids.get(pos).copied().unwrap_or(0);
         // Get RIB destination.
         let prefix = A::IpNetwork::get(prefix).unwrap();
         let dest = table.prefixes.entry(prefix).or_default();
-        let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
+        let adj_rib = dest
+            .adj_rib
+            .entry(AdjRibKey {
+                remote_addr: nbr.remote_addr,
+                path_id,
+            })
+            .or_default();
 
         // Update post-policy Adj-RIB-Out routes.
         match result {
@@ -573,14 +637,18 @@ where
 
                     // Update neighbor's Tx queue.
                     let update_queue = A::update_queue(&mut nbr.update_queues);
-                    update_queue.reach.entry(attrs).or_default().insert(prefix);
+                    update_queue
+                        .reach
+                        .entry(attrs)
+                        .or_default()
+                        .insert((prefix, path_id));
                 }
             }
             PolicyResult::Reject => {
                 if adj_rib.remove_out_post(&mut rib.attr_sets).is_some() {
                     // Update neighbor's Tx queue.
                     let update_queue = A::update_queue(&mut nbr.update_queues);
-                    update_queue.unreach.insert(prefix);
+                    update_queue.unreach.insert((prefix, path_id));
                 }
             }
         }
@@ -663,6 +731,13 @@ where
         .map(|afi_safi| &afi_safi.multipath)
         .unwrap_or(&instance.config.multipath);
 
+    let global_add_path_send_all = instance
+        .config
+        .afi_safi
+        .get(&A::AFI_SAFI)
+        .map(|afi_safi| afi_safi.add_path.send_all)
+        .unwrap_or(false);
+
     // Phase 2: Route Selection.
     //
     // Process each queued destination in the RIB.
@@ -717,12 +792,15 @@ where
         //
         // Any routes that fail to meet the distribution criteria are marked
         // as unreachable to ensure previous advertisements are withdrawn.
-        let mut nbr_unreach = unreach.clone();
-        let mut nbr_reach = reach.clone();
+        let add_path_all =
+            add_path_send_all_enabled::<A>(nbr, global_add_path_send_all);
+        let mut nbr_unreach =
+            unreach_routes::<A>(nbr, table, &unreach, add_path_all);
+        let mut nbr_reach = add_path_routes::<A>(table, &reach, add_path_all);
         nbr_unreach.extend(
             nbr_reach
-                .extract_if(.., |(_, route)| !nbr.distribute_filter(route))
-                .map(|(prefix, _)| prefix),
+                .extract_if(.., |(_, _, route)| !nbr.distribute_filter(route))
+                .map(|(prefix, path_id, _)| (prefix, path_id)),
         );
 
         // Withdraw unfeasible routes immediately.
@@ -770,25 +848,137 @@ where
     Ok(())
 }
 
+fn add_path_routes<A>(
+    table: &mut RoutingTable<A>,
+    best_routes: &[(A::IpNetwork, Box<Route>)],
+    add_path_all: bool,
+) -> Vec<(A::IpNetwork, u32, Box<Route>)>
+where
+    A: AddressFamily,
+{
+    if !add_path_all {
+        return best_routes
+            .iter()
+            .map(|(prefix, route)| (*prefix, 0, route.clone()))
+            .collect();
+    }
+
+    let mut routes = Vec::new();
+    for (prefix, _) in best_routes {
+        let Some(dest) = table.prefixes.get(prefix) else {
+            continue;
+        };
+
+        if let Some(local_route) = &dest.local {
+            routes.push((
+                *prefix,
+                0,
+                Box::new(Route {
+                    origin: local_route.origin,
+                    attrs: local_route.attrs.clone(),
+                    route_type: local_route.route_type,
+                    igp_cost: None,
+                    last_modified: local_route.last_modified,
+                    ineligible_reason: None,
+                    reject_reason: None,
+                }),
+            ));
+        }
+
+        for (key, adj_rib) in &dest.adj_rib {
+            let Some(route) = adj_rib.in_post() else {
+                continue;
+            };
+            if !route.is_eligible() {
+                continue;
+            }
+
+            let mut hasher = DefaultHasher::new();
+            key.remote_addr.hash(&mut hasher);
+            key.path_id.hash(&mut hasher);
+            let mut path_id = hasher.finish() as u32;
+            if path_id == 0 {
+                path_id = 1;
+            }
+            routes.push((*prefix, path_id, Box::new(route.clone())));
+        }
+    }
+
+    routes
+}
+
+fn unreach_routes<A>(
+    nbr: &Neighbor,
+    table: &mut RoutingTable<A>,
+    prefixes: &[A::IpNetwork],
+    add_path_all: bool,
+) -> Vec<(A::IpNetwork, u32)>
+where
+    A: AddressFamily,
+{
+    let mut routes = Vec::new();
+    for prefix in prefixes {
+        if add_path_all {
+            if let Some(dest) = table.prefixes.get(prefix) {
+                let pos = routes.len();
+                for (key, adj_rib) in &dest.adj_rib {
+                    if key.remote_addr == nbr.remote_addr
+                        && adj_rib.out_post().is_some()
+                    {
+                        routes.push((*prefix, key.path_id));
+                    }
+                }
+                if routes.len() != pos {
+                    continue;
+                }
+            }
+        }
+        routes.push((*prefix, 0));
+    }
+
+    routes
+}
+
+pub(crate) fn add_path_send_all_enabled<A>(
+    nbr: &Neighbor,
+    global_add_path_send_all: bool,
+) -> bool
+where
+    A: AddressFamily,
+{
+    let neighbor_add_path = nbr.config.add_path;
+    let send_all = if neighbor_add_path.receive || neighbor_add_path.send_all {
+        neighbor_add_path.send_all
+    } else {
+        global_add_path_send_all
+    };
+
+    nbr.add_path_tx_negotiated(A::AFI, A::SAFI) && send_all
+}
+
 fn withdraw_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
-    routes: &[A::IpNetwork],
+    routes: &[(A::IpNetwork, u32)],
     attr_sets: &mut AttrSetsCxt,
 ) where
     A: AddressFamily,
 {
     // Update Adj-RIB-Out.
-    for prefix in routes {
+    for (prefix, path_id) in routes {
         let dest = table.prefixes.get_mut(prefix).unwrap();
-        let Some(adj_rib) = dest.adj_rib.get_mut(&nbr.remote_addr) else {
+        let key = AdjRibKey {
+            remote_addr: nbr.remote_addr,
+            path_id: *path_id,
+        };
+        let Some(adj_rib) = dest.adj_rib.get_mut(&key) else {
             continue;
         };
 
         adj_rib.remove_out_pre(attr_sets);
         if adj_rib.remove_out_post(attr_sets).is_some() {
             let update_queue = A::update_queue(&mut nbr.update_queues);
-            update_queue.unreach.insert(*prefix);
+            update_queue.unreach.insert((*prefix, key.path_id));
         }
     }
 
@@ -802,7 +992,7 @@ fn withdraw_routes<A>(
 pub(crate) fn advertise_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
-    routes: Vec<(A::IpNetwork, Box<Route>)>,
+    routes: Vec<(A::IpNetwork, u32, Box<Route>)>,
     shared: &InstanceShared,
     attr_sets: &mut AttrSetsCxt,
     policy_apply_tasks: &PolicyApplyTasks,
@@ -810,9 +1000,15 @@ pub(crate) fn advertise_routes<A>(
     A: AddressFamily,
 {
     // Update pre-policy Adj-RIB-Out routes.
-    for (prefix, route) in &routes {
+    for (prefix, path_id, route) in &routes {
         let dest = table.prefixes.get_mut(prefix).unwrap();
-        let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
+        let adj_rib = dest
+            .adj_rib
+            .entry(AdjRibKey {
+                remote_addr: nbr.remote_addr,
+                path_id: *path_id,
+            })
+            .or_default();
         adj_rib.update_out_pre(route.clone(), attr_sets);
     }
 
@@ -825,9 +1021,13 @@ pub(crate) fn advertise_routes<A>(
         .unwrap_or(&nbr.config.apply_policy);
 
     // Enqueue export policy application.
+    let mut path_ids = Vec::with_capacity(routes.len());
     let routes = routes
         .into_iter()
-        .map(|(prefix, route)| (prefix.into(), route.policy_info()))
+        .map(|(prefix, path_id, route)| {
+            path_ids.push(path_id);
+            (prefix.into(), route.policy_info())
+        })
         .collect::<Vec<_>>();
     if !routes.is_empty() {
         let msg = PolicyApplyMsg::Neighbor {
@@ -835,6 +1035,7 @@ pub(crate) fn advertise_routes<A>(
             nbr_addr: nbr.remote_addr,
             afi_safi: A::AFI_SAFI,
             routes,
+            path_ids,
             policies: apply_policy_cfg
                 .export_policy
                 .iter()

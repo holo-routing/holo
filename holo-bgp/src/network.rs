@@ -4,7 +4,6 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::BTreeSet;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
@@ -19,7 +18,9 @@ use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
 use crate::error::{Error, IoError, NbrRxError};
-use crate::packet::message::{DecodeCxt, EncodeCxt, Message};
+use crate::packet::message::{
+    DecodeCxt, EncodeCxt, Message, negotiate_capabilities,
+};
 use crate::tasks::messages::input::{NbrRxMsg, TcpAcceptMsg};
 use crate::tasks::messages::output::NbrTxMsg;
 
@@ -270,12 +271,10 @@ pub(crate) async fn nbr_read_loop(
             // Keep track of received capabilities as they influence how some
             // messages should be decoded.
             if let Ok(Message::Open(msg)) = &msg {
-                let capabilities = msg
-                    .capabilities
-                    .iter()
-                    .map(|cap| cap.as_negotiated())
-                    .collect::<BTreeSet<_>>();
-                cxt.capabilities = capabilities;
+                cxt.capabilities = negotiate_capabilities(
+                    &cxt.capabilities_adv,
+                    &msg.capabilities,
+                );
             }
 
             // Notify that the BGP message was received.

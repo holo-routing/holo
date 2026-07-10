@@ -132,9 +132,16 @@ pub enum Capability {
 #[derive(Deserialize, Serialize)]
 #[derive(Arbitrary)]
 pub enum NegotiatedCapability {
-    MultiProtocol { afi: Afi, safi: Safi },
+    MultiProtocol {
+        afi: Afi,
+        safi: Safi,
+    },
     FourOctetAsNumber,
-    AddPath,
+    AddPath {
+        afi: Afi,
+        safi: Safi,
+        mode: AddPathMode,
+    },
     RouteRefresh,
     EnhancedRouteRefresh,
 }
@@ -151,6 +158,7 @@ pub struct AddPathTuple {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
 pub enum AddPathMode {
     Receive = 1,
     Send = 2,
@@ -189,6 +197,8 @@ pub struct UpdateMsg {
 #[derive(Deserialize, Serialize)]
 pub struct ReachNlri {
     pub prefixes: Vec<Ipv4Network>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub path_ids: Vec<u32>,
     pub nexthop: Ipv4Addr,
 }
 
@@ -196,6 +206,8 @@ pub struct ReachNlri {
 #[derive(Deserialize, Serialize)]
 pub struct UnreachNlri {
     pub prefixes: Vec<Ipv4Network>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub path_ids: Vec<u32>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -203,10 +215,14 @@ pub struct UnreachNlri {
 pub enum MpReachNlri {
     Ipv4Unicast {
         prefixes: Vec<Ipv4Network>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        path_ids: Vec<u32>,
         nexthop: Ipv4Addr,
     },
     Ipv6Unicast {
         prefixes: Vec<Ipv6Network>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        path_ids: Vec<u32>,
         nexthop: Ipv6Addr,
         ll_nexthop: Option<Ipv6Addr>,
     },
@@ -215,8 +231,16 @@ pub enum MpReachNlri {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub enum MpUnreachNlri {
-    Ipv4Unicast { prefixes: Vec<Ipv4Network> },
-    Ipv6Unicast { prefixes: Vec<Ipv6Network> },
+    Ipv4Unicast {
+        prefixes: Vec<Ipv4Network>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        path_ids: Vec<u32>,
+    },
+    Ipv6Unicast {
+        prefixes: Vec<Ipv6Network>,
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        path_ids: Vec<u32>,
+    },
 }
 
 //
@@ -277,6 +301,8 @@ pub struct DecodeCxt {
     pub peer_type: PeerType,
     pub peer_as: u32,
     pub reject_as_sets: bool,
+    #[arbitrary(default)]
+    pub capabilities_adv: BTreeSet<Capability>,
     pub capabilities: BTreeSet<NegotiatedCapability>,
 }
 
@@ -675,19 +701,42 @@ impl Capability {
         }
     }
 
-    pub fn as_negotiated(&self) -> NegotiatedCapability {
+    pub fn as_negotiated(&self) -> Option<NegotiatedCapability> {
         match *self {
             Capability::MultiProtocol { afi, safi } => {
-                NegotiatedCapability::MultiProtocol { afi, safi }
+                Some(NegotiatedCapability::MultiProtocol { afi, safi })
             }
             Capability::FourOctetAsNumber { .. } => {
-                NegotiatedCapability::FourOctetAsNumber
+                Some(NegotiatedCapability::FourOctetAsNumber)
             }
-            Capability::AddPath { .. } => NegotiatedCapability::AddPath,
-            Capability::RouteRefresh => NegotiatedCapability::RouteRefresh,
+            Capability::AddPath { .. } => None,
+            Capability::RouteRefresh => {
+                Some(NegotiatedCapability::RouteRefresh)
+            }
             Capability::EnhancedRouteRefresh => {
-                NegotiatedCapability::EnhancedRouteRefresh
+                Some(NegotiatedCapability::EnhancedRouteRefresh)
             }
+        }
+    }
+}
+
+// ===== impl AddPathMode =====
+
+impl AddPathMode {
+    pub(crate) fn receive(self) -> bool {
+        matches!(self, AddPathMode::Receive | AddPathMode::ReceiveSend)
+    }
+
+    pub(crate) fn send(self) -> bool {
+        matches!(self, AddPathMode::Send | AddPathMode::ReceiveSend)
+    }
+
+    pub(crate) fn from_directions(receive: bool, send: bool) -> Option<Self> {
+        match (receive, send) {
+            (true, true) => Some(AddPathMode::ReceiveSend),
+            (true, false) => Some(AddPathMode::Receive),
+            (false, true) => Some(AddPathMode::Send),
+            (false, false) => None,
         }
     }
 }
@@ -703,13 +752,103 @@ impl NegotiatedCapability {
             NegotiatedCapability::FourOctetAsNumber => {
                 CapabilityCode::FourOctetAsNumber
             }
-            NegotiatedCapability::AddPath => CapabilityCode::AddPath,
+            NegotiatedCapability::AddPath { .. } => CapabilityCode::AddPath,
             NegotiatedCapability::RouteRefresh => CapabilityCode::RouteRefresh,
             NegotiatedCapability::EnhancedRouteRefresh => {
                 CapabilityCode::EnhancedRouteRefresh
             }
         }
     }
+
+    pub(crate) fn add_path_rx(&self, afi: Afi, safi: Safi) -> bool {
+        matches!(
+            self,
+            NegotiatedCapability::AddPath {
+                afi: cap_afi,
+                safi: cap_safi,
+                mode,
+            } if *cap_afi == afi && *cap_safi == safi && mode.receive()
+        )
+    }
+
+    pub(crate) fn add_path_tx(&self, afi: Afi, safi: Safi) -> bool {
+        matches!(
+            self,
+            NegotiatedCapability::AddPath {
+                afi: cap_afi,
+                safi: cap_safi,
+                mode,
+            } if *cap_afi == afi && *cap_safi == safi && mode.send()
+        )
+    }
+}
+
+// ===== impl EncodeCxt =====
+
+impl EncodeCxt {
+    pub(crate) fn add_path_tx(&self, afi: Afi, safi: Safi) -> bool {
+        self.capabilities
+            .iter()
+            .any(|cap| cap.add_path_tx(afi, safi))
+    }
+}
+
+// ===== impl DecodeCxt =====
+
+impl DecodeCxt {
+    pub(crate) fn add_path_rx(&self, afi: Afi, safi: Safi) -> bool {
+        self.capabilities
+            .iter()
+            .any(|cap| cap.add_path_rx(afi, safi))
+    }
+}
+
+pub(crate) fn negotiate_capabilities(
+    advertised: &BTreeSet<Capability>,
+    received: &BTreeSet<Capability>,
+) -> BTreeSet<NegotiatedCapability> {
+    let mut negotiated = advertised
+        .iter()
+        .filter_map(|cap| cap.as_negotiated())
+        .collect::<BTreeSet<_>>()
+        .intersection(
+            &received
+                .iter()
+                .filter_map(|cap| cap.as_negotiated())
+                .collect::<BTreeSet<_>>(),
+        )
+        .cloned()
+        .collect::<BTreeSet<_>>();
+
+    let local_add_path = advertised.iter().find_map(|cap| match cap {
+        Capability::AddPath(tuples) => Some(tuples),
+        _ => None,
+    });
+    let peer_add_path = received.iter().find_map(|cap| match cap {
+        Capability::AddPath(tuples) => Some(tuples),
+        _ => None,
+    });
+    if let (Some(local), Some(peer)) = (local_add_path, peer_add_path) {
+        for local_tuple in local {
+            let Some(peer_tuple) = peer.iter().find(|tuple| {
+                tuple.afi == local_tuple.afi && tuple.safi == local_tuple.safi
+            }) else {
+                continue;
+            };
+
+            let receive = local_tuple.mode.receive() && peer_tuple.mode.send();
+            let send = local_tuple.mode.send() && peer_tuple.mode.receive();
+            if let Some(mode) = AddPathMode::from_directions(receive, send) {
+                negotiated.insert(NegotiatedCapability::AddPath {
+                    afi: local_tuple.afi,
+                    safi: local_tuple.safi,
+                    mode,
+                });
+            }
+        }
+    }
+
+    negotiated
 }
 
 // ===== impl UpdateMsg =====
@@ -725,12 +864,12 @@ impl UpdateMsg {
         buf.put_u16(0);
         if let Some(unreach) = &self.unreach {
             // Encode prefixes.
-            for prefix in &unreach.prefixes {
-                let plen = prefix.prefix();
-                let prefix_bytes = prefix.ip().octets();
-                let plen_wire = prefix_wire_len(plen);
-                buf.put_u8(plen);
-                buf.put(&prefix_bytes[0..plen_wire]);
+            let add_path = cxt.add_path_tx(Afi::Ipv4, Safi::Unicast);
+            for (pos, prefix) in unreach.prefixes.iter().enumerate() {
+                if add_path {
+                    buf.put_u32(path_id(&unreach.path_ids, pos));
+                }
+                encode_ipv4_prefix(buf, prefix);
             }
 
             // Rewrite the "Withdrawn Routes Length" field.
@@ -759,7 +898,11 @@ impl UpdateMsg {
         // Network Layer Reachability Information.
         if let Some(reach) = &self.reach {
             // Encode prefixes.
-            for prefix in &reach.prefixes {
+            let add_path = cxt.add_path_tx(Afi::Ipv4, Safi::Unicast);
+            for (pos, prefix) in reach.prefixes.iter().enumerate() {
+                if add_path {
+                    buf.put_u32(path_id(&reach.path_ids, pos));
+                }
                 encode_ipv4_prefix(buf, prefix);
             }
         }
@@ -785,13 +928,23 @@ impl UpdateMsg {
         // Withdrawn Routes.
         let mut buf_wdraw = buf.copy_to_bytes(wdraw_len as usize);
         let mut prefixes = Vec::new();
+        let mut path_ids = Vec::new();
+        let add_path = cxt.add_path_rx(Afi::Ipv4, Safi::Unicast);
         while buf_wdraw.remaining() > 0 {
+            let path_id = if add_path {
+                buf_wdraw.try_get_u32()?
+            } else {
+                0
+            };
             if let Some(prefix) = decode_ipv4_prefix(&mut buf_wdraw)? {
                 prefixes.push(prefix);
+                if add_path {
+                    path_ids.push(path_id);
+                }
             }
         }
         if !prefixes.is_empty() {
-            unreach = Some(UnreachNlri { prefixes });
+            unreach = Some(UnreachNlri { prefixes, path_ids });
         }
 
         // Total Path Attribute Length.
@@ -821,15 +974,25 @@ impl UpdateMsg {
         //
         // All prefixes are ignored if the NEXT_HOP attribute is missing.
         let mut prefixes = Vec::new();
+        let mut path_ids = Vec::new();
+        let add_path = cxt.add_path_rx(Afi::Ipv4, Safi::Unicast);
         while buf.remaining() > 0 {
+            let path_id = if add_path { buf.try_get_u32()? } else { 0 };
             if let Some(prefix) = decode_ipv4_prefix(buf)? {
                 prefixes.push(prefix);
+                if add_path {
+                    path_ids.push(path_id);
+                }
             }
         }
         if !prefixes.is_empty()
             && let Some(nexthop) = nexthop
         {
-            reach = Some(ReachNlri { prefixes, nexthop });
+            reach = Some(ReachNlri {
+                prefixes,
+                path_ids,
+                nexthop,
+            });
         }
 
         Ok(UpdateMsg {
@@ -1086,4 +1249,8 @@ pub fn decode_ipv6_prefix(
 // Calculates the number of bytes required to encode a prefix.
 fn prefix_wire_len(len: u8) -> usize {
     (len as usize).div_ceil(8)
+}
+
+pub(crate) fn path_id(path_ids: &[u32], pos: usize) -> u32 {
+    path_ids.get(pos).copied().unwrap_or(0)
 }

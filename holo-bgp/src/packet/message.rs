@@ -5,16 +5,17 @@
 //
 
 use std::collections::BTreeSet;
-use std::net::{Ipv4Addr, Ipv6Addr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use arbitrary::Arbitrary;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use enum_as_inner::EnumAsInner;
+use holo_utils::bgp::RouteDistinguisher;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::ip::{
-    Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
+    IpAddrExt, Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
 };
-use ipnetwork::{Ipv4Network, Ipv6Network};
+use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
@@ -210,6 +211,18 @@ pub enum MpReachNlri {
         nexthop: Ipv6Addr,
         ll_nexthop: Option<Ipv6Addr>,
     },
+    L3vpnIpv4Unicast {
+        prefixes: Vec<LabeledVpnIpv4Nlri>,
+        nexthop: Ipv4Addr,
+    },
+    L3vpnIpv6Unicast {
+        prefixes: Vec<LabeledVpnIpv6Nlri>,
+        nexthop: Ipv6Addr,
+    },
+    L2vpnEvpn {
+        routes: Vec<EvpnRoute>,
+        nexthop: IpAddr,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -217,6 +230,82 @@ pub enum MpReachNlri {
 pub enum MpUnreachNlri {
     Ipv4Unicast { prefixes: Vec<Ipv4Network> },
     Ipv6Unicast { prefixes: Vec<Ipv6Network> },
+    L3vpnIpv4Unicast { prefixes: Vec<LabeledVpnIpv4Nlri> },
+    L3vpnIpv6Unicast { prefixes: Vec<LabeledVpnIpv6Nlri> },
+    L2vpnEvpn { routes: Vec<EvpnRoute> },
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct LabeledVpnIpv4Nlri {
+    pub label: u32,
+    pub rd: RouteDistinguisher,
+    pub prefix: Ipv4Network,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct LabeledVpnIpv6Nlri {
+    pub label: u32,
+    pub rd: RouteDistinguisher,
+    pub prefix: Ipv6Network,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub enum EvpnRoute {
+    EthernetAutoDiscovery(EvpnEthernetAutoDiscovery),
+    EthernetSegment(EvpnEthernetSegment),
+    MacIpAdvertisement(EvpnMacIpAdvertisement),
+    InclusiveMulticastEthernetTag(EvpnInclusiveMulticastEthernetTag),
+    IpPrefix(EvpnIpPrefix),
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct EvpnEthernetAutoDiscovery {
+    pub rd: RouteDistinguisher,
+    pub esi: [u8; 10],
+    pub ethernet_tag_id: u32,
+    pub label: u32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct EvpnEthernetSegment {
+    pub rd: RouteDistinguisher,
+    pub esi: [u8; 10],
+    pub originator_ip: IpAddr,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct EvpnMacIpAdvertisement {
+    pub rd: RouteDistinguisher,
+    pub esi: [u8; 10],
+    pub ethernet_tag_id: u32,
+    pub mac: [u8; 6],
+    pub ip: Option<IpAddr>,
+    pub label: u32,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct EvpnInclusiveMulticastEthernetTag {
+    pub rd: RouteDistinguisher,
+    pub ethernet_tag_id: u32,
+    pub originator_ip: IpAddr,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct EvpnIpPrefix {
+    pub rd: RouteDistinguisher,
+    pub esi: [u8; 10],
+    pub ethernet_tag_id: u32,
+    pub prefix: IpNetwork,
+    pub gateway_ip: Option<IpAddr>,
+    pub label: u32,
 }
 
 //
@@ -1025,6 +1114,48 @@ pub(crate) fn encode_ipv6_prefix(buf: &mut BytesMut, prefix: &Ipv6Network) {
     buf.put(&prefix_bytes[0..plen_wire]);
 }
 
+pub(crate) fn encode_labeled_vpn_ipv4_prefix(
+    buf: &mut BytesMut,
+    nlri: &LabeledVpnIpv4Nlri,
+) {
+    encode_labeled_vpn_prefix(
+        buf,
+        nlri.label,
+        nlri.rd,
+        nlri.prefix.prefix(),
+        &nlri.prefix.ip().octets(),
+    );
+}
+
+pub(crate) fn encode_labeled_vpn_ipv6_prefix(
+    buf: &mut BytesMut,
+    nlri: &LabeledVpnIpv6Nlri,
+) {
+    encode_labeled_vpn_prefix(
+        buf,
+        nlri.label,
+        nlri.rd,
+        nlri.prefix.prefix(),
+        &nlri.prefix.ip().octets(),
+    );
+}
+
+fn encode_labeled_vpn_prefix(
+    buf: &mut BytesMut,
+    label: u32,
+    rd: RouteDistinguisher,
+    plen: u8,
+    prefix_bytes: &[u8],
+) {
+    // RFC 8277 label stack entry: 20-bit label, TC=0, BoS=1, TTL absent.
+    let label_entry = (label << 4) | 1;
+    buf.put_u8(plen + 24 + 64);
+    buf.put_u24(label_entry);
+    buf.put_slice(&rd.encode());
+    let plen_wire = prefix_wire_len(plen);
+    buf.put(&prefix_bytes[0..plen_wire]);
+}
+
 pub fn decode_ipv4_prefix(
     buf: &mut Bytes,
 ) -> Result<Option<Ipv4Network>, UpdateMessageError> {
@@ -1081,6 +1212,396 @@ pub fn decode_ipv6_prefix(
     let prefix = prefix.apply_mask();
 
     Ok(Some(prefix))
+}
+
+pub fn decode_labeled_vpn_ipv4_prefix(
+    buf: &mut Bytes,
+) -> Result<Option<LabeledVpnIpv4Nlri>, UpdateMessageError> {
+    let (label, rd, plen) = decode_labeled_vpn_prefix_header(buf)?;
+    let plen_wire = prefix_wire_len(plen);
+    if plen_wire > buf.remaining() || plen > Ipv4Network::MAX_PREFIXLEN {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+
+    let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
+    buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
+    let prefix = Ipv4Network::new(Ipv4Addr::from(prefix_bytes), plen)
+        .map(|prefix| prefix.apply_mask())
+        .map_err(|_| UpdateMessageError::InvalidNetworkField)?;
+    if !prefix.is_routable() {
+        return Ok(None);
+    }
+
+    Ok(Some(LabeledVpnIpv4Nlri { label, rd, prefix }))
+}
+
+pub fn decode_labeled_vpn_ipv6_prefix(
+    buf: &mut Bytes,
+) -> Result<Option<LabeledVpnIpv6Nlri>, UpdateMessageError> {
+    let (label, rd, plen) = decode_labeled_vpn_prefix_header(buf)?;
+    let plen_wire = prefix_wire_len(plen);
+    if plen_wire > buf.remaining() || plen > Ipv6Network::MAX_PREFIXLEN {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+
+    let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
+    buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
+    let prefix = Ipv6Network::new(Ipv6Addr::from(prefix_bytes), plen)
+        .map(|prefix| prefix.apply_mask())
+        .map_err(|_| UpdateMessageError::InvalidNetworkField)?;
+    if !prefix.is_routable() {
+        return Ok(None);
+    }
+
+    Ok(Some(LabeledVpnIpv6Nlri { label, rd, prefix }))
+}
+
+pub(crate) fn encode_evpn_route(buf: &mut BytesMut, route: &EvpnRoute) {
+    match route {
+        EvpnRoute::EthernetAutoDiscovery(route) => {
+            let len = 8 + 10 + 4 + 3;
+            buf.put_u8(1);
+            buf.put_u8(len);
+            buf.put_slice(&route.rd.encode());
+            buf.put_slice(&route.esi);
+            buf.put_u32(route.ethernet_tag_id);
+            encode_evpn_label(buf, route.label);
+        }
+        EvpnRoute::EthernetSegment(route) => {
+            let len = 8 + 10 + 1 + route.originator_ip.length();
+            buf.put_u8(4);
+            buf.put_u8(len as u8);
+            buf.put_slice(&route.rd.encode());
+            buf.put_slice(&route.esi);
+            match route.originator_ip {
+                IpAddr::V4(addr) => {
+                    buf.put_u8(32);
+                    buf.put_ipv4(&addr);
+                }
+                IpAddr::V6(addr) => {
+                    buf.put_u8(128);
+                    buf.put_ipv6(&addr);
+                }
+            }
+        }
+        EvpnRoute::MacIpAdvertisement(route) => {
+            let len = 8
+                + 10
+                + 4
+                + 1
+                + 6
+                + 1
+                + route.ip.map(|ip| ip.length()).unwrap_or_default()
+                + 3;
+            buf.put_u8(2);
+            buf.put_u8(len as u8);
+            buf.put_slice(&route.rd.encode());
+            buf.put_slice(&route.esi);
+            buf.put_u32(route.ethernet_tag_id);
+            buf.put_u8(48);
+            buf.put_slice(&route.mac);
+            encode_evpn_ip(buf, route.ip);
+            encode_evpn_label(buf, route.label);
+        }
+        EvpnRoute::InclusiveMulticastEthernetTag(route) => {
+            let len = 8 + 4 + route.originator_ip.length();
+            buf.put_u8(3);
+            buf.put_u8(len as u8);
+            buf.put_slice(&route.rd.encode());
+            buf.put_u32(route.ethernet_tag_id);
+            match route.originator_ip {
+                IpAddr::V4(addr) => buf.put_ipv4(&addr),
+                IpAddr::V6(addr) => buf.put_ipv6(&addr),
+            }
+        }
+        EvpnRoute::IpPrefix(route) => {
+            let prefix_len = route.prefix.prefix();
+            let prefix_wire_len = prefix_wire_len(prefix_len);
+            let gw_len =
+                route.gateway_ip.map(|ip| ip.length()).unwrap_or_default();
+            let len = 8 + 10 + 4 + 1 + prefix_wire_len + gw_len + 3;
+            buf.put_u8(5);
+            buf.put_u8(len as u8);
+            buf.put_slice(&route.rd.encode());
+            buf.put_slice(&route.esi);
+            buf.put_u32(route.ethernet_tag_id);
+            buf.put_u8(prefix_len);
+            match route.prefix {
+                IpNetwork::V4(prefix) => {
+                    buf.put(&prefix.ip().octets()[0..prefix_wire_len]);
+                }
+                IpNetwork::V6(prefix) => {
+                    buf.put(&prefix.ip().octets()[0..prefix_wire_len]);
+                }
+            }
+            if let Some(gateway_ip) = route.gateway_ip {
+                match gateway_ip {
+                    IpAddr::V4(addr) => buf.put_ipv4(&addr),
+                    IpAddr::V6(addr) => buf.put_ipv6(&addr),
+                }
+            }
+            encode_evpn_label(buf, route.label);
+        }
+    }
+}
+
+pub(crate) fn decode_evpn_route(
+    buf: &mut Bytes,
+) -> Result<Option<EvpnRoute>, UpdateMessageError> {
+    if buf.remaining() < 2 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let route_type = buf.try_get_u8()?;
+    let route_len = buf.try_get_u8()? as usize;
+    if route_len > buf.remaining() {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let mut route_buf = buf.copy_to_bytes(route_len);
+
+    match route_type {
+        1 => decode_evpn_ethernet_auto_discovery(&mut route_buf)
+            .map(|route| route.map(EvpnRoute::EthernetAutoDiscovery)),
+        4 => decode_evpn_ethernet_segment(&mut route_buf)
+            .map(|route| route.map(EvpnRoute::EthernetSegment)),
+        2 => decode_evpn_mac_ip_advertisement(&mut route_buf)
+            .map(|route| route.map(EvpnRoute::MacIpAdvertisement)),
+        3 => decode_evpn_imet(&mut route_buf)
+            .map(|route| route.map(EvpnRoute::InclusiveMulticastEthernetTag)),
+        5 => decode_evpn_ip_prefix(&mut route_buf)
+            .map(|route| route.map(EvpnRoute::IpPrefix)),
+        _ => Ok(None),
+    }
+}
+
+fn decode_evpn_ethernet_auto_discovery(
+    buf: &mut Bytes,
+) -> Result<Option<EvpnEthernetAutoDiscovery>, UpdateMessageError> {
+    if buf.remaining() != 8 + 10 + 4 + 3 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let rd = decode_rd(buf)?;
+    let mut esi = [0; 10];
+    buf.try_copy_to_slice(&mut esi)?;
+    let ethernet_tag_id = buf.try_get_u32()?;
+    let label = decode_evpn_label(buf)?;
+    Ok(Some(EvpnEthernetAutoDiscovery {
+        rd,
+        esi,
+        ethernet_tag_id,
+        label,
+    }))
+}
+
+fn decode_evpn_ethernet_segment(
+    buf: &mut Bytes,
+) -> Result<Option<EvpnEthernetSegment>, UpdateMessageError> {
+    if buf.remaining() < 8 + 10 + 1 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let rd = decode_rd(buf)?;
+    let mut esi = [0; 10];
+    buf.try_copy_to_slice(&mut esi)?;
+    let ip_len = buf.try_get_u8()?;
+    let originator_ip = match ip_len {
+        32 if buf.remaining() == Ipv4Addr::LENGTH => {
+            IpAddr::V4(buf.try_get_ipv4()?)
+        }
+        128 if buf.remaining() == Ipv6Addr::LENGTH => {
+            IpAddr::V6(buf.try_get_ipv6()?)
+        }
+        _ => return Err(UpdateMessageError::InvalidNetworkField),
+    };
+
+    Ok(Some(EvpnEthernetSegment {
+        rd,
+        esi,
+        originator_ip,
+    }))
+}
+
+fn decode_evpn_mac_ip_advertisement(
+    buf: &mut Bytes,
+) -> Result<Option<EvpnMacIpAdvertisement>, UpdateMessageError> {
+    if buf.remaining() < 8 + 10 + 4 + 1 + 6 + 1 + 3 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let rd = decode_rd(buf)?;
+    let mut esi = [0; 10];
+    buf.try_copy_to_slice(&mut esi)?;
+    let ethernet_tag_id = buf.try_get_u32()?;
+    let mac_len = buf.try_get_u8()?;
+    if mac_len != 48 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let mut mac = [0; 6];
+    buf.try_copy_to_slice(&mut mac)?;
+    let ip_len = buf.try_get_u8()?;
+    let ip = match ip_len {
+        0 => None,
+        32 => Some(IpAddr::V4(buf.try_get_ipv4()?)),
+        128 => Some(IpAddr::V6(buf.try_get_ipv6()?)),
+        _ => return Err(UpdateMessageError::InvalidNetworkField),
+    };
+    if buf.remaining() != 3 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let label = decode_evpn_label(buf)?;
+    Ok(Some(EvpnMacIpAdvertisement {
+        rd,
+        esi,
+        ethernet_tag_id,
+        mac,
+        ip,
+        label,
+    }))
+}
+
+fn decode_evpn_imet(
+    buf: &mut Bytes,
+) -> Result<Option<EvpnInclusiveMulticastEthernetTag>, UpdateMessageError> {
+    if buf.remaining() != 8 + 4 + Ipv4Addr::LENGTH
+        && buf.remaining() != 8 + 4 + Ipv6Addr::LENGTH
+    {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let rd = decode_rd(buf)?;
+    let ethernet_tag_id = buf.try_get_u32()?;
+    let originator_ip = match buf.remaining() {
+        Ipv4Addr::LENGTH => IpAddr::V4(buf.try_get_ipv4()?),
+        Ipv6Addr::LENGTH => IpAddr::V6(buf.try_get_ipv6()?),
+        _ => unreachable!(),
+    };
+    Ok(Some(EvpnInclusiveMulticastEthernetTag {
+        rd,
+        ethernet_tag_id,
+        originator_ip,
+    }))
+}
+
+fn decode_evpn_ip_prefix(
+    buf: &mut Bytes,
+) -> Result<Option<EvpnIpPrefix>, UpdateMessageError> {
+    if buf.remaining() < 8 + 10 + 4 + 1 + 3 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let rd = decode_rd(buf)?;
+    let mut esi = [0; 10];
+    buf.try_copy_to_slice(&mut esi)?;
+    let ethernet_tag_id = buf.try_get_u32()?;
+    let prefix_len = buf.try_get_u8()?;
+    let prefix_wire_len = prefix_wire_len(prefix_len);
+    let suffix_len = buf
+        .remaining()
+        .checked_sub(3)
+        .ok_or(UpdateMessageError::InvalidNetworkField)?;
+    let (prefix, gateway_ip) = match suffix_len.checked_sub(prefix_wire_len) {
+        Some(0) => (decode_evpn_ip_prefix_addr(buf, prefix_len, false)?, None),
+        Some(Ipv4Addr::LENGTH) => {
+            let prefix = decode_evpn_ip_prefix_addr(buf, prefix_len, false)?;
+            (prefix, Some(IpAddr::V4(buf.try_get_ipv4()?)))
+        }
+        Some(Ipv6Addr::LENGTH) => {
+            let prefix = decode_evpn_ip_prefix_addr(buf, prefix_len, true)?;
+            (prefix, Some(IpAddr::V6(buf.try_get_ipv6()?)))
+        }
+        _ => return Err(UpdateMessageError::InvalidNetworkField),
+    };
+    let label = decode_evpn_label(buf)?;
+    Ok(Some(EvpnIpPrefix {
+        rd,
+        esi,
+        ethernet_tag_id,
+        prefix,
+        gateway_ip,
+        label,
+    }))
+}
+
+fn decode_evpn_ip_prefix_addr(
+    buf: &mut Bytes,
+    prefix_len: u8,
+    ipv6: bool,
+) -> Result<IpNetwork, UpdateMessageError> {
+    let prefix_wire_len = prefix_wire_len(prefix_len);
+    if ipv6 || prefix_len > Ipv4Network::MAX_PREFIXLEN {
+        if prefix_len > Ipv6Network::MAX_PREFIXLEN {
+            return Err(UpdateMessageError::InvalidNetworkField);
+        }
+        let mut bytes = [0; Ipv6Addr::LENGTH];
+        buf.try_copy_to_slice(&mut bytes[..prefix_wire_len])?;
+        return Ipv6Network::new(Ipv6Addr::from(bytes), prefix_len)
+            .map(|prefix| prefix.apply_mask().into())
+            .map_err(|_| UpdateMessageError::InvalidNetworkField);
+    }
+
+    let mut bytes = [0; Ipv4Addr::LENGTH];
+    buf.try_copy_to_slice(&mut bytes[..prefix_wire_len])?;
+    Ipv4Network::new(Ipv4Addr::from(bytes), prefix_len)
+        .map(|prefix| prefix.apply_mask().into())
+        .map_err(|_| UpdateMessageError::InvalidNetworkField)
+}
+
+fn encode_evpn_ip(buf: &mut BytesMut, ip: Option<IpAddr>) {
+    match ip {
+        Some(IpAddr::V4(addr)) => {
+            buf.put_u8(32);
+            buf.put_ipv4(&addr);
+        }
+        Some(IpAddr::V6(addr)) => {
+            buf.put_u8(128);
+            buf.put_ipv6(&addr);
+        }
+        None => buf.put_u8(0),
+    }
+}
+
+fn encode_evpn_label(buf: &mut BytesMut, label: u32) {
+    let label_entry = (label << 4) | 1;
+    buf.put_u24(label_entry);
+}
+
+fn decode_evpn_label(buf: &mut Bytes) -> Result<u32, UpdateMessageError> {
+    let label_entry = buf.try_get_u24()?;
+    if label_entry & 1 == 0 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    Ok(label_entry >> 4)
+}
+
+fn decode_rd(
+    buf: &mut Bytes,
+) -> Result<RouteDistinguisher, UpdateMessageError> {
+    let mut rd_bytes = [0; 8];
+    buf.try_copy_to_slice(&mut rd_bytes)?;
+    RouteDistinguisher::decode(rd_bytes)
+        .ok_or(UpdateMessageError::InvalidNetworkField)
+}
+
+fn decode_labeled_vpn_prefix_header(
+    buf: &mut Bytes,
+) -> Result<(u32, RouteDistinguisher, u8), UpdateMessageError> {
+    let plen = buf.try_get_u8()?;
+    if plen < 24 + 64 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let plen = plen - 24 - 64;
+    if 3 + 8 > buf.remaining() {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+
+    let label_entry = buf.try_get_u24()?;
+    if label_entry & 1 == 0 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let label = label_entry >> 4;
+
+    let mut rd_bytes = [0; 8];
+    buf.try_copy_to_slice(&mut rd_bytes)?;
+    let Some(rd) = RouteDistinguisher::decode(rd_bytes) else {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    };
+
+    Ok((label, rd, plen))
 }
 
 // Calculates the number of bytes required to encode a prefix.

@@ -236,6 +236,7 @@ pub(crate) fn tcp_listener(
 pub(crate) fn tcp_connect(
     nbr: &Neighbor,
     tcp_connectp: &Sender<messages::input::TcpConnectMsg>,
+    vrf_device: Option<String>,
 ) -> Task<()> {
     #[cfg(not(feature = "testing"))]
     {
@@ -255,6 +256,7 @@ pub(crate) fn tcp_connect(
                     let result = network::connect(
                         remote_addr,
                         local_addr,
+                        vrf_device.as_deref(),
                         ttl,
                         ttl_security,
                         tcp_mss,

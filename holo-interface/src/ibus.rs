@@ -155,6 +155,8 @@ pub(crate) fn notify_interface_update(ibus_tx: &IbusSender, iface: &Interface) {
         flags: iface.flags,
         mac_address: iface.mac_address,
         msd: Default::default(),
+        master_ifindex: iface.master_ifindex,
+        vrf_table_id: iface.vrf_table_id,
     });
     notify(ibus_tx, msg);
 }

@@ -12,11 +12,21 @@ use num_traits::FromPrimitive;
 use crate::neighbor::{PeerType, fsm};
 use crate::northbound::configuration::{InstanceTraceOption, NeighborTraceOption, PrivateAsRemove};
 use crate::packet::attribute::AsPathSegmentType;
-use crate::packet::iana::{CapabilityCode, CeaseSubcode, ErrorCode, FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode};
+use crate::packet::iana::{Afi, CapabilityCode, CeaseSubcode, ErrorCode, FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode};
 use crate::packet::message::{AddPathMode, NotificationMsg};
 use crate::rib::{RouteIneligibleReason, RouteOrigin, RouteRejectReason};
 
 // ===== ToYang implementations =====
+
+impl ToYang for Afi {
+    fn to_yang(&self) -> Cow<'static, str> {
+        match self {
+            Afi::Ipv4 => "ipv4".into(),
+            Afi::Ipv6 => "ipv6".into(),
+            Afi::L2vpn => "l2vpn".into(),
+        }
+    }
+}
 
 impl ToYang for Safi {
     fn to_yang(&self) -> Cow<'static, str> {
@@ -224,6 +234,8 @@ impl ToYang for RouteRejectReason {
             RouteRejectReason::HigherRouterId => "iana-bgp-rib-types:higher-router-id".into(),
             RouteRejectReason::HigherPeerAddress => "iana-bgp-rib-types:higher-peer-address".into(),
             RouteRejectReason::RejectedImportPolicy => "iana-bgp-rib-types:rejected-import-policy".into(),
+            RouteRejectReason::EvpnMacMobilityLowerSequence => "holo-bgp:evpn-mac-mobility-lower-sequence".into(),
+            RouteRejectReason::EvpnMacMobilitySticky => "holo-bgp:evpn-mac-mobility-sticky".into(),
         }
     }
 }

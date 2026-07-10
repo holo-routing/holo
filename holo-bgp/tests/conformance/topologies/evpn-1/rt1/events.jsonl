@@ -1,0 +1,7 @@
+{"Ibus":{"RouterIdUpdate":"192.0.2.1"}}
+{"Protocol":{"TcpAccept":{"conn_info":{"local_addr":"192.0.2.1","local_port":179,"remote_addr":"192.0.2.2","remote_port":41000}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Open":{"version":4,"my_as":65000,"holdtime":90,"identifier":"192.0.2.2","capabilities":[{"MultiProtocol":{"afi":"L2vpn","safi":"Evpn"}},{"FourOctetAsNumber":{"asn":65000}},"RouteRefresh"]}}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Keepalive":{}}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Update":{"mp_reach":{"L2vpnEvpn":{"routes":[{"MacIpAdvertisement":{"rd":{"As2Administrator":{"asn":65000,"number":1}},"esi":[0,0,0,0,0,0,0,0,0,0],"ethernet_tag_id":100,"mac":[0,17,34,51,68,85],"ip":"192.0.2.10","label":16000}},{"InclusiveMulticastEthernetTag":{"rd":{"As2Administrator":{"asn":65000,"number":1}},"ethernet_tag_id":100,"originator_ip":"192.0.2.2"}},{"IpPrefix":{"rd":{"As2Administrator":{"asn":65000,"number":1}},"esi":[0,0,0,0,0,0,0,0,0,0],"ethernet_tag_id":100,"prefix":"198.51.100.0/24","gateway_ip":"192.0.2.254","label":16001}}],"nexthop":"192.0.2.2"}},"attrs":{"base":{"origin":"Igp","as_path":{"segments":[]},"local_pref":100},"ext_comm":[[0,2,253,232,0,0,0,100]]}}}}}}}
+{"Ibus":{"NexthopUpd":{"addr":"192.0.2.2","metric":0}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Keepalive":{}}}}}}

@@ -1,0 +1,4 @@
+{"Ibus":{"RouterIdUpdate":"192.0.2.1"}}
+{"Ibus":{"PolicyMatchSetsUpd":{"prefixes":[[["DOC","Ipv4"],{"name":"DOC","mode":"Ipv4","prefixes":[{"prefix":"192.0.2.0/24","masklen_lower":24,"masklen_upper":32}]}]],"neighbors":{},"tags":{},"bgp":{"as_paths":{},"comms":{},"ext_comms":{},"extv6_comms":{},"large_comms":{},"nexthops":{}}}}}
+{"Ibus":{"PolicyUpd":{"name":"ORDERED","stmt_order":["20","10"],"stmts":{"10":{"name":"10","prefix_set_match_type":"Any","tag_set_match_type":"Any","conditions":[],"actions":[["Accept",{"Accept":false}]]},"20":{"name":"20","prefix_set_match_type":"Any","tag_set_match_type":"Any","conditions":[["MatchPrefixSet",{"MatchPrefixSet":"DOC"}],[{"Bgp":"MatchAfiSafi"},{"Bgp":{"MatchAfiSafi":{"values":["Ipv4Unicast"],"match_type":"Any"}}}]],"actions":[["Accept",{"Accept":true}]]}}}}}
+{"Protocol":{"TriggerDecisionProcess":null}}

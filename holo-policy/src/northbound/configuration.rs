@@ -314,11 +314,7 @@ fn load_callbacks() -> Callbacks<Master> {
         .path(routing_policy::policy_definitions::policy_definition::PATH)
         .create_apply(|master, args| {
             let name = args.dnode.get_string_relative("./name").unwrap();
-            let policy = Policy {
-                name: name.clone(),
-                stmts: Default::default(),
-            };
-            master.policies.insert(name, policy);
+            master.policies.insert(name.clone(), Policy::new(name));
         })
         .delete_apply(|master, args| {
             let name = args.list_entry.into_policy().unwrap();
@@ -338,7 +334,7 @@ fn load_callbacks() -> Callbacks<Master> {
 
             let stmt_name = args.dnode.get_string_relative("./name").unwrap();
             let stmt = PolicyStmt::new(stmt_name.clone());
-            policy.stmts.insert(stmt_name, stmt);
+            policy.stmt_add(stmt);
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::PolicyChange(policy.name.clone()));
@@ -347,7 +343,7 @@ fn load_callbacks() -> Callbacks<Master> {
             let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
             let policy = master.policies.get_mut(&policy_name).unwrap();
 
-            policy.stmts.remove(&stmt_name);
+            policy.stmt_remove(&stmt_name);
 
             let event_queue = args.event_queue;
             event_queue.insert(Event::PolicyChange(policy.name.clone()));
@@ -661,21 +657,76 @@ fn load_callbacks() -> Callbacks<Master> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        // BGP condition: match-afi-safi (TODO: multi-value set, deferred)
+        // BGP condition: match-afi-safi
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_afi_safi::afi_safi_in::PATH)
-        .create_apply(|_master, _args| {
-            // TODO: implement me!
+        .create_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let afi_safi = args.dnode.get_string();
+            let afi_safi = bgp::AfiSafi::try_from_yang(&afi_safi).unwrap();
+            let key = PolicyConditionType::Bgp(BgpPolicyConditionType::MatchAfiSafi);
+            match stmt.conditions.get_mut(&key) {
+                Some(PolicyCondition::Bgp(BgpPolicyCondition::MatchAfiSafi {
+                    values, ..
+                })) => {
+                    values.insert(afi_safi);
+                }
+                _ => {
+                    let mut values = BTreeSet::new();
+                    values.insert(afi_safi);
+                    stmt.condition_add(PolicyCondition::Bgp(BgpPolicyCondition::MatchAfiSafi {
+                        values,
+                        match_type: MatchSetRestrictedType::Any,
+                    }));
+                }
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
+        .delete_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let afi_safi = args.dnode.get_string();
+            let afi_safi = bgp::AfiSafi::try_from_yang(&afi_safi).unwrap();
+            let key = PolicyConditionType::Bgp(BgpPolicyConditionType::MatchAfiSafi);
+            if let Some(PolicyCondition::Bgp(BgpPolicyCondition::MatchAfiSafi {
+                values, ..
+            })) = stmt.conditions.get_mut(&key)
+            {
+                values.remove(&afi_safi);
+                if values.is_empty() {
+                    stmt.condition_remove(key);
+                }
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_afi_safi::match_set_options::PATH)
-        .modify_apply(|_master, _args| {
-            // TODO: implement me!
+        .modify_apply(|master, args| {
+            let (policy_name, stmt_name) = args.list_entry.into_policy_stmt().unwrap();
+            let policy = master.policies.get_mut(&policy_name).unwrap();
+            let stmt = policy.stmts.get_mut(&stmt_name).unwrap();
+
+            let match_type = args.dnode.get_string();
+            let match_type = MatchSetRestrictedType::try_from_yang(&match_type).unwrap();
+            let key = PolicyConditionType::Bgp(BgpPolicyConditionType::MatchAfiSafi);
+            if let Some(PolicyCondition::Bgp(BgpPolicyCondition::MatchAfiSafi {
+                match_type: existing, ..
+            })) = stmt.conditions.get_mut(&key)
+            {
+                *existing = match_type;
+            }
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyChange(policy.name.clone()));
         })
-        .delete_apply(|_master, _args| {
-            // TODO: implement me!
-        })
+        .delete_apply(|_master, _args| {})
         // BGP condition: match-neighbor
         .path(routing_policy::policy_definitions::policy_definition::statements::statement::conditions::bgp_conditions::match_neighbor::neighbor_eq::PATH)
         .create_apply(|master, args| {

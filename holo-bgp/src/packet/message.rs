@@ -10,6 +10,7 @@ use std::net::{Ipv4Addr, Ipv6Addr};
 use arbitrary::Arbitrary;
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use enum_as_inner::EnumAsInner;
+use holo_utils::bgp::RouteDistinguisher;
 use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::ip::{
     Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
@@ -210,6 +211,14 @@ pub enum MpReachNlri {
         nexthop: Ipv6Addr,
         ll_nexthop: Option<Ipv6Addr>,
     },
+    L3vpnIpv4Unicast {
+        prefixes: Vec<LabeledVpnIpv4Nlri>,
+        nexthop: Ipv4Addr,
+    },
+    L3vpnIpv6Unicast {
+        prefixes: Vec<LabeledVpnIpv6Nlri>,
+        nexthop: Ipv6Addr,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -217,6 +226,24 @@ pub enum MpReachNlri {
 pub enum MpUnreachNlri {
     Ipv4Unicast { prefixes: Vec<Ipv4Network> },
     Ipv6Unicast { prefixes: Vec<Ipv6Network> },
+    L3vpnIpv4Unicast { prefixes: Vec<LabeledVpnIpv4Nlri> },
+    L3vpnIpv6Unicast { prefixes: Vec<LabeledVpnIpv6Nlri> },
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct LabeledVpnIpv4Nlri {
+    pub label: u32,
+    pub rd: RouteDistinguisher,
+    pub prefix: Ipv4Network,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct LabeledVpnIpv6Nlri {
+    pub label: u32,
+    pub rd: RouteDistinguisher,
+    pub prefix: Ipv6Network,
 }
 
 //
@@ -1025,6 +1052,48 @@ pub(crate) fn encode_ipv6_prefix(buf: &mut BytesMut, prefix: &Ipv6Network) {
     buf.put(&prefix_bytes[0..plen_wire]);
 }
 
+pub(crate) fn encode_labeled_vpn_ipv4_prefix(
+    buf: &mut BytesMut,
+    nlri: &LabeledVpnIpv4Nlri,
+) {
+    encode_labeled_vpn_prefix(
+        buf,
+        nlri.label,
+        nlri.rd,
+        nlri.prefix.prefix(),
+        &nlri.prefix.ip().octets(),
+    );
+}
+
+pub(crate) fn encode_labeled_vpn_ipv6_prefix(
+    buf: &mut BytesMut,
+    nlri: &LabeledVpnIpv6Nlri,
+) {
+    encode_labeled_vpn_prefix(
+        buf,
+        nlri.label,
+        nlri.rd,
+        nlri.prefix.prefix(),
+        &nlri.prefix.ip().octets(),
+    );
+}
+
+fn encode_labeled_vpn_prefix(
+    buf: &mut BytesMut,
+    label: u32,
+    rd: RouteDistinguisher,
+    plen: u8,
+    prefix_bytes: &[u8],
+) {
+    // RFC 8277 label stack entry: 20-bit label, TC=0, BoS=1, TTL absent.
+    let label_entry = (label << 4) | 1;
+    buf.put_u8(plen + 24 + 64);
+    buf.put_u24(label_entry);
+    buf.put_slice(&rd.encode());
+    let plen_wire = prefix_wire_len(plen);
+    buf.put(&prefix_bytes[0..plen_wire]);
+}
+
 pub fn decode_ipv4_prefix(
     buf: &mut Bytes,
 ) -> Result<Option<Ipv4Network>, UpdateMessageError> {
@@ -1081,6 +1150,75 @@ pub fn decode_ipv6_prefix(
     let prefix = prefix.apply_mask();
 
     Ok(Some(prefix))
+}
+
+pub fn decode_labeled_vpn_ipv4_prefix(
+    buf: &mut Bytes,
+) -> Result<Option<LabeledVpnIpv4Nlri>, UpdateMessageError> {
+    let (label, rd, plen) = decode_labeled_vpn_prefix_header(buf)?;
+    let plen_wire = prefix_wire_len(plen);
+    if plen_wire > buf.remaining() || plen > Ipv4Network::MAX_PREFIXLEN {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+
+    let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
+    buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
+    let prefix = Ipv4Network::new(Ipv4Addr::from(prefix_bytes), plen)
+        .map(|prefix| prefix.apply_mask())
+        .map_err(|_| UpdateMessageError::InvalidNetworkField)?;
+    if !prefix.is_routable() {
+        return Ok(None);
+    }
+
+    Ok(Some(LabeledVpnIpv4Nlri { label, rd, prefix }))
+}
+
+pub fn decode_labeled_vpn_ipv6_prefix(
+    buf: &mut Bytes,
+) -> Result<Option<LabeledVpnIpv6Nlri>, UpdateMessageError> {
+    let (label, rd, plen) = decode_labeled_vpn_prefix_header(buf)?;
+    let plen_wire = prefix_wire_len(plen);
+    if plen_wire > buf.remaining() || plen > Ipv6Network::MAX_PREFIXLEN {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+
+    let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
+    buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
+    let prefix = Ipv6Network::new(Ipv6Addr::from(prefix_bytes), plen)
+        .map(|prefix| prefix.apply_mask())
+        .map_err(|_| UpdateMessageError::InvalidNetworkField)?;
+    if !prefix.is_routable() {
+        return Ok(None);
+    }
+
+    Ok(Some(LabeledVpnIpv6Nlri { label, rd, prefix }))
+}
+
+fn decode_labeled_vpn_prefix_header(
+    buf: &mut Bytes,
+) -> Result<(u32, RouteDistinguisher, u8), UpdateMessageError> {
+    let plen = buf.try_get_u8()?;
+    if plen < 24 + 64 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let plen = plen - 24 - 64;
+    if 3 + 8 > buf.remaining() {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+
+    let label_entry = buf.try_get_u24()?;
+    if label_entry & 1 == 0 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let label = label_entry >> 4;
+
+    let mut rd_bytes = [0; 8];
+    buf.try_copy_to_slice(&mut rd_bytes)?;
+    let Some(rd) = RouteDistinguisher::decode(rd_bytes) else {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    };
+
+    Ok((label, rd, plen))
 }
 
 // Calculates the number of bytes required to encode a prefix.

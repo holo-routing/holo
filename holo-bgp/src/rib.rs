@@ -10,13 +10,16 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::Instant;
 
+use holo_protocol::InstanceShared;
 use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusChannelsTx;
+use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
-use prefix_trie::map::PrefixMap;
 use serde::{Deserialize, Serialize};
 
-use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    AddressFamily, Ipv4Unicast, Ipv6Unicast, Vpnv4Unicast, Vpnv6Unicast,
+};
 use crate::debug::Debug;
 use crate::ibus;
 use crate::neighbor::{Neighbor, PeerType};
@@ -44,12 +47,14 @@ pub struct Rib {
 pub struct RoutingTables {
     pub ipv4_unicast: RoutingTable<Ipv4Unicast>,
     pub ipv6_unicast: RoutingTable<Ipv6Unicast>,
+    pub vpnv4_unicast: RoutingTable<Vpnv4Unicast>,
+    pub vpnv6_unicast: RoutingTable<Vpnv6Unicast>,
 }
 
 #[derive(Debug)]
 pub struct RoutingTable<A: AddressFamily> {
-    pub prefixes: PrefixMap<A::IpNetwork, Destination>,
-    pub queued_prefixes: BTreeSet<A::IpNetwork>,
+    pub prefixes: BTreeMap<A::Prefix, Destination>,
+    pub queued_prefixes: BTreeSet<A::Prefix>,
     pub nht: HashMap<IpAddr, NhtEntry<A>>,
 }
 
@@ -73,6 +78,7 @@ pub struct LocalRoute {
     pub origin: RouteOrigin,
     pub attrs: RouteAttrs,
     pub route_type: RouteType,
+    pub vpn_label: Option<Label>,
     pub last_modified: Instant,
     pub nexthops: Option<BTreeSet<IpAddr>>,
 }
@@ -82,6 +88,7 @@ pub struct Route {
     pub origin: RouteOrigin,
     pub attrs: RouteAttrs,
     pub route_type: RouteType,
+    pub vpn_label: Option<Label>,
     pub igp_cost: Option<u32>,
     pub last_modified: Instant,
     pub ineligible_reason: Option<RouteIneligibleReason>,
@@ -135,7 +142,7 @@ pub struct AttrSet<T> {
 #[derive(Debug, Eq, PartialEq)]
 pub struct NhtEntry<A: AddressFamily> {
     pub metric: Option<u32>,
-    pub prefixes: BTreeMap<A::IpNetwork, u32>,
+    pub prefixes: BTreeMap<A::Prefix, u32>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -304,6 +311,7 @@ impl Route {
             origin,
             attrs,
             route_type,
+            vpn_label: None,
             igp_cost: None,
             last_modified: Instant::now(),
             ineligible_reason: None,
@@ -774,7 +782,7 @@ where
 }
 
 pub(crate) fn loc_rib_update<A>(
-    prefix: A::IpNetwork,
+    prefix: A::Prefix,
     dest: &mut Destination,
     best_route: Option<Box<Route>>,
     attr_sets: &mut AttrSetsCxt,
@@ -782,13 +790,15 @@ pub(crate) fn loc_rib_update<A>(
     mpath_cfg: &MultipathCfg,
     distance_cfg: &DistanceCfg,
     trace_opts: &InstanceTraceOptions,
+    shared: &InstanceShared,
     ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
 {
     if let Some(best_route) = best_route {
         if trace_opts.route {
-            Debug::BestPathFound(prefix.into(), &best_route).log();
+            Debug::BestPathFound(A::prefix_to_ip_network(prefix), &best_route)
+                .log();
         }
 
         // Compute route nexthops, considering multipath configuration.
@@ -800,9 +810,14 @@ pub(crate) fn loc_rib_update<A>(
             && local_route.origin == best_route.origin
             && local_route.attrs == best_route.attrs
             && local_route.route_type == best_route.route_type
+            && local_route.vpn_label == best_route.vpn_label
             && local_route.nexthops == nexthops
         {
             return;
+        }
+
+        if let Some(local_route) = &dest.local {
+            A::vpn_import_uninstall(prefix, local_route, shared, ibus_tx);
         }
 
         // Create new local route.
@@ -810,38 +825,48 @@ pub(crate) fn loc_rib_update<A>(
             origin: best_route.origin,
             attrs: best_route.attrs,
             route_type: best_route.route_type,
+            vpn_label: best_route.vpn_label,
             last_modified: best_route.last_modified,
             nexthops,
         };
+        let distance = match best_route.route_type {
+            RouteType::Internal => distance_cfg.internal,
+            RouteType::External => distance_cfg.external,
+        };
 
         // Install local route in the global RIB.
-        if !local_route.origin.is_local() {
+        if A::INSTALL_LOC_RIB && !local_route.origin.is_local() {
             ibus::tx::route_install(
                 ibus_tx,
-                prefix,
+                None,
+                A::prefix_to_ip_network(prefix),
                 &local_route,
-                match best_route.route_type {
-                    RouteType::Internal => distance_cfg.internal,
-                    RouteType::External => distance_cfg.external,
-                },
+                distance,
             );
         }
+        A::vpn_import_install(prefix, &local_route, shared, ibus_tx, distance);
 
         // Insert local route into the Loc-RIB.
         dest.local = Some(Box::new(local_route));
     } else {
         if trace_opts.route {
-            Debug::BestPathNotFound(prefix.into()).log();
+            Debug::BestPathNotFound(A::prefix_to_ip_network(prefix)).log();
         }
 
         // Remove route from the Loc-RIB.
         if let Some(local_route) = dest.local.take() {
+            A::vpn_import_uninstall(prefix, &local_route, shared, ibus_tx);
+
             // Check attribute sets that might need to be removed.
             attr_sets.remove_route_attr_sets(&local_route.attrs);
 
             // Uninstall route from the global RIB.
-            if !local_route.origin.is_local() {
-                ibus::tx::route_uninstall(ibus_tx, prefix);
+            if A::INSTALL_LOC_RIB && !local_route.origin.is_local() {
+                ibus::tx::route_uninstall(
+                    ibus_tx,
+                    None,
+                    A::prefix_to_ip_network(prefix),
+                );
             }
         }
     }
@@ -880,7 +905,7 @@ pub(crate) fn attrs_tx_update<A>(
 
 pub(crate) fn nexthop_track<A>(
     nht: &mut HashMap<IpAddr, NhtEntry<A>>,
-    prefix: A::IpNetwork,
+    prefix: A::Prefix,
     route: &Route,
     ibus_tx: &IbusChannelsTx,
 ) where
@@ -896,7 +921,7 @@ pub(crate) fn nexthop_track<A>(
 
 pub(crate) fn nexthop_untrack<A>(
     nht: &mut HashMap<IpAddr, NhtEntry<A>>,
-    prefix: &A::IpNetwork,
+    prefix: &A::Prefix,
     route: &Route,
     ibus_tx: &IbusChannelsTx,
 ) where
@@ -952,6 +977,7 @@ mod tests {
             origin,
             attrs,
             route_type,
+            vpn_label: None,
             igp_cost,
             last_modified: Instant::now(),
             ineligible_reason: None,

@@ -20,7 +20,9 @@ use holo_utils::task::{Task, TimeoutTask};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
-use crate::af::{Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    Ipv4Unicast, Ipv6Unicast, L2vpnEvpn, Vpnv4Unicast, Vpnv6Unicast,
+};
 use crate::debug::{Debug, InstanceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::neighbor::{Neighbors, fsm};
@@ -39,6 +41,8 @@ use crate::{events, ibus, network, tasks};
 pub struct Instance {
     // Instance name.
     pub name: String,
+    // Network instance (VRF) this BGP instance runs in.
+    pub network_instance: String,
     // Instance system data.
     pub system: InstanceSys,
     // Instance configuration data.
@@ -120,6 +124,7 @@ pub struct ProtocolInputChannelsRx {
 
 pub struct InstanceUpView<'a> {
     pub name: &'a str,
+    pub network_instance: &'a str,
     pub system: &'a InstanceSys,
     pub config: &'a InstanceCfg,
     pub state: &'a mut InstanceState,
@@ -141,6 +146,9 @@ impl Instance {
             Ok(()) if !self.is_active() => {
                 self.start(router_id.unwrap());
             }
+            Ok(()) if self.is_active() => {
+                self.start_configured_neighbors();
+            }
             Err(reason) if self.is_active() => {
                 self.stop(reason);
             }
@@ -152,10 +160,16 @@ impl Instance {
     fn start(&mut self, router_id: Ipv4Addr) {
         Debug::InstanceStart.log();
 
-        match InstanceState::new(router_id, &self.tx) {
+        match InstanceState::new(
+            router_id,
+            &self.tx,
+            Some(self.network_instance.as_str())
+                .filter(|name| *name != "default"),
+        ) {
             Ok(state) => {
                 // Store instance initial state.
                 self.state = Some(state);
+                self.start_configured_neighbors();
             }
             Err(error) => {
                 Error::InstanceStartError(Box::new(error)).log();
@@ -188,6 +202,26 @@ impl Instance {
         self.state.is_some()
     }
 
+    // Starts any configured neighbors that are still idle.
+    pub(crate) fn start_configured_neighbors(&mut self) {
+        if let Some((mut instance, neighbors)) = self.as_up() {
+            for nbr in neighbors.values_mut() {
+                let has_enabled_afi_safi = nbr
+                    .config
+                    .afi_safi
+                    .values()
+                    .any(|afi_safi| afi_safi.enabled);
+                if nbr.config.enabled
+                    && nbr.config.peer_as != 0
+                    && has_enabled_afi_safi
+                    && nbr.state == fsm::State::Idle
+                {
+                    nbr.fsm_event(&mut instance, fsm::Event::Start);
+                }
+            }
+        }
+    }
+
     // Returns whether the instance is ready for BGP operation.
     fn is_ready(
         &self,
@@ -214,6 +248,7 @@ impl Instance {
         if let Some(state) = &mut self.state {
             let instance = InstanceUpView {
                 name: &self.name,
+                network_instance: &self.network_instance,
                 system: &self.system,
                 config: &self.config,
                 state,
@@ -244,6 +279,7 @@ impl ProtocolInstance for Instance {
 
         Instance {
             name,
+            network_instance: shared.network_instance.clone(),
             system: Default::default(),
             config: Default::default(),
             state: None,
@@ -321,12 +357,13 @@ impl InstanceState {
     fn new(
         router_id: Ipv4Addr,
         instance_tx: &InstanceChannelsTx<Instance>,
+        vrf_device: Option<&str>,
     ) -> Result<InstanceState, Error> {
         let mut listening_sockets = Vec::new();
 
         // Create TCP listeners.
         for af in [AddressFamily::Ipv4, AddressFamily::Ipv6] {
-            let socket = network::listen_socket(af)
+            let socket = network::listen_socket(af, vrf_device)
                 .map(Arc::new)
                 .map_err(IoError::TcpSocketError)?;
             let task = tasks::tcp_listener(
@@ -555,6 +592,9 @@ fn process_protocol_msg(
                         instance, neighbors, nbr_addr, routes,
                     )?
                 }
+                (_, AfiSafi::L3vpnIpv4Unicast)
+                | (_, AfiSafi::L3vpnIpv6Unicast)
+                | (_, AfiSafi::L2vpnEvpn) => {}
             },
             PolicyResultMsg::Redistribute {
                 afi_safi,
@@ -571,12 +611,18 @@ fn process_protocol_msg(
                         instance, prefix, result,
                     )?
                 }
+                AfiSafi::L3vpnIpv4Unicast
+                | AfiSafi::L3vpnIpv6Unicast
+                | AfiSafi::L2vpnEvpn => {}
             },
         },
         // Decision process.
         ProtocolInputMsg::TriggerDecisionProcess(_) => {
             events::decision_process::<Ipv4Unicast>(instance, neighbors)?;
             events::decision_process::<Ipv6Unicast>(instance, neighbors)?;
+            events::decision_process::<Vpnv4Unicast>(instance, neighbors)?;
+            events::decision_process::<Vpnv6Unicast>(instance, neighbors)?;
+            events::decision_process::<L2vpnEvpn>(instance, neighbors)?;
         }
     }
 

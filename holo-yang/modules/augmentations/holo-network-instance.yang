@@ -1,0 +1,83 @@
+module holo-network-instance {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-network-instance";
+  prefix holo-ni;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-network-instance {
+    prefix ni;
+  }
+
+  import ietf-routing-types {
+    prefix rt-types;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module binds routing protocol instances to network
+     instances (VRFs).
+
+     Rather than mounting per-network-instance schema (RFC 8529
+     schema-mount), Holo keeps control-plane protocols under the
+     top-level /routing tree and associates each instance with a
+     network instance by name. This preserves the flat schema while
+     supporting VRF-scoped routing.";
+
+  augment "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol" {
+    description
+      "Associates a control-plane protocol instance with a network
+       instance (VRF). When unset, the instance runs in the default
+       network instance.";
+    leaf network-instance {
+      type leafref {
+        path "/ni:network-instances/ni:network-instance/ni:name";
+      }
+      description
+        "Name of the network instance (VRF) this protocol instance
+         runs in.";
+    }
+  }
+
+  augment "/ni:network-instances/ni:network-instance" {
+    description
+      "L3VPN import configuration and operational state for the network
+       instance (VRF).";
+    container l3vpn {
+      description
+        "L3VPN import and export settings for this network instance.";
+      leaf route-distinguisher {
+        type rt-types:route-distinguisher;
+        description
+          "Route Distinguisher used when routes from this network instance
+           are exported to the VPN Loc-RIB.";
+      }
+      leaf-list import-route-target {
+        type rt-types:route-target;
+        description
+          "Route Targets imported from the VPN Loc-RIB into this network
+           instance.";
+      }
+      leaf-list export-route-target {
+        type rt-types:route-target;
+        description
+          "Route Targets attached to routes exported from this network
+           instance to the VPN Loc-RIB.";
+      }
+    }
+    container state {
+      config false;
+      description "Network-instance operational state.";
+      leaf table-id {
+        type uint32;
+        description
+          "Kernel routing table id, learned from the VRF device of the
+           same name. Absent until the VRF device is present.";
+      }
+    }
+  }
+}

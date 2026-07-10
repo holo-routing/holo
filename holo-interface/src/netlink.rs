@@ -20,7 +20,8 @@ use netlink_packet_route::address::{
     AddressAttribute, AddressFlags, AddressMessage,
 };
 use netlink_packet_route::link::{
-    LinkAttribute, LinkFlags, LinkLayerType, LinkMessage, MacVlanMode,
+    InfoData, InfoVrf, LinkAttribute, LinkFlags, LinkInfo, LinkLayerType,
+    LinkMessage, MacVlanMode,
 };
 use netlink_sys::{AsyncSocket, SocketAddr};
 use rtnetlink::{
@@ -97,6 +98,10 @@ fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
     let mut ifname = None;
     let mut mtu = None;
     let mut mac_address: [u8; 6] = [0u8; 6];
+    // VRF learning: the L3 master this interface is enslaved to (IFLA_MASTER),
+    // and — if this interface is itself a VRF device — its routing table id.
+    let mut master_ifindex = None;
+    let mut vrf_table_id = None;
 
     let mut flags = InterfaceFlags::empty();
     if msg.header.link_layer_type == LinkLayerType::Loopback {
@@ -117,6 +122,18 @@ fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
             LinkAttribute::Address(addr) => {
                 mac_address = addr.try_into().unwrap_or_default();
             }
+            LinkAttribute::Controller(idx) => master_ifindex = Some(idx),
+            LinkAttribute::LinkInfo(infos) => {
+                for info in infos {
+                    if let LinkInfo::Data(InfoData::Vrf(nlas)) = info {
+                        for nla in nlas {
+                            if let InfoVrf::TableId(table) = nla {
+                                vrf_table_id = Some(table);
+                            }
+                        }
+                    }
+                }
+            }
             _ => (),
         }
     }
@@ -131,6 +148,8 @@ fn process_newlink_msg(master: &mut Master, msg: LinkMessage) {
         mtu,
         flags,
         MacAddr::from(mac_address),
+        master_ifindex,
+        vrf_table_id,
         &master.netlink_tx,
     );
 }

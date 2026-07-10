@@ -30,6 +30,7 @@ pub(crate) fn route_install<V>(
     let msg = RouteMsg {
         protocol: V::PROTOCOL,
         kind: RouteKind::Unicast,
+        table_id: None,
         prefix: route.prefix.into(),
         distance: distance.into(),
         metric: route.metric.get() as u32,
@@ -59,6 +60,7 @@ where
     // Fill-in message.
     let msg = RouteKeyMsg {
         protocol: V::PROTOCOL,
+        table_id: None,
         prefix: route.prefix.into(),
     };
 

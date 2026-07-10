@@ -23,7 +23,6 @@ use crate::test::stub::northbound::NorthboundStub;
 use crate::test::{OutputChannelsRx, setup};
 use crate::{
     InstanceAggChannels, InstanceMsg, InstanceShared, ProtocolInstance,
-    spawn_protocol_task,
 };
 
 // Environment variable that controls if the test data needs to be updated or
@@ -277,7 +276,7 @@ where
     let channels = InstanceAggChannels::default();
     let instance_tx = channels.tx.clone();
     let (test_tx, test_rx) = mpsc::channel(4);
-    let nb_daemon_tx = spawn_protocol_task::<P>(
+    let nb_daemon_tx = crate::spawn_protocol_task_with_test::<P>(
         name.to_owned(),
         &nb_provider_tx,
         &ibus_tx,

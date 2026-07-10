@@ -4,42 +4,48 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::IpAddr;
 use std::sync::{Arc, LazyLock as Lazy};
 
 use enum_as_inner::EnumAsInner;
 use holo_northbound::NbDaemonSender;
 use holo_northbound::configuration::{self, CallbackKey, Callbacks, CallbacksBuilder, ConfigChanges, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
+use holo_protocol::{VpnExport, VpnImport};
+use holo_utils::bgp::{RouteDistinguisher, RouteTarget};
 use holo_utils::bier::{BfrId, BierBift, BierBiftCfg, BierCfgEvent, BierEncapsulation, BierEncapsulationType, BierInBiftId, BierOutBiftId, BierSubDomainCfg, BiftNbr, Bsl, SubDomainId, UnderlayProtocolType};
 use holo_utils::ibus::IbusMsg;
-use holo_utils::ip::{AddressFamily, IpNetworkKind};
-use holo_utils::mpls::LabelRange;
+use holo_utils::ip::{AddressFamily, IpNetworkKind, JointPrefixMapExt};
+use holo_utils::mpls::{Label, LabelRange};
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::{Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs};
+use holo_utils::southbound::{LabelInstallMsg, LabelUninstallMsg, Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs};
 use holo_utils::sr::{IgpAlgoType, SidLastHopBehavior, SrCfgEvent, SrCfgPrefixSid};
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
+use tracing::warn;
+use yang5::data::Data;
 
 use crate::interface::Interfaces;
 use crate::northbound::REGEX_PROTOCOLS;
-use crate::northbound::yang_gen::control_plane_protocol;
 use crate::northbound::yang_gen::routing::segment_routing::sr_mpls;
 use crate::northbound::yang_gen::routing::{bier, ribs};
+use crate::northbound::yang_gen::{control_plane_protocol, network_instances};
+use crate::rib::{Route, RouteFlags, RouteKey};
 use crate::{InstanceHandle, InstanceId, Master};
 
 pub static VALIDATION_CALLBACKS: Lazy<ValidationCallbacks> = Lazy::new(load_validation_callbacks);
 static CALLBACKS: Lazy<configuration::Callbacks<Master>> = Lazy::new(load_callbacks);
 
-#[derive(Debug, Default, EnumAsInner)]
+#[derive(Clone, Debug, Default, EnumAsInner)]
 pub enum ListEntry {
     #[default]
     None,
     ProtocolInstance(InstanceId),
-    StaticRoute(IpNetwork),
-    StaticRouteNexthop(IpNetwork, String),
+    NetworkInstance(String),
+    StaticRoute(StaticRouteKey),
+    StaticRouteNexthop(StaticRouteKey, String),
     SrCfgPrefixSid(IpNetwork, IgpAlgoType),
     BierCfgSubDomain(SubDomainId, AddressFamily),
     BierCfgEncapsulation(SubDomainId, AddressFamily, Bsl, BierEncapsulationType),
@@ -55,9 +61,9 @@ pub enum Resource {
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
-    InstanceStart { protocol: Protocol, name: String },
-    StaticRouteInstall(IpNetwork),
-    StaticRouteUninstall(IpNetwork),
+    InstanceStart { protocol: Protocol, name: String, network_instance: String },
+    StaticRouteInstall(StaticRouteKey),
+    StaticRouteUninstall(StaticRouteKey),
     SrCfgUpdate,
     SrCfgLabelRangeUpdate,
     SrCfgPrefixSidUpdate(AddressFamily),
@@ -70,10 +76,31 @@ pub enum Event {
 // ===== configuration structs =====
 
 #[derive(Debug, Default)]
+pub struct NetworkInstance {
+    pub enabled: bool,
+    pub description: Option<String>,
+    pub rd: Option<RouteDistinguisher>,
+    pub import_rts: BTreeSet<RouteTarget>,
+    pub export_rts: BTreeSet<RouteTarget>,
+    pub export_label: Option<Label>,
+    pub export_label_installed: Option<(Label, u32)>,
+    // Kernel VRF table id, resolved from the learned VRF device of the same
+    // name (None until the VRF device is learned). Consumed by per-VRF
+    // routing.
+    pub table_id: Option<u32>,
+}
+
+#[derive(Debug, Default)]
 pub struct StaticRoute {
     pub nexthop_single: StaticRouteNexthop,
     pub nexthop_special: Option<NexthopSpecial>,
     pub nexthop_list: HashMap<String, StaticRouteNexthop>,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct StaticRouteKey {
+    pub instance_id: InstanceId,
+    pub prefix: IpNetwork,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -94,9 +121,10 @@ pub enum NexthopSpecial {
 fn load_callbacks() -> Callbacks<Master> {
     CallbacksBuilder::<Master>::default()
         .path(control_plane_protocol::PATH)
-        .create_prepare(|_master, args| {
+        .create_prepare(|master, args| {
             let ptype = args.dnode.get_string_relative("./type").unwrap();
             let name = args.dnode.get_string_relative("./name").unwrap();
+            let network_instance = args.dnode.get_string_relative("./network-instance").unwrap_or_else(|| InstanceId::DEFAULT_NETWORK_INSTANCE.to_owned());
 
             // Parse protocol type.
             let protocol = match Protocol::try_from_yang(&ptype) {
@@ -114,10 +142,14 @@ fn load_callbacks() -> Callbacks<Master> {
                 return Ok(());
             }
 
+            let base_id = InstanceId::new(protocol, name.clone());
+            master.instance_ni.insert(base_id, network_instance.clone());
+
             let event_queue = args.event_queue;
             event_queue.insert(Event::InstanceStart {
                 protocol,
                 name,
+                network_instance,
             });
 
             Ok(())
@@ -131,7 +163,9 @@ fn load_callbacks() -> Callbacks<Master> {
             }
 
             // Remove protocol instance.
-            master.instances.remove(&instance_id);
+            remove_instance(master, &instance_id);
+            let base_id = InstanceId::new(instance_id.protocol, instance_id.name);
+            master.instance_ni.remove(&base_id);
         })
         .delete_apply(|master, args| {
             let instance_id = args.list_entry.into_protocol_instance().unwrap();
@@ -142,13 +176,16 @@ fn load_callbacks() -> Callbacks<Master> {
             }
 
             // Remove protocol instance.
-            master.instances.remove(&instance_id);
+            remove_instance(master, &instance_id);
+            let base_id = InstanceId::new(instance_id.protocol, instance_id.name);
+            master.instance_ni.remove(&base_id);
         })
         .lookup(|_instance, _list_entry, dnode| {
             let ptype = dnode.get_string_relative("./type").unwrap();
             let name = dnode.get_string_relative("./name").unwrap();
             let protocol = Protocol::try_from_yang(&ptype).unwrap();
-            let instance_id = InstanceId::new(protocol, name);
+            let network_instance = dnode.get_string_relative("./network-instance").unwrap_or_else(|| InstanceId::DEFAULT_NETWORK_INSTANCE.to_owned());
+            let instance_id = InstanceId::new_with_network_instance(protocol, name, network_instance);
             ListEntry::ProtocolInstance(instance_id)
         })
         .path(control_plane_protocol::description::PATH)
@@ -158,23 +195,151 @@ fn load_callbacks() -> Callbacks<Master> {
         .delete_apply(|_master, _args| {
             // Nothing to do.
         })
+        .path(control_plane_protocol::network_instance::PATH)
+        .modify_apply(|master, args| {
+            let instance_id = args.list_entry.into_protocol_instance().unwrap();
+            let ni = args.dnode.get_string();
+            let base_id = InstanceId::new(instance_id.protocol, instance_id.name);
+            master.instance_ni.insert(base_id, ni);
+        })
+        .delete_apply(|master, args| {
+            let instance_id = args.list_entry.into_protocol_instance().unwrap();
+            let base_id = InstanceId::new(instance_id.protocol, instance_id.name);
+            master.instance_ni.remove(&base_id);
+        })
+        .path(network_instances::network_instance::PATH)
+        .create_apply(|master, args| {
+            let name = args.dnode.get_string_relative("name").unwrap();
+            network_instance_create(master, name.clone());
+            let ni = master.network_instances.get_mut(&name).unwrap();
+            if let Some(rd) = args.dnode.get_string_relative("./holo-network-instance:l3vpn/route-distinguisher").and_then(|rd| RouteDistinguisher::try_from_yang(&rd)) {
+                ni.rd = Some(rd);
+            }
+            for dnode in args.dnode.find_xpath("./holo-network-instance:l3vpn/import-route-target").unwrap() {
+                if let Some(rt) = RouteTarget::try_from_yang(&dnode.get_string()) {
+                    ni.import_rts.insert(rt);
+                }
+            }
+            for dnode in args.dnode.find_xpath("./holo-network-instance:l3vpn/export-route-target").unwrap() {
+                if let Some(rt) = RouteTarget::try_from_yang(&dnode.get_string()) {
+                    ni.export_rts.insert(rt);
+                }
+            }
+            let ensure_export_label = ni.rd.is_some() || !ni.export_rts.is_empty();
+            if ensure_export_label {
+                vpn_export_label_ensure(master, &name);
+            }
+            vpn_imports_update(master);
+        })
+        .delete_apply(|master, args| {
+            let name = args.list_entry.into_network_instance().unwrap();
+            vpn_export_label_uninstall(master, &name);
+            master.network_instances.remove(&name);
+            vpn_imports_update(master);
+        })
+        .lookup(|_master, _list_entry, dnode| {
+            let name = dnode.get_string_relative("name").unwrap();
+            ListEntry::NetworkInstance(name)
+        })
+        .path(network_instances::network_instance::enabled::PATH)
+        .modify_apply(|master, args| {
+            let name = args.list_entry.into_network_instance().unwrap();
+            let ni = master.network_instances.get_mut(&name).unwrap();
+            ni.enabled = args.dnode.get_bool();
+            vpn_imports_update(master);
+        })
+        .path(network_instances::network_instance::description::PATH)
+        .modify_apply(|master, args| {
+            let name = args.list_entry.into_network_instance().unwrap();
+            let ni = master.network_instances.get_mut(&name).unwrap();
+            ni.description = Some(args.dnode.get_string());
+        })
+        .delete_apply(|master, args| {
+            let name = args.list_entry.into_network_instance().unwrap();
+            let ni = master.network_instances.get_mut(&name).unwrap();
+            ni.description = None;
+        })
+        .path(network_instances::network_instance::l3vpn::route_distinguisher::PATH)
+        .modify_apply(|master, args| {
+            let name = args.list_entry.into_network_instance().unwrap();
+            let rd = args.dnode.get_string();
+            let rd = RouteDistinguisher::try_from_yang(&rd).unwrap();
+            vpn_export_label_ensure(master, &name);
+            let ni = master.network_instances.get_mut(&name).unwrap();
+            ni.rd = Some(rd);
+            vpn_imports_update(master);
+        })
+        .delete_apply(|master, args| {
+            let name = args.list_entry.into_network_instance().unwrap();
+            let ni = master.network_instances.get_mut(&name).unwrap();
+            ni.rd = None;
+            vpn_imports_update(master);
+        })
+        .path(network_instances::network_instance::l3vpn::import_route_target::PATH)
+        .create_apply(|master, args| {
+            let name = args.list_entry.into_network_instance().unwrap();
+            let rt = args.dnode.get_string();
+            let rt = RouteTarget::try_from_yang(&rt).unwrap();
+            let ni = master.network_instances.get_mut(&name).unwrap();
+            ni.import_rts.insert(rt);
+            vpn_imports_update(master);
+        })
+        .delete_apply(|master, args| {
+            let name = args.list_entry.into_network_instance().unwrap();
+            let rt = args.dnode.get_string();
+            let rt = RouteTarget::try_from_yang(&rt).unwrap();
+            let ni = master.network_instances.get_mut(&name).unwrap();
+            ni.import_rts.remove(&rt);
+            vpn_imports_update(master);
+        })
+        .path(network_instances::network_instance::l3vpn::export_route_target::PATH)
+        .create_apply(|master, args| {
+            let name = args.list_entry.into_network_instance().unwrap();
+            let rt = args.dnode.get_string();
+            let rt = RouteTarget::try_from_yang(&rt).unwrap();
+            let rd = args.dnode.get_string_relative("../route-distinguisher").and_then(|rd| RouteDistinguisher::try_from_yang(&rd));
+            vpn_export_label_ensure(master, &name);
+            let ni = master.network_instances.get_mut(&name).unwrap();
+            if ni.rd.is_none() {
+                ni.rd = rd;
+            }
+            ni.export_rts.insert(rt);
+            vpn_imports_update(master);
+        })
+        .delete_apply(|master, args| {
+            let name = args.list_entry.into_network_instance().unwrap();
+            let rt = args.dnode.get_string();
+            let rt = RouteTarget::try_from_yang(&rt).unwrap();
+            let ni = master.network_instances.get_mut(&name).unwrap();
+            ni.export_rts.remove(&rt);
+            vpn_imports_update(master);
+        })
         .path(control_plane_protocol::static_routes::ipv4::route::PATH)
         .create_apply(|master, args| {
             let prefix = args.dnode.get_prefix_relative("./destination-prefix").unwrap();
+            let instance_id = args.list_entry.clone().into_protocol_instance().unwrap();
+            let route_key = StaticRouteKey {
+                instance_id,
+                prefix,
+            };
 
-            master.static_routes.insert(prefix, StaticRoute::default());
+            master.static_routes.insert(route_key, StaticRoute::default());
         })
         .delete_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
 
-            master.static_routes.remove(&prefix);
+            master.static_routes.remove(&route_key);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteUninstall(prefix));
+            event_queue.insert(Event::StaticRouteUninstall(route_key));
         })
-        .lookup(|_master, _list_entry, dnode| {
+        .lookup(|_master, list_entry, dnode| {
             let prefix = dnode.get_prefix_relative("./destination-prefix").unwrap();
-            ListEntry::StaticRoute(prefix)
+            let instance_id = list_entry.into_protocol_instance().unwrap();
+            ListEntry::StaticRoute(StaticRouteKey {
+                instance_id,
+                prefix,
+            })
         })
         .path(control_plane_protocol::static_routes::ipv4::route::description::PATH)
         .modify_apply(|_master, _args| {
@@ -185,152 +350,161 @@ fn load_callbacks() -> Callbacks<Master> {
         })
         .path(control_plane_protocol::static_routes::ipv4::route::next_hop::outgoing_interface::PATH)
         .modify_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             let ifname = args.dnode.get_string();
             route.nexthop_single.ifname = Some(ifname);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             route.nexthop_single.ifname = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .path(control_plane_protocol::static_routes::ipv4::route::next_hop::next_hop_address::PATH)
         .modify_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             let addr = args.dnode.get_ip();
             route.nexthop_single.addr = Some(addr);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             route.nexthop_single.addr = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .path(control_plane_protocol::static_routes::ipv4::route::next_hop::special_next_hop::PATH)
         .modify_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             let special = args.dnode.get_string();
             let special = NexthopSpecial::try_from_yang(&special).unwrap();
             route.nexthop_special = Some(special);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             route.nexthop_special = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .path(control_plane_protocol::static_routes::ipv4::route::next_hop::next_hop_list::next_hop::PATH)
         .create_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             let index = args.dnode.get_string_relative("./index").unwrap();
             route.nexthop_list.insert(index, StaticRouteNexthop::default());
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let (route_key, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             route.nexthop_list.remove(&nh_index);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .lookup(|_master, list_entry, dnode| {
-            let prefix = list_entry.into_static_route().unwrap();
+            let route_key = list_entry.into_static_route().unwrap();
 
             let index = dnode.get_string_relative("./index").unwrap();
-            ListEntry::StaticRouteNexthop(prefix, index)
+            ListEntry::StaticRouteNexthop(route_key, index)
         })
         .path(control_plane_protocol::static_routes::ipv4::route::next_hop::next_hop_list::next_hop::outgoing_interface::PATH)
         .modify_apply(|master, args| {
-            let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let (route_key, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
             let nexthop = route.nexthop_list.get_mut(&nh_index).unwrap();
 
             let ifname = args.dnode.get_string();
             nexthop.ifname = Some(ifname);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let (route_key, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
             let nexthop = route.nexthop_list.get_mut(&nh_index).unwrap();
 
             nexthop.ifname = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .path(control_plane_protocol::static_routes::ipv4::route::next_hop::next_hop_list::next_hop::next_hop_address::PATH)
         .modify_apply(|master, args| {
-            let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let (route_key, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
             let nexthop = route.nexthop_list.get_mut(&nh_index).unwrap();
 
             let addr = args.dnode.get_ip();
             nexthop.addr = Some(addr);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let (route_key, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
             let nexthop = route.nexthop_list.get_mut(&nh_index).unwrap();
 
             nexthop.addr = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .path(control_plane_protocol::static_routes::ipv6::route::PATH)
         .create_apply(|master, args| {
             let prefix = args.dnode.get_prefix_relative("./destination-prefix").unwrap();
+            let instance_id = args.list_entry.clone().into_protocol_instance().unwrap();
+            let route_key = StaticRouteKey {
+                instance_id,
+                prefix,
+            };
 
-            master.static_routes.insert(prefix, StaticRoute::default());
+            master.static_routes.insert(route_key, StaticRoute::default());
         })
         .delete_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
 
-            master.static_routes.remove(&prefix);
+            master.static_routes.remove(&route_key);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteUninstall(prefix));
+            event_queue.insert(Event::StaticRouteUninstall(route_key));
         })
-        .lookup(|_master, _list_entry, dnode| {
+        .lookup(|_master, list_entry, dnode| {
             let prefix = dnode.get_prefix_relative("./destination-prefix").unwrap();
-            ListEntry::StaticRoute(prefix)
+            let instance_id = list_entry.into_protocol_instance().unwrap();
+            ListEntry::StaticRoute(StaticRouteKey {
+                instance_id,
+                prefix,
+            })
         })
         .path(control_plane_protocol::static_routes::ipv6::route::description::PATH)
         .modify_apply(|_master, _args| {
@@ -341,134 +515,134 @@ fn load_callbacks() -> Callbacks<Master> {
         })
         .path(control_plane_protocol::static_routes::ipv6::route::next_hop::outgoing_interface::PATH)
         .modify_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             let ifname = args.dnode.get_string();
             route.nexthop_single.ifname = Some(ifname);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             route.nexthop_single.ifname = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .path(control_plane_protocol::static_routes::ipv6::route::next_hop::next_hop_address::PATH)
         .modify_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             let addr = args.dnode.get_ip();
             route.nexthop_single.addr = Some(addr);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             route.nexthop_single.addr = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .path(control_plane_protocol::static_routes::ipv6::route::next_hop::special_next_hop::PATH)
         .modify_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             let special = args.dnode.get_string();
             let special = NexthopSpecial::try_from_yang(&special).unwrap();
             route.nexthop_special = Some(special);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             route.nexthop_special = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .path(control_plane_protocol::static_routes::ipv6::route::next_hop::next_hop_list::next_hop::PATH)
         .create_apply(|master, args| {
-            let prefix = args.list_entry.into_static_route().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let route_key = args.list_entry.into_static_route().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             let index = args.dnode.get_string_relative("./index").unwrap();
             route.nexthop_list.insert(index, StaticRouteNexthop::default());
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let (route_key, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
 
             route.nexthop_list.remove(&nh_index);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .lookup(|_master, list_entry, dnode| {
-            let prefix = list_entry.into_static_route().unwrap();
+            let route_key = list_entry.into_static_route().unwrap();
 
             let index = dnode.get_string_relative("./index").unwrap();
-            ListEntry::StaticRouteNexthop(prefix, index)
+            ListEntry::StaticRouteNexthop(route_key, index)
         })
         .path(control_plane_protocol::static_routes::ipv6::route::next_hop::next_hop_list::next_hop::outgoing_interface::PATH)
         .modify_apply(|master, args| {
-            let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let (route_key, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
             let nexthop = route.nexthop_list.get_mut(&nh_index).unwrap();
 
             let ifname = args.dnode.get_string();
             nexthop.ifname = Some(ifname);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let (route_key, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
             let nexthop = route.nexthop_list.get_mut(&nh_index).unwrap();
 
             nexthop.ifname = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .path(control_plane_protocol::static_routes::ipv6::route::next_hop::next_hop_list::next_hop::next_hop_address::PATH)
         .modify_apply(|master, args| {
-            let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let (route_key, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
             let nexthop = route.nexthop_list.get_mut(&nh_index).unwrap();
 
             let addr = args.dnode.get_ip();
             nexthop.addr = Some(addr);
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .delete_apply(|master, args| {
-            let (prefix, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
-            let route = master.static_routes.get_mut(&prefix).unwrap();
+            let (route_key, nh_index) = args.list_entry.into_static_route_nexthop().unwrap();
+            let route = master.static_routes.get_mut(&route_key).unwrap();
             let nexthop = route.nexthop_list.get_mut(&nh_index).unwrap();
 
             nexthop.addr = None;
 
             let event_queue = args.event_queue;
-            event_queue.insert(Event::StaticRouteInstall(prefix));
+            event_queue.insert(Event::StaticRouteInstall(route_key));
         })
         .path(sr_mpls::bindings::connected_prefix_sid_map::connected_prefix_sid::PATH)
         .create_apply(|master, args| {
@@ -1113,7 +1287,9 @@ impl Provider for Master {
 
             // Move configuration change to the appropriate instance bucket.
             let protocol = Protocol::try_from_yang(ptype).unwrap();
-            let instance_id = InstanceId::new(protocol, name.to_owned());
+            let base_id = InstanceId::new(protocol, name.to_owned());
+            let network_instance = self.instance_ni.get(&base_id).cloned().unwrap_or_else(|| InstanceId::DEFAULT_NETWORK_INSTANCE.to_owned());
+            let instance_id = InstanceId::new_with_network_instance(protocol, name.to_owned(), network_instance);
             changes_map.entry(instance_id).or_default().push(change);
         }
         changes_map
@@ -1127,49 +1303,21 @@ impl Provider for Master {
             Event::InstanceStart {
                 protocol,
                 name,
+                network_instance,
             } => {
-                instance_start(self, protocol, name);
+                let base_id = InstanceId::new(protocol, name.clone());
+                let network_instance = self.instance_ni.get(&base_id).cloned().unwrap_or(network_instance);
+                instance_start(self, protocol, name, network_instance);
             }
-            Event::StaticRouteInstall(prefix) => {
-                let route = self.static_routes.get(&prefix).unwrap();
-
-                // Get nexthops.
-                let mut kind = RouteKind::Unicast;
-                let mut nexthops = BTreeSet::default();
-                if let Some(nexthop) = static_nexthop_get(&self.interfaces, &route.nexthop_single) {
-                    nexthops.insert(nexthop);
-                }
-                if let Some(special) = &route.nexthop_special {
-                    kind = match special {
-                        NexthopSpecial::Blackhole => RouteKind::Blackhole,
-                        NexthopSpecial::Unreachable => RouteKind::Unreachable,
-                        NexthopSpecial::Prohibit => RouteKind::Prohibit,
-                    };
-                }
-                for nexthop in route.nexthop_list.values().filter_map(|nexthop| static_nexthop_get(&self.interfaces, nexthop)) {
-                    nexthops.insert(nexthop);
-                }
-
-                // Prepare message.
-                let msg = RouteMsg {
-                    protocol: Protocol::STATIC,
-                    kind,
-                    prefix,
-                    distance: 1,
-                    metric: 0,
-                    tag: None,
-                    opaque_attrs: RouteOpaqueAttrs::None,
-                    nexthops,
-                };
-
-                // Send message.
-                self.ibus_tx.route_ip_add(msg);
+            Event::StaticRouteInstall(route_key) => {
+                static_route_install(self, route_key);
             }
-            Event::StaticRouteUninstall(prefix) => {
+            Event::StaticRouteUninstall(route_key) => {
                 // Prepare message.
                 let msg = RouteKeyMsg {
                     protocol: Protocol::STATIC,
-                    prefix,
+                    table_id: static_route_table_id(self, &route_key).unwrap_or(None),
+                    prefix: route_key.prefix,
                 };
 
                 // Send message.
@@ -1225,10 +1373,12 @@ impl Provider for Master {
 // ===== helper functions =====
 
 #[allow(unreachable_code, unused_imports, unused_variables)]
-fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
+fn instance_start(master: &mut Master, protocol: Protocol, name: String, network_instance: String) {
     use holo_protocol::spawn_protocol_task;
 
-    let instance_id = InstanceId::new(protocol, name.clone());
+    let instance_id = InstanceId::new_with_network_instance(protocol, name.clone(), network_instance.clone());
+    let mut shared = master.shared.clone();
+    shared.network_instance = network_instance;
     let (ibus_instance_tx, ibus_instance_rx) = mpsc::unbounded_channel();
 
     // Start protocol instance.
@@ -1241,7 +1391,7 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
         Protocol::BGP => {
             use holo_bgp::instance::Instance;
 
-            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
+            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), shared)
         }
         Protocol::DIRECT => {
             // This protocol type can not be configured.
@@ -1251,47 +1401,47 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
         Protocol::IGMP => {
             use holo_igmp::instance::Instance;
 
-            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
+            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), shared)
         }
         #[cfg(feature = "isis")]
         Protocol::ISIS => {
             use holo_isis::instance::Instance;
 
-            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
+            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), shared)
         }
         #[cfg(feature = "ldp")]
         Protocol::LDP => {
             use holo_ldp::instance::Instance;
 
-            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
+            spawn_protocol_task::<Instance>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), shared)
         }
         #[cfg(feature = "ospf")]
         Protocol::OSPFV2 => {
             use holo_ospf::instance::Instance;
             use holo_ospf::version::Ospfv2;
 
-            spawn_protocol_task::<Instance<Ospfv2>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
+            spawn_protocol_task::<Instance<Ospfv2>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), shared)
         }
         #[cfg(feature = "ospf")]
         Protocol::OSPFV3 => {
             use holo_ospf::instance::Instance;
             use holo_ospf::version::Ospfv3;
 
-            spawn_protocol_task::<Instance<Ospfv3>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
+            spawn_protocol_task::<Instance<Ospfv3>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), shared)
         }
         #[cfg(feature = "rip")]
         Protocol::RIPV2 => {
             use holo_rip::instance::Instance;
             use holo_rip::version::Ripv2;
 
-            spawn_protocol_task::<Instance<Ripv2>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
+            spawn_protocol_task::<Instance<Ripv2>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), shared)
         }
         #[cfg(feature = "rip")]
         Protocol::RIPNG => {
             use holo_rip::instance::Instance;
             use holo_rip::version::Ripng;
 
-            spawn_protocol_task::<Instance<Ripng>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), master.shared.clone())
+            spawn_protocol_task::<Instance<Ripng>>(name, &master.nb_tx, &master.ibus_tx, ibus_instance_tx.clone(), ibus_instance_rx, Default::default(), shared)
         }
         _ => {
             // Nothing to do.
@@ -1303,6 +1453,300 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
     // type and name.
     let instance = InstanceHandle::new(nb_daemon_tx, ibus_instance_tx);
     master.instances.insert(instance_id, instance);
+}
+
+fn network_instance_create(master: &mut Master, name: String) {
+    // Resolve the kernel table id if the VRF device was already learned from
+    // the kernel (otherwise resolved on InterfaceUpd).
+    let table_id = master.interfaces.vrf_table_id(&name);
+    master.network_instances.insert(
+        name,
+        NetworkInstance {
+            enabled: true,
+            table_id,
+            ..Default::default()
+        },
+    );
+}
+
+#[cfg(test)]
+mod tests {
+    use holo_protocol::InstanceShared;
+    use holo_utils::ibus::{IbusMsg, ibus_channels};
+    use holo_utils::southbound::{InterfaceFlags, InterfaceUpdateMsg};
+    use tokio::sync::mpsc;
+
+    use super::network_instance_create;
+    use crate::birt::Birt;
+    use crate::netlink::NetlinkRequest;
+    use crate::rib::Rib;
+    use crate::{Master, ibus};
+
+    fn test_master() -> Master {
+        let (nb_tx, _nb_rx) = mpsc::unbounded_channel();
+        let (ibus_tx, _ibus_rx) = ibus_channels();
+        let (netlink_tx, _netlink_rx) = mpsc::unbounded_channel::<NetlinkRequest>();
+        let (rib_update_tx, _rib_update_rx) = mpsc::unbounded_channel();
+        let (birt_update_tx, _birt_update_rx) = mpsc::unbounded_channel();
+
+        Master {
+            nb_tx,
+            ibus_tx,
+            netlink_tx,
+            shared: InstanceShared::default(),
+            interfaces: Default::default(),
+            rib: Rib::new(rib_update_tx),
+            network_instances: Default::default(),
+            instance_ni: Default::default(),
+            static_routes: Default::default(),
+            sr_config: Default::default(),
+            bier_config: Default::default(),
+            instances: Default::default(),
+            birt: Birt::new(birt_update_tx),
+        }
+    }
+
+    #[test]
+    fn network_instance_create_resolves_prelearned_vrf_table() {
+        let mut master = test_master();
+        master.interfaces.update("blue".to_owned(), 10, InterfaceFlags::OPERATIVE, None, Some(1001));
+
+        network_instance_create(&mut master, "blue".to_owned());
+
+        assert_eq!(master.network_instances["blue"].table_id, Some(1001));
+    }
+
+    #[test]
+    fn interface_update_resolves_existing_network_instance_table() {
+        let mut master = test_master();
+        network_instance_create(&mut master, "red".to_owned());
+        assert_eq!(master.network_instances["red"].table_id, None);
+
+        ibus::process_notification_msg(
+            &mut master,
+            IbusMsg::InterfaceUpd(InterfaceUpdateMsg {
+                ifname: "red".to_owned(),
+                ifindex: 11,
+                mtu: 1500,
+                flags: InterfaceFlags::OPERATIVE,
+                mac_address: Default::default(),
+                msd: Default::default(),
+                master_ifindex: None,
+                vrf_table_id: Some(1002),
+            }),
+        );
+
+        assert_eq!(master.network_instances["red"].table_id, Some(1002));
+    }
+}
+
+fn remove_instance(master: &mut Master, instance_id: &InstanceId) {
+    if master.instances.remove(instance_id).is_some() {
+        return;
+    }
+
+    let Some(instance_id) = master.instances.keys().find(|key| key.protocol == instance_id.protocol && key.name == instance_id.name).cloned() else {
+        return;
+    };
+    master.instances.remove(&instance_id);
+}
+
+pub(crate) fn static_route_install(master: &mut Master, route_key: StaticRouteKey) {
+    let Some(table_id) = static_route_table_id(master, &route_key) else {
+        return;
+    };
+    let Some(route) = master.static_routes.get(&route_key) else {
+        return;
+    };
+
+    // Get nexthops.
+    let mut kind = RouteKind::Unicast;
+    let mut nexthops = BTreeSet::default();
+    if let Some(nexthop) = static_nexthop_get(&master.interfaces, &route.nexthop_single) {
+        nexthops.insert(nexthop);
+    }
+    if let Some(special) = &route.nexthop_special {
+        kind = match special {
+            NexthopSpecial::Blackhole => RouteKind::Blackhole,
+            NexthopSpecial::Unreachable => RouteKind::Unreachable,
+            NexthopSpecial::Prohibit => RouteKind::Prohibit,
+        };
+    }
+    for nexthop in route.nexthop_list.values().filter_map(|nexthop| static_nexthop_get(&master.interfaces, nexthop)) {
+        nexthops.insert(nexthop);
+    }
+
+    master.ibus_tx.route_ip_add(RouteMsg {
+        protocol: Protocol::STATIC,
+        kind,
+        table_id,
+        prefix: route_key.prefix,
+        distance: 1,
+        metric: 0,
+        tag: None,
+        opaque_attrs: RouteOpaqueAttrs::None,
+        nexthops,
+    });
+}
+
+fn static_route_table_id(master: &Master, route_key: &StaticRouteKey) -> Option<Option<u32>> {
+    let network_instance = &route_key.instance_id.network_instance;
+    if network_instance == InstanceId::DEFAULT_NETWORK_INSTANCE {
+        return Some(None);
+    }
+
+    let Some(ni) = master.network_instances.get(network_instance) else {
+        warn!(
+            network_instance,
+            prefix = %route_key.prefix,
+            "static route deferred: network-instance is not configured"
+        );
+        return None;
+    };
+    let Some(table_id) = ni.table_id else {
+        warn!(
+            network_instance,
+            prefix = %route_key.prefix,
+            "static route deferred: VRF table id is not resolved"
+        );
+        return None;
+    };
+    Some(Some(table_id))
+}
+
+pub(crate) fn vpn_imports_update(master: &mut Master) {
+    let names = master.network_instances.keys().cloned().collect::<Vec<_>>();
+    for name in names {
+        vpn_export_label_update(master, &name);
+    }
+
+    let imports = master
+        .network_instances
+        .iter()
+        .filter(|(_, ni)| ni.enabled && !ni.import_rts.is_empty())
+        .map(|(name, ni)| {
+            (
+                name.clone(),
+                VpnImport {
+                    table_id: ni.table_id,
+                    import_rts: ni.import_rts.clone(),
+                },
+            )
+        })
+        .collect();
+    *master.shared.vpn_imports.lock().unwrap() = imports;
+
+    let exports: BTreeMap<u32, VpnExport> = master
+        .network_instances
+        .values()
+        .filter(|ni| ni.enabled && !ni.export_rts.is_empty())
+        .filter_map(|ni| {
+            Some((
+                ni.table_id?,
+                VpnExport {
+                    rd: ni.rd?,
+                    export_rts: ni.export_rts.clone(),
+                    label: ni.export_label?,
+                },
+            ))
+        })
+        .collect();
+    let export_table_ids = exports.keys().copied().collect::<BTreeSet<_>>();
+    *master.shared.vpn_exports.lock().unwrap() = exports;
+    vpn_exports_replay(master, &export_table_ids);
+}
+
+fn vpn_export_label_ensure(master: &mut Master, name: &str) {
+    let Some(ni) = master.network_instances.get(name) else {
+        return;
+    };
+    if ni.export_label.is_some() {
+        return;
+    }
+
+    let Ok(label) = master.shared.label_manager.lock().unwrap().label_request() else {
+        return;
+    };
+    let ni = master.network_instances.get_mut(name).unwrap();
+    ni.export_label = Some(label);
+}
+
+fn vpn_export_label_update(master: &mut Master, name: &str) {
+    let desired = master.network_instances.get(name).and_then(|ni| {
+        if !ni.enabled || ni.rd.is_none() || ni.export_rts.is_empty() || ni.table_id.is_none() {
+            return None;
+        }
+        let label = ni.export_label?;
+        let ifindex = master.interfaces.get_by_name(name)?.ifindex;
+        Some((label, ifindex))
+    });
+    let installed = master.network_instances.get(name).and_then(|ni| ni.export_label_installed);
+
+    if let Some((label, _)) = installed
+        && installed != desired
+    {
+        master.ibus_tx.route_mpls_del(LabelUninstallMsg {
+            protocol: Protocol::BGP,
+            label,
+            nexthops: Default::default(),
+            route: None,
+        });
+        let ni = master.network_instances.get_mut(name).unwrap();
+        ni.export_label_installed = None;
+    }
+
+    if let Some((label, ifindex)) = desired
+        && installed != Some((label, ifindex))
+    {
+        master.ibus_tx.route_mpls_add(LabelInstallMsg {
+            protocol: Protocol::BGP,
+            label,
+            nexthops: BTreeSet::from([Nexthop::Interface {
+                ifindex,
+            }]),
+            route: None,
+            replace: true,
+        });
+        let ni = master.network_instances.get_mut(name).unwrap();
+        ni.export_label_installed = Some((label, ifindex));
+    }
+}
+
+fn vpn_export_label_uninstall(master: &mut Master, name: &str) {
+    let Some((label, _)) = master.network_instances.get_mut(name).and_then(|ni| ni.export_label_installed.take()) else {
+        return;
+    };
+
+    master.ibus_tx.route_mpls_del(LabelUninstallMsg {
+        protocol: Protocol::BGP,
+        label,
+        nexthops: Default::default(),
+        route: None,
+    });
+}
+
+fn vpn_exports_replay(master: &Master, table_ids: &BTreeSet<u32>) {
+    if table_ids.is_empty() {
+        return;
+    }
+
+    let redistribute_prefix = |prefix, routes: &BTreeMap<RouteKey, Route>| {
+        for route in routes
+            .values()
+            .filter(|route| route.table_id.is_some_and(|table_id| table_ids.contains(&table_id)) && route.flags.contains(RouteFlags::ACTIVE) && !route.flags.contains(RouteFlags::REMOVED))
+        {
+            for sub in master.rib.subscriptions.values() {
+                crate::ibus::notify_redistribute_add(sub, prefix, route);
+            }
+        }
+    };
+
+    for (prefix, routes) in master.rib.ip.ipv4().iter() {
+        redistribute_prefix(prefix.into(), routes);
+    }
+    for (prefix, routes) in master.rib.ip.ipv6().iter() {
+        redistribute_prefix(prefix.into(), routes);
+    }
 }
 
 fn static_nexthop_get(interfaces: &Interfaces, nexthop: &StaticRouteNexthop) -> Option<Nexthop> {

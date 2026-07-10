@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::BTreeSet;
 use std::net::{IpAddr, Ipv4Addr};
 
 use holo_utils::bgp::RouteType;
@@ -12,11 +13,15 @@ use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
 
-use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    AddressFamily, Ipv4Unicast, Ipv6Unicast, Vpnv4Prefix, Vpnv4Unicast,
+    Vpnv6Prefix, Vpnv6Unicast,
+};
 use crate::debug::Debug;
 use crate::instance::{Instance, InstanceUpView};
+use crate::packet::attribute::{Attrs, CommList};
 use crate::policy::RoutePolicyInfo;
-use crate::rib::RouteOrigin;
+use crate::rib::{Route, RouteOrigin};
 use crate::tasks::messages::output::PolicyApplyMsg;
 
 // ===== global functions =====
@@ -44,6 +49,8 @@ pub(crate) fn process_nht_update(
 
     process_nht_update_af::<Ipv4Unicast>(&mut instance, addr, metric);
     process_nht_update_af::<Ipv6Unicast>(&mut instance, addr, metric);
+    process_nht_update_af::<Vpnv4Unicast>(&mut instance, addr, metric);
+    process_nht_update_af::<Vpnv6Unicast>(&mut instance, addr, metric);
 }
 
 pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
@@ -54,6 +61,8 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
     let Some((mut instance, _)) = instance.as_up() else {
         return;
     };
+
+    vpn_export_route_add(&mut instance, &msg);
 
     match msg.prefix {
         IpNetwork::V4(..) => {
@@ -74,6 +83,8 @@ pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
         return;
     };
 
+    vpn_export_route_del(&mut instance, &msg);
+
     let proto = msg.protocol;
     match msg.prefix {
         IpNetwork::V4(prefix) => {
@@ -83,6 +94,119 @@ pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
             process_route_del_af::<Ipv6Unicast>(&mut instance, prefix, proto);
         }
     }
+}
+
+fn vpn_export_route_add(instance: &mut InstanceUpView<'_>, msg: &RouteMsg) {
+    if instance.network_instance != "default" {
+        return;
+    }
+    let Some(table_id) = msg.table_id else {
+        return;
+    };
+    let Some(export) = instance
+        .shared
+        .vpn_exports
+        .lock()
+        .unwrap()
+        .get(&table_id)
+        .cloned()
+    else {
+        return;
+    };
+
+    let mut attrs = Attrs::default();
+    attrs.ext_comm = Some(CommList(
+        export
+            .export_rts
+            .iter()
+            .map(|rt| rt.to_ext_comm())
+            .collect::<BTreeSet<_>>(),
+    ));
+
+    let rib = &mut instance.state.rib;
+    match msg.prefix {
+        IpNetwork::V4(prefix) => {
+            let prefix = Vpnv4Prefix {
+                rd: export.rd,
+                prefix,
+            };
+            let route_attrs = rib.attr_sets.get_route_attr_sets(&attrs);
+            let mut route = Route::new(
+                RouteOrigin::Protocol(msg.protocol),
+                route_attrs,
+                RouteType::Internal,
+            );
+            route.vpn_label = Some(export.label);
+            let table = Vpnv4Unicast::table(&mut rib.tables);
+            table.prefixes.entry(prefix).or_default().redistribute =
+                Some(Box::new(route));
+            table.queued_prefixes.insert(prefix);
+        }
+        IpNetwork::V6(prefix) => {
+            let prefix = Vpnv6Prefix {
+                rd: export.rd,
+                prefix,
+            };
+            let route_attrs = rib.attr_sets.get_route_attr_sets(&attrs);
+            let mut route = Route::new(
+                RouteOrigin::Protocol(msg.protocol),
+                route_attrs,
+                RouteType::Internal,
+            );
+            route.vpn_label = Some(export.label);
+            let table = Vpnv6Unicast::table(&mut rib.tables);
+            table.prefixes.entry(prefix).or_default().redistribute =
+                Some(Box::new(route));
+            table.queued_prefixes.insert(prefix);
+        }
+    }
+    instance.state.schedule_decision_process(instance.tx);
+}
+
+fn vpn_export_route_del(instance: &mut InstanceUpView<'_>, msg: &RouteKeyMsg) {
+    if instance.network_instance != "default" {
+        return;
+    }
+    let Some(table_id) = msg.table_id else {
+        return;
+    };
+    let Some(export) = instance
+        .shared
+        .vpn_exports
+        .lock()
+        .unwrap()
+        .get(&table_id)
+        .cloned()
+    else {
+        return;
+    };
+
+    let rib = &mut instance.state.rib;
+    match msg.prefix {
+        IpNetwork::V4(prefix) => {
+            let prefix = Vpnv4Prefix {
+                rd: export.rd,
+                prefix,
+            };
+            let table = Vpnv4Unicast::table(&mut rib.tables);
+            if let Some(dest) = table.prefixes.get_mut(&prefix) {
+                dest.redistribute = None;
+                table.queued_prefixes.insert(prefix);
+            }
+        }
+        IpNetwork::V6(prefix) => {
+            let prefix = Vpnv6Prefix {
+                rd: export.rd,
+                prefix,
+            };
+            let table = Vpnv6Unicast::table(&mut rib.tables);
+            if let Some(dest) = table.prefixes.get_mut(&prefix) {
+                dest.redistribute = None;
+                table.queued_prefixes.insert(prefix);
+            }
+        }
+    }
+    instance.state.schedule_decision_process(instance.tx);
 }
 
 // ===== helper functions =====
@@ -170,6 +294,7 @@ fn process_route_del_af<A>(
     // Get prefix RIB entry.
     let rib = &mut instance.state.rib;
     let table = A::table(&mut rib.tables);
+    let prefix = A::prefix_from_ip_network(prefix.into()).unwrap();
     let dest = table.prefixes.entry(prefix).or_default();
 
     // Remove redistributed route.

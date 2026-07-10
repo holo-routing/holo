@@ -125,6 +125,8 @@ static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-netconf-acm@2018-02-14.yang"),
         EmbeddedModuleKey::new("ietf-network", Some("2018-02-16"), None, None) =>
             include_str!("../modules/ietf/ietf-network@2018-02-26.yang"),
+        EmbeddedModuleKey::new("ietf-network-instance", Some("2019-01-21"), None, None) =>
+            include_str!("../modules/ietf/ietf-network-instance@2019-01-21.yang"),
         EmbeddedModuleKey::new("ietf-network-topology", Some("2018-02-26"), None, None) =>
             include_str!("../modules/ietf/ietf-network-topology@2018-02-26.yang"),
         EmbeddedModuleKey::new("ietf-ospf", Some("2022-10-19"), None, None) =>
@@ -161,6 +163,8 @@ static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-te-types@2026-06-11.yang"),
         EmbeddedModuleKey::new("ietf-vrrp", Some("2018-03-13"), None, None) =>
             include_str!("../modules/ietf/ietf-vrrp@2018-03-13.yang"),
+        EmbeddedModuleKey::new("ietf-yang-schema-mount", Some("2019-01-14"), None, None) =>
+            include_str!("../modules/ietf/ietf-yang-schema-mount@2019-01-14.yang"),
         // IETF Holo augmentations
         EmbeddedModuleKey::new("holo-bgp", None, None, None) =>
             include_str!("../modules/augmentations/holo-bgp.yang"),
@@ -170,6 +174,8 @@ static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/augmentations/holo-isis-dev.yang"),
         EmbeddedModuleKey::new("holo-key-chain", None, None, None) =>
             include_str!("../modules/augmentations/holo-key-chain.yang"),
+        EmbeddedModuleKey::new("holo-network-instance", None, None, None) =>
+            include_str!("../modules/augmentations/holo-network-instance.yang"),
         EmbeddedModuleKey::new("holo-ospf", None, None, None) =>
             include_str!("../modules/augmentations/holo-ospf.yang"),
         EmbeddedModuleKey::new("holo-ospf-dev", None, None, None) =>
@@ -217,6 +223,8 @@ static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/holo-ietf-ospf-sr-mpls-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-ospfv3-extended-lsa-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-ospfv3-extended-lsa-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-network-instance-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-network-instance-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-rip-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-rip-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-system-deviations", None, None, None) =>
@@ -333,8 +341,10 @@ pub mod implemented_modules {
         "ietf-segment-routing-mpls",
         "ietf-mpls",
         "ietf-mpls-msd",
+        "ietf-network-instance",
         // IETF Holo augmentations
         "holo-routing",
+        "holo-network-instance",
     ];
     pub const SYSTEM: &[&str] = &[
         // IETF modules

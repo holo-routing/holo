@@ -318,7 +318,7 @@ impl<'a> YangContainer<'a, Instance> for bgp::neighbors::neighbor::errors::recei
     fn new(_instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<Self> {
         let (time, notif) = nbr.notification_rcvd.as_ref()?;
         Some(Self {
-            last_notification: Some(*time),
+            last_notification: Some(*time).ignore_in_testing(),
             last_error: Some(notif.to_yang()),
             last_error_code: Some(notif.error_code),
             last_error_subcode: Some(notif.error_subcode),
@@ -333,7 +333,7 @@ impl<'a> YangContainer<'a, Instance> for bgp::neighbors::neighbor::errors::sent:
     fn new(_instance: &'a Instance, nbr: &Self::ParentListEntry) -> Option<Self> {
         let (time, notif) = nbr.notification_sent.as_ref()?;
         Some(Self {
-            last_notification: Some(*time),
+            last_notification: Some(*time).ignore_in_testing(),
             last_error: Some(notif.to_yang()),
             last_error_code: Some(notif.error_code),
             last_error_subcode: Some(notif.error_subcode),

@@ -22,6 +22,10 @@ pub(crate) fn router_id_sub(ibus_tx: &IbusChannelsTx) {
     ibus_tx.router_id_sub();
 }
 
+pub(crate) fn interface_sub(ibus_tx: &IbusChannelsTx) {
+    ibus_tx.interface_sub(None, None);
+}
+
 pub(crate) fn route_install(
     ibus_tx: &IbusChannelsTx,
     prefix: impl Into<IpNetwork>,

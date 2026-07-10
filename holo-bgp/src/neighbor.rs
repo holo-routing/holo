@@ -13,8 +13,10 @@ use std::time::Duration;
 use arbitrary::Arbitrary;
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
+use holo_utils::bfd;
 use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusChannelsTx;
+use holo_utils::protocol::Protocol;
 use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -24,7 +26,7 @@ use tokio::sync::mpsc::{Sender, UnboundedSender};
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
 use crate::error::Error;
-use crate::instance::{Instance, InstanceUpView};
+use crate::instance::{Instance, InstanceUpView, InterfaceState};
 use crate::northbound::configuration::{InstanceCfg, NeighborCfg};
 use crate::northbound::notification;
 use crate::northbound::rpc::ClearType;
@@ -67,6 +69,7 @@ pub struct Neighbor {
     pub tasks: NeighborTasks,
     pub update_queues: NeighborUpdateQueues,
     pub msg_txp: Option<UnboundedSender<NbrTxMsg>>,
+    pub bfd: Option<NeighborBfd>,
 }
 
 // BGP peer type.
@@ -106,6 +109,12 @@ pub struct NeighborTasks {
     pub tcp_rx: Option<Task<()>>,
     pub keepalive: Option<IntervalTask>,
     pub holdtime: Option<TimeoutTask>,
+}
+
+#[derive(Debug)]
+pub struct NeighborBfd {
+    pub sess_key: bfd::SessionKey,
+    pub state: Option<bfd::State>,
 }
 
 // Neighbor Tx update queues.
@@ -214,6 +223,7 @@ impl Neighbor {
             tasks: Default::default(),
             update_queues: Default::default(),
             msg_txp: None,
+            bfd: None,
         }
     }
 
@@ -234,6 +244,9 @@ impl Neighbor {
             fsm::State::Idle => match event {
                 fsm::Event::Start
                 | fsm::Event::Timer(fsm::Timer::AutoStart) => {
+                    if self.is_bfd_down() {
+                        return;
+                    }
                     self.connect_retry_start(
                         &instance.tx.protocol_input.nbr_timer,
                     );
@@ -520,6 +533,7 @@ impl Neighbor {
     ) {
         // Store TCP connection information.
         self.conn_info = Some(conn_info);
+        self.bfd_update_session(instance);
 
         // Split TCP stream into two halves.
         let (read_half, write_half) = stream.into_split();
@@ -618,6 +632,150 @@ impl Neighbor {
 
         // Trigger the BGP Decision Process.
         instance_tx.protocol_input.trigger_decision_process();
+    }
+
+    // Registers, updates, or unregisters the BFD session for this neighbor.
+    pub(crate) fn bfd_update_session(&mut self, instance: &InstanceUpView<'_>) {
+        let Some(sess_key) = self.bfd_session_key(&instance.state.interfaces)
+        else {
+            self.bfd_clear_session(instance);
+            return;
+        };
+
+        let needs_register =
+            self.bfd.as_ref().is_none_or(|bfd| bfd.sess_key != sess_key);
+        if !needs_register {
+            return;
+        }
+
+        self.bfd_clear_session(instance);
+        self.bfd_register(sess_key.clone(), instance);
+        self.bfd = Some(NeighborBfd {
+            sess_key,
+            state: None,
+        });
+    }
+
+    // Unregisters and removes the BFD session associated with this neighbor.
+    pub(crate) fn bfd_clear_session(&mut self, instance: &InstanceUpView<'_>) {
+        if let Some(bfd) = self.bfd.take() {
+            self.bfd_unregister(bfd.sess_key, instance);
+        }
+    }
+
+    // Updates the BFD state for this neighbor and resets BGP on BFD down.
+    pub(crate) fn bfd_state_update(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+        state: bfd::State,
+    ) {
+        let Some(bfd) = self.bfd.as_mut() else {
+            return;
+        };
+        if bfd.state == Some(state) {
+            return;
+        }
+        bfd.state = Some(state);
+
+        match state {
+            bfd::State::Down if self.state != fsm::State::Idle => {
+                let msg = NotificationMsg::new(
+                    ErrorCode::Cease,
+                    CeaseSubcode::BfdDown,
+                );
+                self.fsm_event(instance, fsm::Event::Stop(Some(msg)));
+            }
+            bfd::State::Up
+                if self.config.enabled && self.state == fsm::State::Idle =>
+            {
+                self.fsm_event(instance, fsm::Event::Start);
+            }
+            _ => {}
+        }
+    }
+
+    // Returns whether this neighbor is blocked by a BFD Down state.
+    pub(crate) fn is_bfd_down(&self) -> bool {
+        self.bfd
+            .as_ref()
+            .is_some_and(|bfd| bfd.state == Some(bfd::State::Down))
+    }
+
+    // Registers a BFD session for this neighbor with the provider.
+    fn bfd_register(
+        &self,
+        sess_key: bfd::SessionKey,
+        instance: &InstanceUpView<'_>,
+    ) {
+        let client_id =
+            bfd::ClientId::new(Protocol::BGP, instance.name.to_owned());
+        instance.tx.ibus.bfd_session_reg(
+            sess_key,
+            client_id,
+            Some(self.config.bfd.params),
+        );
+    }
+
+    // Unregisters the BFD session associated with the given session key.
+    fn bfd_unregister(
+        &self,
+        sess_key: bfd::SessionKey,
+        instance: &InstanceUpView<'_>,
+    ) {
+        instance.tx.ibus.bfd_session_unreg(sess_key);
+    }
+
+    // Builds the BFD session key matching the BGP transport.
+    pub(crate) fn bfd_session_key(
+        &self,
+        interfaces: &BTreeMap<String, InterfaceState>,
+    ) -> Option<bfd::SessionKey> {
+        if !self.config.enabled || !self.config.bfd.enabled {
+            return None;
+        }
+
+        if self.peer_type == PeerType::External
+            && !self.config.transport.ebgp_multihop_enabled
+        {
+            let ifname = self.bfd_single_hop_ifname(interfaces)?;
+            return Some(bfd::SessionKey::new_ip_single_hop(
+                ifname,
+                self.remote_addr,
+            ));
+        }
+
+        let src = self.config.transport.local_addr.or_else(|| {
+            self.conn_info
+                .as_ref()
+                .map(|conn_info| conn_info.local_addr)
+        })?;
+        Some(bfd::SessionKey::new_ip_multihop(src, self.remote_addr))
+    }
+
+    // Returns the directly connected interface for a single-hop BFD peer.
+    fn bfd_single_hop_ifname(
+        &self,
+        interfaces: &BTreeMap<String, InterfaceState>,
+    ) -> Option<String> {
+        interfaces
+            .iter()
+            .find(|(_, iface)| {
+                iface
+                    .addrs
+                    .iter()
+                    .any(|addr| match (addr, self.remote_addr) {
+                        (
+                            ipnetwork::IpNetwork::V4(prefix),
+                            IpAddr::V4(addr),
+                        ) => prefix.contains(addr),
+                        (
+                            ipnetwork::IpNetwork::V6(prefix),
+                            IpAddr::V6(addr),
+                        ) => prefix.contains(addr),
+                        _ => false,
+                    })
+            })
+            .map(|(ifname, _)| ifname.clone())
     }
 
     // Enqueues a single BGP message for transmission.
@@ -1178,5 +1336,68 @@ where
             reach: Default::default(),
             unreach: Default::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ipnetwork::Ipv4Network;
+
+    use super::*;
+
+    fn interfaces() -> BTreeMap<String, InterfaceState> {
+        BTreeMap::from([(
+            "eth0".to_owned(),
+            InterfaceState {
+                addrs: BTreeSet::from([ipnetwork::IpNetwork::V4(
+                    Ipv4Network::new(Ipv4Addr::new(192, 0, 2, 1), 24).unwrap(),
+                )]),
+            },
+        )])
+    }
+
+    fn bfd_neighbor(remote_addr: Ipv4Addr, peer_type: PeerType) -> Neighbor {
+        let mut nbr = Neighbor::new(remote_addr.into(), peer_type);
+        nbr.config.enabled = true;
+        nbr.config.bfd.enabled = true;
+        nbr
+    }
+
+    #[test]
+    fn bfd_direct_ebgp_uses_single_hop_session() {
+        let nbr = bfd_neighbor(Ipv4Addr::new(192, 0, 2, 2), PeerType::External);
+
+        assert_eq!(
+            nbr.bfd_session_key(&interfaces()),
+            Some(bfd::SessionKey::IpSingleHop {
+                ifname: "eth0".to_owned(),
+                dst: IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2)),
+            })
+        );
+    }
+
+    #[test]
+    fn bfd_ebgp_multihop_uses_multihop_session() {
+        let mut nbr =
+            bfd_neighbor(Ipv4Addr::new(198, 51, 100, 2), PeerType::External);
+        nbr.config.transport.ebgp_multihop_enabled = true;
+        nbr.config.transport.local_addr =
+            Some(Ipv4Addr::new(192, 0, 2, 1).into());
+
+        assert_eq!(
+            nbr.bfd_session_key(&interfaces()),
+            Some(bfd::SessionKey::IpMultihop {
+                src: IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)),
+                dst: IpAddr::V4(Ipv4Addr::new(198, 51, 100, 2)),
+            })
+        );
+    }
+
+    #[test]
+    fn bfd_ibgp_waits_until_source_address_is_known() {
+        let nbr =
+            bfd_neighbor(Ipv4Addr::new(198, 51, 100, 2), PeerType::Internal);
+
+        assert_eq!(nbr.bfd_session_key(&interfaces()), None);
     }
 }

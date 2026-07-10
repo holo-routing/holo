@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
@@ -71,6 +72,13 @@ pub struct InstanceState {
     pub decision_process_task: Option<TimeoutTask>,
     // BGP RIB.
     pub rib: Rib,
+    // Interface addresses learned from the interface provider.
+    pub interfaces: BTreeMap<String, InterfaceState>,
+}
+
+#[derive(Debug, Default)]
+pub struct InterfaceState {
+    pub addrs: BTreeSet<ipnetwork::IpNetwork>,
 }
 
 #[derive(Debug)]
@@ -375,6 +383,7 @@ impl InstanceState {
             policy_apply_tasks,
             decision_process_task: None,
             rib: Default::default(),
+            interfaces: Default::default(),
         })
     }
 
@@ -447,6 +456,22 @@ fn process_ibus_msg(
     }
 
     match msg {
+        IbusMsg::BfdStateUpd { sess_key, state } => {
+            // BFD peer state update notification.
+            ibus::rx::process_bfd_state_update(instance, sess_key, state);
+        }
+        IbusMsg::InterfaceUpd(msg) => {
+            // Interface update notification.
+            ibus::rx::process_iface_update(instance, msg);
+        }
+        IbusMsg::InterfaceAddressAdd(msg) => {
+            // Interface address addition notification.
+            ibus::rx::process_addr_add(instance, msg);
+        }
+        IbusMsg::InterfaceAddressDel(msg) => {
+            // Interface address deletion notification.
+            ibus::rx::process_addr_del(instance, msg);
+        }
         IbusMsg::NexthopUpd { addr, metric } => {
             // Nexthop tracking update notification.
             ibus::rx::process_nht_update(instance, addr, metric);

@@ -13,6 +13,7 @@ use std::sync::{Arc, LazyLock as Lazy};
 use arc_swap::ArcSwap;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
+use holo_utils::bfd;
 use holo_utils::bgp::AfiSafi;
 use holo_utils::ip::{AddressFamily, IpAddrKind};
 use holo_utils::policy::{ApplyPolicyCfg, DefaultPolicyType};
@@ -23,11 +24,11 @@ use holo_yang::TryFromYang;
 use crate::af::{Ipv4Unicast, Ipv6Unicast};
 use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{Neighbor, PeerType, fsm};
-use crate::network;
 use crate::northbound::yang_gen::bgp;
 use crate::packet::iana::{CeaseSubcode, ErrorCode};
 use crate::packet::message::{Message, NotificationMsg};
 use crate::rib::RouteOrigin;
+use crate::{ibus, network};
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -48,6 +49,7 @@ pub enum Resource {}
 pub enum Event {
     InstanceUpdate,
     NeighborUpdate(IpAddr),
+    NeighborBfdUpdate(IpAddr),
     NeighborDelete(IpAddr),
     NeighborReset(IpAddr, NotificationMsg),
     NeighborUpdateAuth(IpAddr),
@@ -130,12 +132,19 @@ pub struct NeighborCfg {
     pub private_as_remove: Option<PrivateAsRemove>,
     pub timers: NeighborTimersCfg,
     pub transport: NeighborTransportCfg,
+    pub bfd: NeighborBfdCfg,
     pub log_neighbor_state_changes: bool,
     pub as_path_options: AsPathOptions,
     pub apply_policy: ApplyPolicyCfg,
     pub prefix_limit: PrefixLimitCfg,
     pub afi_safi: BTreeMap<AfiSafi, NeighborAfiSafiCfg>,
     pub trace_opts: NeighborTraceOptions,
+}
+
+#[derive(Debug)]
+pub struct NeighborBfdCfg {
+    pub enabled: bool,
+    pub params: bfd::ClientCfg,
 }
 
 #[derive(Debug)]
@@ -1043,6 +1052,17 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
             event_queue.insert(Event::NeighborUpdateAuth(nbr.remote_addr));
         })
+        .path(bgp::neighbors::neighbor::transport::bfd::enabled::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let enabled = args.dnode.get_bool();
+            nbr.config.bfd.enabled = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::NeighborBfdUpdate(nbr.remote_addr));
+        })
         .path(bgp::neighbors::neighbor::logging_options::log_neighbor_state_changes::PATH)
         .modify_apply(|instance, args| {
             let nbr_addr = args.list_entry.into_neighbor().unwrap();
@@ -1521,13 +1541,31 @@ impl Provider for Instance {
                 };
                 let nbr = neighbors.get_mut(&nbr_addr).unwrap();
 
-                if nbr.config.enabled {
+                nbr.bfd_update_session(&instance);
+
+                if nbr.config.enabled && !nbr.is_bfd_down() {
                     nbr.fsm_event(&mut instance, fsm::Event::Start);
                 } else {
                     let error_code = ErrorCode::Cease;
                     let error_subcode = CeaseSubcode::AdministrativeShutdown;
                     let msg = NotificationMsg::new(error_code, error_subcode);
                     nbr.fsm_event(&mut instance, fsm::Event::Stop(Some(msg)));
+                }
+            }
+            Event::NeighborBfdUpdate(nbr_addr) => {
+                let Some((mut instance, neighbors)) = self.as_up() else {
+                    return;
+                };
+                let nbr = neighbors.get_mut(&nbr_addr).unwrap();
+
+                if nbr.config.bfd.enabled {
+                    ibus::tx::interface_sub(&instance.tx.ibus);
+                    nbr.bfd_update_session(&instance);
+                } else {
+                    nbr.bfd_clear_session(&instance);
+                    if nbr.config.enabled {
+                        nbr.fsm_event(&mut instance, fsm::Event::Start);
+                    }
                 }
             }
             Event::NeighborDelete(nbr_addr) => {
@@ -1545,6 +1583,7 @@ impl Provider for Instance {
                 let error_code = ErrorCode::Cease;
                 let error_subcode = CeaseSubcode::PeerDeConfigured;
                 let msg = NotificationMsg::new(error_code, error_subcode);
+                nbr.bfd_clear_session(&instance);
                 nbr.fsm_event(&mut instance, fsm::Event::Stop(Some(msg)));
                 neighbors.remove(&nbr_addr);
             }
@@ -1777,6 +1816,7 @@ impl Default for NeighborCfg {
             private_as_remove: None,
             timers: Default::default(),
             transport: Default::default(),
+            bfd: Default::default(),
             log_neighbor_state_changes,
             as_path_options: Default::default(),
             apply_policy: Default::default(),
@@ -1817,6 +1857,17 @@ impl Default for NeighborTransportCfg {
             ttl_security: None,
             secure_session_enabled,
             md5_key: None,
+        }
+    }
+}
+
+impl Default for NeighborBfdCfg {
+    fn default() -> NeighborBfdCfg {
+        let enabled = bgp::neighbors::neighbor::transport::bfd::enabled::DFLT;
+
+        NeighborBfdCfg {
+            enabled,
+            params: Default::default(),
         }
     }
 }

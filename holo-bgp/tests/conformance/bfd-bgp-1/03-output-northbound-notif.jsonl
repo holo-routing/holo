@@ -1,0 +1,1 @@
+{"ietf-routing:routing":{"control-plane-protocols":{"control-plane-protocol":[{"type":"ietf-bgp:bgp","name":"test","ietf-bgp:bgp":{"neighbors":{"backward-transition":{"remote-addr":"10.0.1.2","notification-sent":{"last-error":"iana-bgp-notification:cease-bfd-down","last-error-code":6,"last-error-subcode":10}}}}}]}}}

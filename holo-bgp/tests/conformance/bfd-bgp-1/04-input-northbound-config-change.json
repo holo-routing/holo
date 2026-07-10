@@ -1,0 +1,34 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "test",
+          "ietf-bgp:bgp": {
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "10.0.1.2",
+                  "transport": {
+                    "bfd": {
+                      "enabled": false,
+                      "@enabled": {
+                        "yang:operation": "replace",
+                        "yang:orig-default": false,
+                        "yang:orig-value": "true"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

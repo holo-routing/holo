@@ -1,0 +1,3 @@
+{"NexthopUntrack":{"addr":"10.0.1.2"}}
+{"RouteIpDel":{"protocol":"bgp","prefix":"2.2.2.2/32"}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"3.3.3.3/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.2.4","labels":[],"resolved":[]}},{"Recursive":{"addr":"10.0.3.5","labels":[],"resolved":[]}}]}}

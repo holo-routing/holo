@@ -6,10 +6,13 @@
 
 use std::net::{IpAddr, Ipv4Addr};
 
+use holo_utils::bfd;
 use holo_utils::bgp::RouteType;
 use holo_utils::ip::IpNetworkExt;
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
+use holo_utils::southbound::{
+    AddressMsg, InterfaceUpdateMsg, RouteKeyMsg, RouteMsg,
+};
 use ipnetwork::IpNetwork;
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
@@ -27,6 +30,66 @@ pub(crate) fn process_router_id_update(
 ) {
     instance.system.router_id = router_id;
     instance.update();
+}
+
+pub(crate) fn process_bfd_state_update(
+    instance: &mut Instance,
+    sess_key: bfd::SessionKey,
+    state: bfd::State,
+) {
+    let Some((mut instance, neighbors)) = instance.as_up() else {
+        return;
+    };
+
+    let Some(nbr) = neighbors.values_mut().find(|nbr| {
+        nbr.bfd.as_ref().is_some_and(|bfd| bfd.sess_key == sess_key)
+    }) else {
+        return;
+    };
+
+    nbr.bfd_state_update(&mut instance, state);
+}
+
+pub(crate) fn process_iface_update(
+    instance: &mut Instance,
+    msg: InterfaceUpdateMsg,
+) {
+    let Some((instance, neighbors)) = instance.as_up() else {
+        return;
+    };
+
+    instance.state.interfaces.entry(msg.ifname).or_default();
+    update_bfd_sessions(&instance, neighbors);
+}
+
+pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
+    if msg.addr.ip().is_loopback() {
+        return;
+    }
+
+    let Some((instance, neighbors)) = instance.as_up() else {
+        return;
+    };
+
+    instance
+        .state
+        .interfaces
+        .entry(msg.ifname)
+        .or_default()
+        .addrs
+        .insert(msg.addr);
+    update_bfd_sessions(&instance, neighbors);
+}
+
+pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
+    let Some((instance, neighbors)) = instance.as_up() else {
+        return;
+    };
+
+    if let Some(iface) = instance.state.interfaces.get_mut(&msg.ifname) {
+        iface.addrs.remove(&msg.addr);
+    }
+    update_bfd_sessions(&instance, neighbors);
 }
 
 pub(crate) fn process_nht_update(
@@ -86,6 +149,17 @@ pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
 }
 
 // ===== helper functions =====
+
+fn update_bfd_sessions(
+    instance: &InstanceUpView<'_>,
+    neighbors: &mut crate::neighbor::Neighbors,
+) {
+    for nbr in neighbors.values_mut() {
+        if nbr.config.bfd.enabled {
+            nbr.bfd_update_session(instance);
+        }
+    }
+}
 
 fn process_nht_update_af<A>(
     instance: &mut InstanceUpView<'_>,

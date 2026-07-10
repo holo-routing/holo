@@ -22,3 +22,8 @@ async fn topology2_1() {
         run_test_topology::<Instance>("topo2-1", &rt_name).await;
     }
 }
+
+#[tokio::test]
+async fn route_reflector_1() {
+    run_test_topology::<Instance>("rr-1", "rt1").await;
+}

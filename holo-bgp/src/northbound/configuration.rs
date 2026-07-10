@@ -128,6 +128,7 @@ pub struct NeighborCfg {
     pub peer_as: u32,
     pub local_as: Option<u32>,
     pub private_as_remove: Option<PrivateAsRemove>,
+    pub route_reflector: RouteReflectorCfg,
     pub timers: NeighborTimersCfg,
     pub transport: NeighborTransportCfg,
     pub log_neighbor_state_changes: bool,
@@ -136,6 +137,12 @@ pub struct NeighborCfg {
     pub prefix_limit: PrefixLimitCfg,
     pub afi_safi: BTreeMap<AfiSafi, NeighborAfiSafiCfg>,
     pub trace_opts: NeighborTraceOptions,
+}
+
+#[derive(Debug)]
+pub struct RouteReflectorCfg {
+    pub client: bool,
+    pub cluster_id: Option<Ipv4Addr>,
 }
 
 #[derive(Debug)]
@@ -857,6 +864,43 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .delete_apply(|_instance, _args| {
             // Nothing to do.
+        })
+        .path(bgp::neighbors::neighbor::route_reflector::client::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let client = args.dnode.get_bool();
+            nbr.config.route_reflector.client = client;
+
+            schedule_decision_process_all_afs(instance);
+        })
+        .delete_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            nbr.config.route_reflector.client = bgp::neighbors::neighbor::route_reflector::client::DFLT;
+
+            schedule_decision_process_all_afs(instance);
+        })
+        .path(bgp::neighbors::neighbor::route_reflector::cluster_id::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let cluster_id = args.dnode.get_string();
+            let cluster_id = cluster_id.parse::<Ipv4Addr>().unwrap_or_else(|_| Ipv4Addr::from(cluster_id.parse::<u32>().unwrap()));
+            nbr.config.route_reflector.cluster_id = Some(cluster_id);
+
+            schedule_decision_process_all_afs(instance);
+        })
+        .delete_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            nbr.config.route_reflector.cluster_id = None;
+
+            schedule_decision_process_all_afs(instance);
         })
         .path(bgp::neighbors::neighbor::timers::connect_retry_interval::PATH)
         .modify_apply(|instance, args| {
@@ -1702,6 +1746,22 @@ where
     instance.state.schedule_decision_process(instance.tx);
 }
 
+fn schedule_decision_process_all_afs(instance: &mut Instance) {
+    let Some(state) = &mut instance.state else {
+        return;
+    };
+
+    let table = &mut state.rib.tables.ipv4_unicast;
+    let prefixes = table.prefixes.keys().collect::<Vec<_>>();
+    table.queued_prefixes.extend(prefixes);
+
+    let table = &mut state.rib.tables.ipv6_unicast;
+    let prefixes = table.prefixes.keys().collect::<Vec<_>>();
+    table.queued_prefixes.extend(prefixes);
+
+    state.schedule_decision_process(&instance.tx);
+}
+
 // ===== configuration defaults =====
 
 impl Default for InstanceCfg {
@@ -1775,6 +1835,7 @@ impl Default for NeighborCfg {
             peer_as: 0,
             local_as: None,
             private_as_remove: None,
+            route_reflector: Default::default(),
             timers: Default::default(),
             transport: Default::default(),
             log_neighbor_state_changes,
@@ -1783,6 +1844,17 @@ impl Default for NeighborCfg {
             prefix_limit: Default::default(),
             afi_safi: Default::default(),
             trace_opts: Default::default(),
+        }
+    }
+}
+
+impl Default for RouteReflectorCfg {
+    fn default() -> RouteReflectorCfg {
+        let client = bgp::neighbors::neighbor::route_reflector::client::DFLT;
+
+        RouteReflectorCfg {
+            client,
+            cluster_id: None,
         }
     }
 }

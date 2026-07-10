@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::IpAddr;
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::{IpAddr, Ipv4Addr};
 
 use chrono::Utc;
 use holo_protocol::InstanceShared;
@@ -526,6 +527,23 @@ pub(crate) fn process_nbr_policy_export<A>(
 where
     A: AddressFamily,
 {
+    let rr_client_cluster_ids = neighbors
+        .iter()
+        .filter(|(_, nbr)| nbr.config.route_reflector.client)
+        .filter_map(|(addr, nbr)| {
+            nbr.config
+                .route_reflector
+                .cluster_id
+                .or(instance.config.identifier)
+                .map(|cluster_id| (*addr, cluster_id))
+        })
+        .collect::<BTreeMap<_, _>>();
+    let rr_cluster_id = rr_client_cluster_ids
+        .values()
+        .next()
+        .copied()
+        .or(instance.config.identifier);
+
     // Lookup neighbor.
     let Some(nbr) = neighbors.get_mut(&nbr_addr) else {
         return Ok(());
@@ -564,10 +582,22 @@ where
 
                     // Update route's attributes before transmission.
                     let mut attrs = rpinfo.attrs;
+                    let cluster_id = match rpinfo.origin {
+                        RouteOrigin::Neighbor { remote_addr, .. } => {
+                            rr_client_cluster_ids
+                                .get(&remote_addr)
+                                .copied()
+                                .or(rr_cluster_id)
+                        }
+                        RouteOrigin::Protocol(_) => rr_cluster_id,
+                    };
                     rib::attrs_tx_update::<A>(
                         &mut attrs,
                         nbr,
                         instance.config.asn,
+                        cluster_id,
+                        rpinfo.origin,
+                        rpinfo.route_type,
                         rpinfo.origin.is_local(),
                     );
 
@@ -663,6 +693,8 @@ where
         .map(|afi_safi| &afi_safi.multipath)
         .unwrap_or(&instance.config.multipath);
 
+    let cluster_ids = local_cluster_ids(instance.config.identifier, neighbors);
+
     // Phase 2: Route Selection.
     //
     // Process each queued destination in the RIB.
@@ -679,6 +711,8 @@ where
         let best_route = rib::best_path::<A>(
             dest,
             instance.config.asn,
+            instance.config.identifier,
+            &cluster_ids,
             &table.nht,
             selection_cfg,
         );
@@ -704,6 +738,11 @@ where
     }
 
     // Phase 3: Route Dissemination.
+    let rr_clients = neighbors
+        .iter()
+        .map(|(addr, nbr)| (*addr, nbr.config.route_reflector.client))
+        .collect::<BTreeMap<_, _>>();
+
     for nbr in neighbors
         .values_mut()
         .filter(|nbr| nbr.state == fsm::State::Established)
@@ -721,7 +760,12 @@ where
         let mut nbr_reach = reach.clone();
         nbr_unreach.extend(
             nbr_reach
-                .extract_if(.., |(_, route)| !nbr.distribute_filter(route))
+                .extract_if(.., |(_, route)| {
+                    !nbr.distribute_filter(
+                        route,
+                        source_rr_client(route, &rr_clients),
+                    )
+                })
                 .map(|(prefix, _)| prefix),
         );
 
@@ -768,6 +812,29 @@ where
     }
 
     Ok(())
+}
+
+fn source_rr_client(
+    route: &Route,
+    rr_clients: &BTreeMap<IpAddr, bool>,
+) -> Option<bool> {
+    match route.origin {
+        RouteOrigin::Neighbor { remote_addr, .. } => {
+            rr_clients.get(&remote_addr).copied()
+        }
+        RouteOrigin::Protocol(_) => None,
+    }
+}
+
+fn local_cluster_ids(
+    identifier: Option<Ipv4Addr>,
+    neighbors: &Neighbors,
+) -> BTreeSet<Ipv4Addr> {
+    neighbors
+        .values()
+        .filter(|nbr| nbr.config.route_reflector.client)
+        .filter_map(|nbr| nbr.config.route_reflector.cluster_id.or(identifier))
+        .collect()
 }
 
 fn withdraw_routes<A>(

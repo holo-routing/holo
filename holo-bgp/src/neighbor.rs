@@ -925,7 +925,7 @@ impl Neighbor {
                     (prefix, Box::new(route))
                 })
             })
-            .filter(|(_, route)| self.distribute_filter(route))
+            .filter(|(_, route)| self.distribute_filter(route, None))
             .collect::<Vec<_>>();
 
         // Advertise the best routes.
@@ -961,6 +961,12 @@ impl Neighbor {
                 &mut attrs,
                 self,
                 instance.config.asn,
+                self.config
+                    .route_reflector
+                    .cluster_id
+                    .or(instance.config.identifier),
+                route.origin,
+                route.route_type,
                 route.origin.is_local(),
             );
 
@@ -1058,7 +1064,11 @@ impl Neighbor {
     }
 
     // Determines whether the given route is eligible for distribution.
-    pub(crate) fn distribute_filter(&self, route: &Route) -> bool {
+    pub(crate) fn distribute_filter(
+        &self,
+        route: &Route,
+        source_rr_client: Option<bool>,
+    ) -> bool {
         // Suppress advertisements to peers if their AS number is present
         // in the AS path of the route, unless overridden by configuration.
         if !self.config.as_path_options.disable_peer_as_filter
@@ -1067,16 +1077,21 @@ impl Neighbor {
             return false;
         }
 
-        // RFC 4271 - Section 9.2:
-        // "When a BGP speaker receives an UPDATE message from an internal
-        // peer, the receiving BGP speaker SHALL NOT re-distribute the
-        // routing information contained in that UPDATE message to other
-        // internal peers".
+        // RFC 4271 Section 9.2 prohibits re-advertising iBGP-learned routes
+        // to iBGP peers unless RFC 4456 route reflection applies.
         if route.route_type == RouteType::Internal
             && let RouteOrigin::Neighbor { remote_addr, .. } = &route.origin
-            && *remote_addr == self.remote_addr
+            && self.peer_type == PeerType::Internal
         {
-            return false;
+            if *remote_addr == self.remote_addr {
+                return false;
+            }
+
+            match source_rr_client {
+                Some(true) => {}
+                Some(false) if self.config.route_reflector.client => {}
+                _ => return false,
+            }
         }
 
         // Handle well-known communities.

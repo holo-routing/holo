@@ -24,7 +24,8 @@ use crate::northbound::configuration::{
     DistanceCfg, InstanceTraceOptions, MultipathCfg, RouteSelectionCfg,
 };
 use crate::packet::attribute::{
-    Attrs, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr,
+    Attrs, BaseAttrs, ClusterList, Comms, ExtComms, Extv6Comms, LargeComms,
+    UnknownAttr,
 };
 use crate::policy::RoutePolicyInfo;
 
@@ -709,6 +710,8 @@ where
 pub(crate) fn best_path<A>(
     dest: &mut Destination,
     local_asn: u32,
+    identifier: Option<Ipv4Addr>,
+    cluster_ids: &BTreeSet<Ipv4Addr>,
     nht: &HashMap<IpAddr, NhtEntry<A>>,
     selection_cfg: &RouteSelectionCfg,
 ) -> Option<Box<Route>>
@@ -732,6 +735,23 @@ where
         // First, check if the route is eligible.
         if route.attrs.base.value.as_path.contains(local_asn) {
             route.ineligible_reason = Some(RouteIneligibleReason::AsLoop);
+            continue;
+        }
+        if route.attrs.base.value.originator_id.is_some()
+            && route.attrs.base.value.originator_id == identifier
+        {
+            route.ineligible_reason = Some(RouteIneligibleReason::Originator);
+            continue;
+        }
+        if route.attrs.base.value.cluster_list.as_ref().is_some_and(
+            |cluster_list| {
+                cluster_list
+                    .0
+                    .iter()
+                    .any(|cluster_id| cluster_ids.contains(cluster_id))
+            },
+        ) {
+            route.ineligible_reason = Some(RouteIneligibleReason::ClusterLoop);
             continue;
         }
 
@@ -851,6 +871,9 @@ pub(crate) fn attrs_tx_update<A>(
     attrs: &mut Attrs,
     nbr: &Neighbor,
     local_asn: u32,
+    cluster_id: Option<Ipv4Addr>,
+    route_origin: RouteOrigin,
+    route_type: RouteType,
     local: bool,
 ) where
     A: AddressFamily,
@@ -872,6 +895,24 @@ pub(crate) fn attrs_tx_update<A>(
             // Remove the LOCAL_PREF attribute.
             attrs.base.local_pref = None;
         }
+    }
+
+    if route_type == RouteType::Internal
+        && nbr.peer_type == PeerType::Internal
+        && let RouteOrigin::Neighbor {
+            identifier,
+            remote_addr,
+        } = route_origin
+        && remote_addr != nbr.remote_addr
+        && let Some(cluster_id) = cluster_id
+    {
+        attrs.base.originator_id.get_or_insert(identifier);
+        attrs
+            .base
+            .cluster_list
+            .get_or_insert_with(|| ClusterList(Vec::new()))
+            .0
+            .insert(0, cluster_id);
     }
 
     // Update the next-hop attribute based on the address family if necessary.
@@ -928,7 +969,10 @@ pub(crate) fn nexthop_untrack<A>(
 
 #[cfg(test)]
 mod tests {
+    use holo_utils::socket::TcpConnInfo;
+
     use super::*;
+    use crate::af::Ipv4Unicast;
     use crate::packet::attribute::BaseAttrs;
 
     fn make_route(
@@ -968,6 +1012,105 @@ mod tests {
 
     fn local_origin() -> RouteOrigin {
         RouteOrigin::Protocol(Protocol::STATIC)
+    }
+
+    fn test_attrs() -> Attrs {
+        let mut attrs = Attrs::default();
+        attrs.base.nexthop = Some(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 254)));
+        attrs
+    }
+
+    #[test]
+    fn attrs_tx_update_adds_rr_attrs_only_for_reflected_ibgp() {
+        let mut nbr = Neighbor::new(
+            IpAddr::V4(Ipv4Addr::new(10, 0, 0, 2)),
+            PeerType::Internal,
+        );
+        nbr.config.route_reflector.cluster_id =
+            Some(Ipv4Addr::new(192, 0, 2, 1));
+        nbr.conn_info = Some(TcpConnInfo {
+            local_addr: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 254)),
+            local_port: 179,
+            remote_addr: nbr.remote_addr,
+            remote_port: 179,
+        });
+        let origin = RouteOrigin::Neighbor {
+            identifier: Ipv4Addr::new(10, 0, 0, 1),
+            remote_addr: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+        };
+
+        let mut attrs = test_attrs();
+        attrs_tx_update::<Ipv4Unicast>(
+            &mut attrs,
+            &nbr,
+            65000,
+            nbr.config.route_reflector.cluster_id,
+            origin,
+            RouteType::Internal,
+            true,
+        );
+        assert_eq!(attrs.base.originator_id, Some(Ipv4Addr::new(10, 0, 0, 1)));
+        assert_eq!(
+            attrs.base.cluster_list,
+            Some(ClusterList(vec![Ipv4Addr::new(192, 0, 2, 1)]))
+        );
+
+        let mut attrs = test_attrs();
+        attrs_tx_update::<Ipv4Unicast>(
+            &mut attrs,
+            &nbr,
+            65000,
+            nbr.config.route_reflector.cluster_id,
+            origin,
+            RouteType::External,
+            true,
+        );
+        assert_eq!(attrs.base.originator_id, None);
+        assert_eq!(attrs.base.cluster_list, None);
+    }
+
+    #[test]
+    fn best_path_rejects_local_cluster_loop() {
+        let route = make_route(ibgp_origin(), RouteType::Internal, None);
+        let mut attrs = route.attrs.get();
+        attrs.base.cluster_list =
+            Some(ClusterList(vec![Ipv4Addr::new(192, 0, 2, 1)]));
+
+        let mut attr_sets = AttrSetsCxt::default();
+        let mut dest = Destination::default();
+        dest.adj_rib.insert(
+            IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+            AdjRib {
+                in_post: Some(Box::new(Route::new(
+                    ibgp_origin(),
+                    attr_sets.get_route_attr_sets(&attrs),
+                    RouteType::Internal,
+                ))),
+                ..Default::default()
+            },
+        );
+
+        let cluster_ids = BTreeSet::from([Ipv4Addr::new(192, 0, 2, 1)]);
+        let best = best_path::<Ipv4Unicast>(
+            &mut dest,
+            65000,
+            None,
+            &cluster_ids,
+            &HashMap::new(),
+            &RouteSelectionCfg::default(),
+        );
+
+        assert!(best.is_none());
+        assert_eq!(
+            dest.adj_rib
+                .values()
+                .next()
+                .unwrap()
+                .in_post()
+                .unwrap()
+                .ineligible_reason,
+            Some(RouteIneligibleReason::ClusterLoop)
+        );
     }
 
     #[test]

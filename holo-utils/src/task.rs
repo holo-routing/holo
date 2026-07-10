@@ -221,6 +221,17 @@ impl TimeoutTask {
         }
     }
 
+    /// Returns an inert timeout handle in deterministic test builds.
+    #[cfg(feature = "testing")]
+    pub fn new<F, Fut>(timeout: Duration, cb: F) -> TimeoutTask
+    where
+        F: FnOnce() -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
+    {
+        let _ = (timeout, cb);
+        TimeoutTask {}
+    }
+
     /// Resets the timeout, regardless if it has already expired or not.
     ///
     /// If a new timeout value isn't specified, the last value will be reused.

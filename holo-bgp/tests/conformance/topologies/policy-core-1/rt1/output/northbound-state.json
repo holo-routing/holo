@@ -1,0 +1,38 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "test",
+          "ietf-bgp:bgp": {
+            "global": {
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "statistics": {
+                      "total-prefixes": 0
+                    }
+                  }
+                ]
+              },
+              "statistics": {
+                "total-prefixes": 0
+              }
+            },
+            "rib": {
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

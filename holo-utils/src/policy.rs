@@ -187,8 +187,10 @@ pub struct BgpMatchSets {
 pub struct Policy {
     // Name of the policy.
     pub name: String,
-    // List of statements.
-    // TODO: "ordered-by user"
+    // Statement names in YANG "ordered-by user" order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stmt_order: Vec<String>,
+    // Statements keyed by name for configuration callbacks.
     pub stmts: BTreeMap<String, PolicyStmt>,
 }
 
@@ -578,6 +580,39 @@ impl TryFromYang for MatchSetRestrictedType {
             "invert" => Some(MatchSetRestrictedType::Invert),
             _ => None,
         }
+    }
+}
+
+// ===== impl Policy =====
+
+impl Policy {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            stmt_order: Default::default(),
+            stmts: Default::default(),
+        }
+    }
+
+    pub fn stmt_add(&mut self, stmt: PolicyStmt) {
+        if !self.stmts.contains_key(&stmt.name) {
+            self.stmt_order.push(stmt.name.clone());
+        }
+        self.stmts.insert(stmt.name.clone(), stmt);
+    }
+
+    pub fn stmt_remove(&mut self, name: &str) {
+        self.stmts.remove(name);
+        self.stmt_order.retain(|stmt_name| stmt_name != name);
+    }
+
+    pub fn stmts_ordered(&self) -> impl Iterator<Item = &PolicyStmt> {
+        self.stmt_order
+            .iter()
+            .filter_map(|name| self.stmts.get(name))
+            .chain(self.stmts.iter().filter_map(|(name, stmt)| {
+                (!self.stmt_order.contains(name)).then_some(stmt)
+            }))
     }
 }
 

@@ -11,7 +11,7 @@ use holo_protocol::InstanceShared;
 use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
-use holo_utils::policy::{PolicyResult, PolicyType};
+use holo_utils::policy::{ApplyPolicyCfg, PolicyResult, PolicyType};
 use holo_utils::socket::{TcpConnInfo, TcpStream};
 use ipnetwork::IpNetwork;
 use num_traits::FromPrimitive;
@@ -19,7 +19,7 @@ use num_traits::FromPrimitive;
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
 use crate::error::{Error, IoError, NbrRxError};
-use crate::instance::{InstanceUpView, PolicyApplyTasks};
+use crate::instance::{InstanceState, InstanceUpView, PolicyApplyTasks};
 use crate::neighbor::{Neighbor, Neighbors, PeerType, fsm};
 use crate::packet::attribute::Attrs;
 use crate::packet::iana::{Afi, Safi};
@@ -321,6 +321,18 @@ fn process_nbr_reach_prefixes<A>(
 
     // Enqueue import policy application.
     let rpinfo = RoutePolicyInfo::new(origin, route_type, None, None, attrs);
+    let mut missing_policy = false;
+    let policies = apply_policy_cfg
+        .import_policy
+        .iter()
+        .filter_map(|policy| match shared.policies.get(policy) {
+            Some(policy) => Some(policy.clone()),
+            None => {
+                missing_policy = true;
+                None
+            }
+        })
+        .collect();
     let msg = PolicyApplyMsg::Neighbor {
         policy_type: PolicyType::Import,
         nbr_addr: nbr.remote_addr,
@@ -329,15 +341,230 @@ fn process_nbr_reach_prefixes<A>(
             .into_iter()
             .map(|prefix| (prefix.into(), rpinfo.clone()))
             .collect(),
-        policies: apply_policy_cfg
-            .import_policy
-            .iter()
-            .map(|policy| shared.policies.get(policy).unwrap().clone())
-            .collect(),
+        missing_policy,
+        policies,
         match_sets: shared.policy_match_sets.clone(),
         default_policy: apply_policy_cfg.default_import_policy,
     };
     policy_apply_tasks.enqueue(msg);
+}
+
+fn collect_policies(
+    apply_policy_cfg: &ApplyPolicyCfg,
+    shared: &InstanceShared,
+) -> (bool, Vec<std::sync::Arc<holo_utils::policy::Policy>>) {
+    let mut missing_policy = false;
+    let policies = apply_policy_cfg
+        .import_policy
+        .iter()
+        .filter_map(|policy| match shared.policies.get(policy) {
+            Some(policy) => Some(policy.clone()),
+            None => {
+                missing_policy = true;
+                None
+            }
+        })
+        .collect();
+
+    (missing_policy, policies)
+}
+
+pub(crate) fn reapply_nbr_import_policy_for_nbr<A>(
+    state: &mut InstanceState,
+    shared: &InstanceShared,
+    nbr: &Neighbor,
+) where
+    A: AddressFamily,
+{
+    if nbr.state < fsm::State::Established
+        || !nbr.is_af_enabled(A::AFI, A::SAFI)
+    {
+        return;
+    }
+
+    // Get policy configuration for the address family.
+    let apply_policy_cfg = &nbr
+        .config
+        .afi_safi
+        .get(&A::AFI_SAFI)
+        .map(|afi_safi| &afi_safi.apply_policy)
+        .unwrap_or(&nbr.config.apply_policy);
+
+    let (missing_policy, policies) = collect_policies(apply_policy_cfg, shared);
+
+    // Re-evaluate the retained pre-policy Adj-RIB-In, never the previously
+    // policy-mutated post-policy copy.
+    let table = A::table(&mut state.rib.tables);
+    let routes = table
+        .prefixes
+        .iter()
+        .filter_map(|(prefix, dest)| {
+            dest.adj_rib
+                .get(&nbr.remote_addr)
+                .and_then(|adj_rib| adj_rib.in_pre())
+                .map(|route| (prefix.into(), route.policy_info()))
+        })
+        .collect::<Vec<_>>();
+
+    if routes.is_empty() {
+        return;
+    }
+
+    let msg = PolicyApplyMsg::Neighbor {
+        policy_type: PolicyType::Import,
+        nbr_addr: nbr.remote_addr,
+        afi_safi: A::AFI_SAFI,
+        routes,
+        missing_policy,
+        policies,
+        match_sets: shared.policy_match_sets.clone(),
+        default_policy: apply_policy_cfg.default_import_policy,
+    };
+    state.policy_apply_tasks.enqueue(msg);
+}
+
+pub(crate) fn reapply_nbr_import_policy<A>(
+    instance: &mut InstanceUpView<'_>,
+    neighbors: &mut Neighbors,
+    nbr_addr: IpAddr,
+) where
+    A: AddressFamily,
+{
+    let Some(nbr) = neighbors.get(&nbr_addr) else {
+        return;
+    };
+
+    reapply_nbr_import_policy_for_nbr::<A>(
+        instance.state,
+        instance.shared,
+        nbr,
+    );
+}
+
+pub(crate) fn reapply_import_policy_all<A>(
+    instance: &mut InstanceUpView<'_>,
+    neighbors: &mut Neighbors,
+) where
+    A: AddressFamily,
+{
+    let nbr_addrs = neighbors.keys().copied().collect::<Vec<_>>();
+    for nbr_addr in nbr_addrs {
+        reapply_nbr_import_policy::<A>(instance, neighbors, nbr_addr);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::net::{IpAddr, Ipv4Addr};
+    use std::sync::Arc;
+
+    use holo_protocol::InstanceShared;
+    use holo_utils::bgp::{AfiSafi, RouteType};
+    use holo_utils::policy::Policy;
+    use ipnetwork::Ipv4Network;
+
+    use super::*;
+    use crate::af::Ipv4Unicast;
+    use crate::instance::{InstanceState, PolicyApplyTasks};
+    use crate::neighbor::{Neighbor, PeerType, fsm};
+    use crate::northbound::configuration::NeighborAfiSafiCfg;
+    use crate::packet::attribute::Attrs;
+    use crate::rib::{Rib, RouteOrigin};
+
+    #[test]
+    fn import_reapply_uses_retained_adj_rib_in_pre() {
+        let remote_addr = IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2));
+        let (tx, rx) = crossbeam_channel::unbounded();
+        let mut state = InstanceState {
+            router_id: Ipv4Addr::new(192, 0, 2, 1),
+            listening_sockets: Vec::new(),
+            policy_apply_tasks: PolicyApplyTasks::new_for_testing(tx),
+            decision_process_task: None,
+            rib: Rib::default(),
+        };
+        let mut shared = InstanceShared::default();
+        shared.policies.insert(
+            "SOFT-IN".to_owned(),
+            Arc::new(Policy::new("SOFT-IN".to_owned())),
+        );
+
+        let mut nbr = Neighbor::new(remote_addr, PeerType::External);
+        nbr.state = fsm::State::Established;
+        nbr.identifier = Some(Ipv4Addr::new(192, 0, 2, 2));
+        nbr.config
+            .afi_safi
+            .insert(AfiSafi::Ipv4Unicast, NeighborAfiSafiCfg::default());
+        let afi_safi =
+            nbr.config.afi_safi.get_mut(&AfiSafi::Ipv4Unicast).unwrap();
+        afi_safi.enabled = true;
+        afi_safi
+            .apply_policy
+            .import_policy
+            .insert("SOFT-IN".to_owned());
+
+        let origin = RouteOrigin::Neighbor {
+            identifier: nbr.identifier.unwrap(),
+            remote_addr,
+        };
+        let attrs = state.rib.attr_sets.get_route_attr_sets(&Attrs::default());
+        let table = Ipv4Unicast::table(&mut state.rib.tables);
+        for prefix in ["198.51.100.1/32", "198.51.100.2/32"] {
+            let prefix: Ipv4Network = prefix.parse().unwrap();
+            let route = Route::new(origin, attrs.clone(), RouteType::External);
+            table
+                .prefixes
+                .entry(prefix)
+                .or_default()
+                .adj_rib
+                .entry(remote_addr)
+                .or_default()
+                .update_in_pre(Box::new(route), &mut state.rib.attr_sets);
+        }
+
+        let accepted_prefix: Ipv4Network = "198.51.100.1/32".parse().unwrap();
+        let route = Route::new(origin, attrs, RouteType::External);
+        table
+            .prefixes
+            .entry(accepted_prefix)
+            .or_default()
+            .adj_rib
+            .entry(remote_addr)
+            .or_default()
+            .update_in_post(Box::new(route), &mut state.rib.attr_sets);
+
+        reapply_nbr_import_policy_for_nbr::<Ipv4Unicast>(
+            &mut state, &shared, &nbr,
+        );
+
+        let msg = rx.try_recv().unwrap();
+        let PolicyApplyMsg::Neighbor {
+            policy_type,
+            nbr_addr,
+            afi_safi,
+            routes,
+            missing_policy,
+            policies,
+            ..
+        } = msg
+        else {
+            panic!("unexpected policy apply message");
+        };
+        assert!(matches!(policy_type, PolicyType::Import));
+        assert_eq!(nbr_addr, remote_addr);
+        assert_eq!(afi_safi, AfiSafi::Ipv4Unicast);
+        assert!(!missing_policy);
+        assert_eq!(policies.len(), 1);
+        assert_eq!(
+            routes
+                .into_iter()
+                .map(|(prefix, _)| prefix)
+                .collect::<Vec<_>>(),
+            vec![
+                "198.51.100.1/32".parse().unwrap(),
+                "198.51.100.2/32".parse().unwrap(),
+            ]
+        );
+    }
 }
 
 fn process_nbr_unreach_prefixes<A>(
@@ -830,16 +1057,25 @@ pub(crate) fn advertise_routes<A>(
         .map(|(prefix, route)| (prefix.into(), route.policy_info()))
         .collect::<Vec<_>>();
     if !routes.is_empty() {
+        let mut missing_policy = false;
+        let policies = apply_policy_cfg
+            .export_policy
+            .iter()
+            .filter_map(|policy| match shared.policies.get(policy) {
+                Some(policy) => Some(policy.clone()),
+                None => {
+                    missing_policy = true;
+                    None
+                }
+            })
+            .collect();
         let msg = PolicyApplyMsg::Neighbor {
             policy_type: PolicyType::Export,
             nbr_addr: nbr.remote_addr,
             afi_safi: A::AFI_SAFI,
             routes,
-            policies: apply_policy_cfg
-                .export_policy
-                .iter()
-                .map(|policy| shared.policies.get(policy).unwrap().clone())
-                .collect(),
+            missing_policy,
+            policies,
             match_sets: shared.policy_match_sets.clone(),
             default_policy: apply_policy_cfg.default_export_policy,
         };

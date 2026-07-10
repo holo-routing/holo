@@ -1,0 +1,84 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "test",
+          "ietf-bgp:bgp": {
+            "global": {
+              "as": 65000,
+              "identifier": "192.0.2.1"
+            },
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "192.0.2.2",
+                  "peer-as": 65001,
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "import-policy": [
+                            "SOFT-IN"
+                          ],
+                          "default-import-policy": "reject-route",
+                          "default-export-policy": "accept-route"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "ietf-routing-policy:routing-policy": {
+    "defined-sets": {
+      "prefix-sets": {
+        "prefix-set": [
+          {
+            "name": "ACCEPTED",
+            "mode": "ipv4",
+            "prefixes": {
+              "prefix-list": [
+                {
+                  "ip-prefix": "198.51.100.1/32",
+                  "mask-length-lower": 32,
+                  "mask-length-upper": 32
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "SOFT-IN",
+          "statements": {
+            "statement": [
+              {
+                "name": "10",
+                "conditions": {
+                  "match-prefix-set": {
+                    "prefix-set": "ACCEPTED"
+                  }
+                },
+                "actions": {
+                  "policy-result": "accept-route"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

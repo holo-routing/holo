@@ -1,0 +1,1 @@
+{"RouteIpAdd":{"protocol":"bgp","prefix":"198.51.100.2/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"192.0.2.2","labels":[],"resolved":[]}}]}}

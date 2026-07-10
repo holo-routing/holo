@@ -1,0 +1,2 @@
+{"PolicyResult":{"Neighbor":{"policy_type":"Import","nbr_addr":"192.0.2.2","afi_safi":"Ipv4Unicast","routes":[["198.51.100.1/32","Reject"],["198.51.100.2/32",{"Accept":{"origin":{"Neighbor":{"identifier":"192.0.2.2","remote_addr":"192.0.2.2"}},"route_type":"External","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65001]}]},"nexthop":"192.0.2.2"}}}}]]}}}
+{"TriggerDecisionProcess":null}

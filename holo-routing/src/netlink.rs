@@ -16,7 +16,8 @@ use ipnetwork::IpNetwork;
 use netlink_packet_core::ErrorMessage;
 use netlink_packet_route::AddressFamily;
 use netlink_packet_route::route::{
-    MplsLabel, RouteMessage, RouteNextHop, RouteProtocol, RouteType,
+    MplsLabel, RouteAttribute, RouteHeader, RouteMessage, RouteNextHop,
+    RouteProtocol, RouteType,
 };
 use rtnetlink::{
     Error, Handle, RouteMessageBuilder, RouteNextHopBuilder, new_connection,
@@ -78,7 +79,7 @@ pub(crate) fn ip_route_install(
         IpNetwork::V6(_) => AddressFamily::Inet6,
     };
     let nexthops = netlink_nexthops(af, route.nexthops.iter(), interfaces);
-    let msg = RouteMessageBuilder::<IpAddr>::new()
+    let mut msg = RouteMessageBuilder::<IpAddr>::new()
         .destination_prefix(prefix.ip(), prefix.prefix())
         .unwrap()
         .protocol(protocol)
@@ -88,8 +89,11 @@ pub(crate) fn ip_route_install(
             RouteKind::Unreachable => RouteType::Unreachable,
             RouteKind::Prohibit => RouteType::Prohibit,
         })
-        .multipath(nexthops)
-        .build();
+        .multipath(nexthops);
+    if let Some(table_id) = route.table_id {
+        msg = msg.table_id(table_id);
+    }
+    let msg = msg.build();
 
     // Enqueue netlink request.
     netlink_tx.send(NetlinkRequest::RouteAdd(msg)).unwrap();
@@ -99,15 +103,19 @@ pub(crate) fn ip_route_uninstall(
     netlink_tx: &UnboundedSender<NetlinkRequest>,
     prefix: &IpNetwork,
     protocol: Protocol,
+    table_id: Option<u32>,
 ) {
     // Create netlink message.
     let protocol = netlink_protocol(protocol);
-    let msg = RouteMessageBuilder::<IpAddr>::new()
+    let mut msg = RouteMessageBuilder::<IpAddr>::new()
         .destination_prefix(prefix.ip(), prefix.prefix())
         .unwrap()
         .protocol(protocol)
-        .kind(RouteType::Unspec)
-        .build();
+        .kind(RouteType::Unspec);
+    if let Some(table_id) = table_id {
+        msg = msg.table_id(table_id);
+    }
+    let msg = msg.build();
 
     // Enqueue netlink request.
     netlink_tx.send(NetlinkRequest::RouteDel(msg)).unwrap();
@@ -127,16 +135,41 @@ pub(crate) fn mpls_route_install(
         ttl: 0,
     };
     let protocol = netlink_protocol(route.protocol);
-    let nexthops = netlink_nexthops(
+    let mut nexthops = netlink_nexthops(
         AddressFamily::Mpls,
         route.nexthops.iter(),
         interfaces,
     );
-    let msg = RouteMessageBuilder::<MplsLabel>::new()
-        .label(label)
-        .protocol(protocol)
-        .multipath(nexthops)
-        .build();
+    let msg = match nexthops.len() {
+        // Use top-level nexthop attributes for the single-nexthop case:
+        // the kernel does not accept the RTA_MULTIPATH encoding produced
+        // for AF_MPLS routes (they get installed with no nexthops and are
+        // flagged dead/linkdown). See examples/mpls_repro.rs.
+        1 => {
+            let nexthop = nexthops.remove(0);
+            let mut builder = RouteMessageBuilder::<MplsLabel>::new()
+                .label(label)
+                .protocol(protocol);
+            if let Some(table_id) = route.table_id {
+                builder = builder.table_id(table_id);
+            }
+            let mut msg = builder.build();
+            msg.attributes
+                .push(RouteAttribute::Oif(nexthop.interface_index));
+            msg.attributes.extend(nexthop.attributes);
+            msg
+        }
+        _ => {
+            let mut builder = RouteMessageBuilder::<MplsLabel>::new()
+                .label(label)
+                .protocol(protocol)
+                .multipath(nexthops);
+            if let Some(table_id) = route.table_id {
+                builder = builder.table_id(table_id);
+            }
+            builder.build()
+        }
+    };
 
     // Enqueue netlink request.
     netlink_tx.send(NetlinkRequest::RouteAdd(msg)).unwrap();
@@ -178,6 +211,12 @@ pub(crate) async fn purge_stale_routes(handle: &Handle) {
     let msg = RouteMessageBuilder::<IpAddr>::new().build();
     let mut routes = handle.route().get(msg).execute();
     while let Ok(Some(route)) = routes.try_next().await {
+        // Only target routes installed by Holo in the main table. VRF tables
+        // are intentionally left alone until startup cleanup is table-aware.
+        if route.header.table != RouteHeader::RT_TABLE_MAIN {
+            continue;
+        }
+
         // Only target routes installed by Holo.
         let protocol = route.header.protocol;
         if !matches!(

@@ -44,10 +44,9 @@ pub(crate) fn process_tcp_accept(
         return Ok(());
     };
 
-    // Workaround to prevent connection collision until collision resolution
-    // is implemented.
-    if nbr.conn_info.is_some() {
-        return Ok(());
+    // Flags existence of a collision.
+    if let Some(local_conn_info) = &nbr.conn_info {
+        nbr.in_collision = collision_detection(local_conn_info, &conn_info);
     }
 
     // Initialize the accepted stream.
@@ -80,16 +79,26 @@ pub(crate) fn process_tcp_connect(
     };
     nbr.tasks.connect = None;
 
-    // Workaround to prevent connection collision until collision resolution
-    // is implemented.
-    if nbr.conn_info.is_some() {
-        return Ok(());
+    // Flags existence of a collision.
+    if let Some(peer_conn_info) = &nbr.conn_info {
+        nbr.in_collision = collision_detection(&conn_info, peer_conn_info);
     }
 
     // Invoke FSM event.
     nbr.fsm_event(instance, fsm::Event::Connected(stream, conn_info));
 
     Ok(())
+}
+
+// ===== Flags for Collision existence ====
+
+fn collision_detection(
+    local_conn_info: &TcpConnInfo,
+    peer_conn_info: &TcpConnInfo,
+) -> bool {
+    // Returns true if a collision has happened.
+    (local_conn_info.local_addr == peer_conn_info.local_addr)
+        && (local_conn_info.remote_addr == peer_conn_info.remote_addr)
 }
 
 // ===== neighbor message receipt =====
@@ -117,6 +126,28 @@ pub(crate) fn process_nbr_msg(
 
             match msg {
                 Message::Open(msg) => {
+                    // Collision Prevention.
+                    let peer_id = nbr.identifier;
+                    let _ = nbr;
+                    let collision_resolved = if nbr.in_collision {
+                        Neighbor::collision_prevention(
+                            peer_id,
+                            msg.identifier,
+                            instance,
+                            neighbors,
+                        )
+                    } else {
+                        true
+                    };
+                    let Some(nbr) = neighbors.get_mut(&nbr_addr) else {
+                        return Ok(());
+                    };
+
+                    if collision_resolved {
+                        nbr.in_collision = false;
+                    }
+
+                    // Make sure to clarify we are no longer in collision.
                     nbr.fsm_event(instance, fsm::Event::RcvdOpen(msg));
                 }
                 Message::Update(msg) => {
@@ -286,10 +317,14 @@ fn process_nbr_reach_prefixes<A>(
     }
 
     // Initialize route origin and type.
+    let Some(identifier) = nbr.identifier else {
+        return;
+    };
     let origin = RouteOrigin::Neighbor {
-        identifier: nbr.identifier.unwrap(),
+        identifier,
         remote_addr: nbr.remote_addr,
     };
+
     let route_type = match nbr.peer_type {
         PeerType::Internal => RouteType::Internal,
         PeerType::External => RouteType::External,

@@ -2,17 +2,24 @@
   "ietf-interfaces:interfaces": {
     "interface": [
       {
-        "name": "lo",
-        "type": "iana-if-type:ethernetCsmacd",
-        "ietf-ip:ipv4": {}
-      },
-      {
         "name": "eth1",
         "type": "iana-if-type:ethernetCsmacd",
-        "ietf-ip:ipv4": {}
+        "ietf-ip:ipv4": {
+          "address": [
+            {
+              "ip": "3.3.3.3",
+              "prefix-length": 32
+            }
+          ]
+        }
       },
       {
         "name": "eth2",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {}
+      },
+      {
+        "name": "lo",
         "type": "iana-if-type:ethernetCsmacd",
         "ietf-ip:ipv4": {}
       }
@@ -23,7 +30,7 @@
       "control-plane-protocol": [
         {
           "type": "ietf-bgp:bgp",
-          "name": "test",
+          "name": "main",
           "ietf-bgp:bgp": {
             "global": {
               "as": 65003,

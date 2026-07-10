@@ -181,6 +181,7 @@ pub mod messages {
                 nbr_addr: IpAddr,
                 afi_safi: AfiSafi,
                 routes: Vec<(IpNetwork, RoutePolicyInfo)>,
+                missing_policy: bool,
                 #[serde(skip)]
                 policies: Vec<Arc<Policy>>,
                 #[serde(skip)]
@@ -192,6 +193,7 @@ pub mod messages {
                 afi_safi: AfiSafi,
                 prefix: IpNetwork,
                 route: RoutePolicyInfo,
+                missing_policy: bool,
                 #[serde(skip)]
                 policies: Vec<Arc<Policy>>,
                 #[serde(skip)]
@@ -474,38 +476,67 @@ pub(crate) fn policy_apply(
                         nbr_addr,
                         afi_safi,
                         routes,
+                        missing_policy,
                         policies,
                         match_sets,
                         default_policy,
                     } => {
-                        policy::neighbor_apply(
-                            policy_type,
-                            nbr_addr,
-                            afi_safi,
-                            routes,
-                            &policies,
-                            &match_sets,
-                            default_policy,
-                            &policy_resultp,
-                        );
+                        if missing_policy {
+                            let routes = routes
+                                .into_iter()
+                                .map(|(prefix, _)| {
+                                    (prefix, holo_utils::policy::PolicyResult::Reject)
+                                })
+                                .collect();
+                            let _ = policy_resultp.send(
+                                messages::input::PolicyResultMsg::Neighbor {
+                                    policy_type,
+                                    nbr_addr,
+                                    afi_safi,
+                                    routes,
+                                },
+                            );
+                        } else {
+                            policy::neighbor_apply(
+                                policy_type,
+                                nbr_addr,
+                                afi_safi,
+                                routes,
+                                &policies,
+                                &match_sets,
+                                default_policy,
+                                &policy_resultp,
+                            );
+                        }
                     }
                     messages::output::PolicyApplyMsg::Redistribute {
                         afi_safi,
                         prefix,
                         route,
+                        missing_policy,
                         policies,
                         match_sets,
                         default_policy,
                     } => {
-                        policy::redistribute_apply(
-                            afi_safi,
-                            prefix,
-                            route,
-                            &policies,
-                            &match_sets,
-                            default_policy,
-                            &policy_resultp,
-                        );
+                        if missing_policy {
+                            let _ = policy_resultp.send(
+                                messages::input::PolicyResultMsg::Redistribute {
+                                    afi_safi,
+                                    prefix,
+                                    result: holo_utils::policy::PolicyResult::Reject,
+                                },
+                            );
+                        } else {
+                            policy::redistribute_apply(
+                                afi_safi,
+                                prefix,
+                                route,
+                                &policies,
+                                &match_sets,
+                                default_policy,
+                                &policy_resultp,
+                            );
+                        }
                     }
                 }
             }

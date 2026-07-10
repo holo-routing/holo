@@ -1,0 +1,86 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "test",
+          "ietf-bgp:bgp": {
+            "global": {
+              "as": 65000,
+              "identifier": "192.0.2.1",
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "apply-policy": {
+                      "import-policy": [
+                        "ORDERED"
+                      ]
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "ietf-routing-policy:routing-policy": {
+    "defined-sets": {
+      "prefix-sets": {
+        "prefix-set": [
+          {
+            "name": "DOC",
+            "mode": "ipv4",
+            "prefixes": {
+              "prefix-list": [
+                {
+                  "ip-prefix": "192.0.2.0/24",
+                  "mask-length-lower": 24,
+                  "mask-length-upper": 32
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "ORDERED",
+          "statements": {
+            "statement": [
+              {
+                "name": "20",
+                "conditions": {
+                  "match-prefix-set": {
+                    "prefix-set": "DOC"
+                  },
+                  "ietf-bgp-policy:bgp-conditions": {
+                    "match-afi-safi": {
+                      "afi-safi-in": [
+                        "iana-bgp-types:ipv4-unicast"
+                      ]
+                    }
+                  }
+                },
+                "actions": {
+                  "policy-result": "accept-route"
+                }
+              },
+              {
+                "name": "10",
+                "actions": {
+                  "policy-result": "reject-route"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,154 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "test",
+          "ietf-bgp:bgp": {
+            "global": {
+              "as": 65000,
+              "identifier": "192.0.2.1",
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "apply-policy": {
+                      "import-policy": [
+                        "COMMUNITY"
+                      ],
+                      "default-import-policy": "reject-route"
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "ietf-routing-policy:routing-policy": {
+    "defined-sets": {
+      "ietf-bgp-policy:bgp-defined-sets": {
+        "as-path-sets": {
+          "as-path-set": [
+            {
+              "name": "ASNS",
+              "member": [
+                "65001"
+              ]
+            }
+          ]
+        },
+        "community-sets": {
+          "community-set": [
+            {
+              "name": "COMM-IN",
+              "member": [
+                "65000:100"
+              ]
+            },
+            {
+              "name": "COMM-OUT",
+              "member": [
+                "65000:200"
+              ]
+            }
+          ]
+        },
+        "ext-community-sets": {
+          "ext-community-set": [
+            {
+              "name": "EXT-IN",
+              "member": [
+                "raw:00:02:FD:E8:00:00:00:01"
+              ]
+            }
+          ]
+        },
+        "large-community-sets": {
+          "large-community-set": [
+            {
+              "name": "LARGE-REMOVE",
+              "member": [
+                "65000:300:1"
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "COMMUNITY",
+          "statements": {
+            "statement": [
+              {
+                "name": "10",
+                "conditions": {
+                  "ietf-bgp-policy:bgp-conditions": {
+                    "match-community-set": {
+                      "community-set": "COMM-IN",
+                      "match-set-options": "any"
+                    }
+                  }
+                },
+                "actions": {
+                  "policy-result": "accept-route"
+                }
+              },
+              {
+                "name": "20",
+                "conditions": {
+                  "ietf-bgp-policy:bgp-conditions": {
+                    "match-as-path-set": {
+                      "as-path-set": "ASNS",
+                      "match-set-options": "any"
+                    }
+                  }
+                },
+                "actions": {
+                  "ietf-bgp-policy:bgp-actions": {
+                    "set-community": {
+                      "options": "add",
+                      "community-set-ref": "COMM-OUT"
+                    },
+                    "set-ext-community": {
+                      "options": "replace",
+                      "communities": [
+                        "raw:00:02:FD:E8:00:00:00:01"
+                      ]
+                    },
+                    "set-large-community": {
+                      "options": "remove",
+                      "communities": [
+                        "65000:300:1"
+                      ]
+                    }
+                  },
+                  "policy-result": "accept-route"
+                }
+              },
+              {
+                "name": "30",
+                "conditions": {
+                  "ietf-bgp-policy:bgp-conditions": {
+                    "match-ext-community-set": {
+                      "ext-community-set": "EXT-IN",
+                      "match-set-options": "any"
+                    }
+                  }
+                },
+                "actions": {
+                  "policy-result": "accept-route"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

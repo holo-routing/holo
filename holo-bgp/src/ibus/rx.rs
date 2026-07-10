@@ -127,6 +127,18 @@ where
         .unwrap_or(&instance.config.apply_policy);
 
     // Enqueue import policy application.
+    let mut missing_policy = false;
+    let policies = apply_policy_cfg
+        .import_policy
+        .iter()
+        .filter_map(|policy| match instance.shared.policies.get(policy) {
+            Some(policy) => Some(policy.clone()),
+            None => {
+                missing_policy = true;
+                None
+            }
+        })
+        .collect();
     let msg = PolicyApplyMsg::Redistribute {
         afi_safi: A::AFI_SAFI,
         prefix: msg.prefix,
@@ -137,11 +149,8 @@ where
             Some(msg.opaque_attrs),
             Default::default(),
         ),
-        policies: apply_policy_cfg
-            .import_policy
-            .iter()
-            .map(|policy| instance.shared.policies.get(policy).unwrap().clone())
-            .collect(),
+        missing_policy,
+        policies,
         match_sets: instance.shared.policy_match_sets.clone(),
         default_policy: apply_policy_cfg.default_import_policy,
     };

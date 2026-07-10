@@ -11,6 +11,8 @@ use std::sync::Arc;
 use enum_as_inner::EnumAsInner;
 use holo_yang::TryFromYang;
 use ipnetwork::IpNetwork;
+use regex::Regex;
+use serde::de::{self, Visitor};
 use serde::{Deserialize, Serialize};
 
 use crate::bgp::{self, AfiSafi, Comm, ExtComm, Extv6Comm, LargeComm, Origin};
@@ -173,12 +175,36 @@ pub struct TagSet {
 #[derive(Clone, Debug, Default)]
 #[derive(Deserialize, Serialize)]
 pub struct BgpMatchSets {
-    pub as_paths: BTreeMap<String, BTreeSet<u32>>,
-    pub comms: BTreeMap<String, BTreeSet<Comm>>,
-    pub ext_comms: BTreeMap<String, BTreeSet<ExtComm>>,
-    pub extv6_comms: BTreeMap<String, BTreeSet<Extv6Comm>>,
-    pub large_comms: BTreeMap<String, BTreeSet<LargeComm>>,
+    pub as_paths: BTreeMap<String, BgpAsPathSet>,
+    pub comms: BTreeMap<String, BgpCommunitySet<Comm>>,
+    pub ext_comms: BTreeMap<String, BgpCommunitySet<ExtComm>>,
+    pub extv6_comms: BTreeMap<String, BgpCommunitySet<Extv6Comm>>,
+    pub large_comms: BTreeMap<String, BgpCommunitySet<LargeComm>>,
     pub nexthops: BTreeMap<String, BTreeSet<BgpNexthop>>,
+}
+
+#[derive(Clone, Debug, Default)]
+#[derive(Deserialize, Serialize)]
+pub struct BgpAsPathSet {
+    pub literals: BTreeSet<u32>,
+    pub regexes: BTreeSet<CompiledRegex>,
+}
+
+#[derive(Clone, Debug)]
+#[derive(Deserialize, Serialize)]
+pub struct BgpCommunitySet<T: Eq + Ord + PartialEq + PartialOrd> {
+    pub literals: BTreeSet<T>,
+    pub regexes: BTreeSet<CompiledRegex>,
+}
+
+#[derive(Clone)]
+pub struct CompiledRegex {
+    pattern: String,
+    regex: Regex,
+}
+
+pub fn bgp_as_path_regex_pattern(value: &str) -> String {
+    value.replace('_', r"(^|[ ,{}()]|$)")
 }
 
 // Policy definition.
@@ -187,8 +213,10 @@ pub struct BgpMatchSets {
 pub struct Policy {
     // Name of the policy.
     pub name: String,
-    // List of statements.
-    // TODO: "ordered-by user"
+    // Statement names in YANG "ordered-by user" order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub stmt_order: Vec<String>,
+    // Statements keyed by name for configuration callbacks.
     pub stmts: BTreeMap<String, PolicyStmt>,
 }
 
@@ -425,6 +453,99 @@ pub enum BgpSetCommMethod<T: Eq + Ord + PartialEq + PartialOrd> {
     Reference(String),
 }
 
+// ===== impl CompiledRegex =====
+
+impl CompiledRegex {
+    pub fn new(pattern: String) -> Result<Self, regex::Error> {
+        let regex = Regex::new(&pattern)?;
+        Ok(Self { pattern, regex })
+    }
+
+    pub fn pattern(&self) -> &str {
+        &self.pattern
+    }
+
+    pub fn is_match(&self, value: &str) -> bool {
+        self.regex.is_match(value)
+    }
+}
+
+impl<T> Default for BgpCommunitySet<T>
+where
+    T: Eq + Ord + PartialEq + PartialOrd,
+{
+    fn default() -> Self {
+        Self {
+            literals: Default::default(),
+            regexes: Default::default(),
+        }
+    }
+}
+
+impl std::fmt::Debug for CompiledRegex {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("CompiledRegex").field(&self.pattern).finish()
+    }
+}
+
+impl Eq for CompiledRegex {}
+
+impl Ord for CompiledRegex {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.pattern.cmp(&other.pattern)
+    }
+}
+
+impl PartialEq for CompiledRegex {
+    fn eq(&self, other: &Self) -> bool {
+        self.pattern == other.pattern
+    }
+}
+
+impl PartialOrd for CompiledRegex {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Serialize for CompiledRegex {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.pattern)
+    }
+}
+
+impl<'de> Deserialize<'de> for CompiledRegex {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        struct CompiledRegexVisitor;
+
+        impl Visitor<'_> for CompiledRegexVisitor {
+            type Value = CompiledRegex;
+
+            fn expecting(
+                &self,
+                formatter: &mut std::fmt::Formatter<'_>,
+            ) -> std::fmt::Result {
+                formatter.write_str("a regular expression")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+            {
+                CompiledRegex::new(value.to_owned()).map_err(E::custom)
+            }
+        }
+
+        deserializer.deserialize_str(CompiledRegexVisitor)
+    }
+}
+
 // ===== impl DefaultPolicyType =====
 
 impl TryFromYang for DefaultPolicyType {
@@ -578,6 +699,39 @@ impl TryFromYang for MatchSetRestrictedType {
             "invert" => Some(MatchSetRestrictedType::Invert),
             _ => None,
         }
+    }
+}
+
+// ===== impl Policy =====
+
+impl Policy {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            stmt_order: Default::default(),
+            stmts: Default::default(),
+        }
+    }
+
+    pub fn stmt_add(&mut self, stmt: PolicyStmt) {
+        if !self.stmts.contains_key(&stmt.name) {
+            self.stmt_order.push(stmt.name.clone());
+        }
+        self.stmts.insert(stmt.name.clone(), stmt);
+    }
+
+    pub fn stmt_remove(&mut self, name: &str) {
+        self.stmts.remove(name);
+        self.stmt_order.retain(|stmt_name| stmt_name != name);
+    }
+
+    pub fn stmts_ordered(&self) -> impl Iterator<Item = &PolicyStmt> {
+        self.stmt_order
+            .iter()
+            .filter_map(|name| self.stmts.get(name))
+            .chain(self.stmts.iter().filter_map(|(name, stmt)| {
+                (!self.stmt_order.contains(name)).then_some(stmt)
+            }))
     }
 }
 

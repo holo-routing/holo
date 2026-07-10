@@ -13,7 +13,6 @@ use std::time::Instant;
 use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::protocol::Protocol;
-use prefix_trie::map::PrefixMap;
 use serde::{Deserialize, Serialize};
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
@@ -48,8 +47,8 @@ pub struct RoutingTables {
 
 #[derive(Debug)]
 pub struct RoutingTable<A: AddressFamily> {
-    pub prefixes: PrefixMap<A::IpNetwork, Destination>,
-    pub queued_prefixes: BTreeSet<A::IpNetwork>,
+    pub prefixes: BTreeMap<A::Prefix, Destination>,
+    pub queued_prefixes: BTreeSet<A::Prefix>,
     pub nht: HashMap<IpAddr, NhtEntry<A>>,
 }
 
@@ -135,7 +134,7 @@ pub struct AttrSet<T> {
 #[derive(Debug, Eq, PartialEq)]
 pub struct NhtEntry<A: AddressFamily> {
     pub metric: Option<u32>,
-    pub prefixes: BTreeMap<A::IpNetwork, u32>,
+    pub prefixes: BTreeMap<A::Prefix, u32>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -774,7 +773,7 @@ where
 }
 
 pub(crate) fn loc_rib_update<A>(
-    prefix: A::IpNetwork,
+    prefix: A::Prefix,
     dest: &mut Destination,
     best_route: Option<Box<Route>>,
     attr_sets: &mut AttrSetsCxt,
@@ -788,7 +787,8 @@ pub(crate) fn loc_rib_update<A>(
 {
     if let Some(best_route) = best_route {
         if trace_opts.route {
-            Debug::BestPathFound(prefix.into(), &best_route).log();
+            Debug::BestPathFound(A::prefix_to_ip_network(prefix), &best_route)
+                .log();
         }
 
         // Compute route nexthops, considering multipath configuration.
@@ -818,7 +818,7 @@ pub(crate) fn loc_rib_update<A>(
         if !local_route.origin.is_local() {
             ibus::tx::route_install(
                 ibus_tx,
-                prefix,
+                A::prefix_to_ip_network(prefix),
                 &local_route,
                 match best_route.route_type {
                     RouteType::Internal => distance_cfg.internal,
@@ -831,7 +831,7 @@ pub(crate) fn loc_rib_update<A>(
         dest.local = Some(Box::new(local_route));
     } else {
         if trace_opts.route {
-            Debug::BestPathNotFound(prefix.into()).log();
+            Debug::BestPathNotFound(A::prefix_to_ip_network(prefix)).log();
         }
 
         // Remove route from the Loc-RIB.
@@ -841,7 +841,10 @@ pub(crate) fn loc_rib_update<A>(
 
             // Uninstall route from the global RIB.
             if !local_route.origin.is_local() {
-                ibus::tx::route_uninstall(ibus_tx, prefix);
+                ibus::tx::route_uninstall(
+                    ibus_tx,
+                    A::prefix_to_ip_network(prefix),
+                );
             }
         }
     }
@@ -880,7 +883,7 @@ pub(crate) fn attrs_tx_update<A>(
 
 pub(crate) fn nexthop_track<A>(
     nht: &mut HashMap<IpAddr, NhtEntry<A>>,
-    prefix: A::IpNetwork,
+    prefix: A::Prefix,
     route: &Route,
     ibus_tx: &IbusChannelsTx,
 ) where
@@ -896,7 +899,7 @@ pub(crate) fn nexthop_track<A>(
 
 pub(crate) fn nexthop_untrack<A>(
     nht: &mut HashMap<IpAddr, NhtEntry<A>>,
-    prefix: &A::IpNetwork,
+    prefix: &A::Prefix,
     route: &Route,
     ibus_tx: &IbusChannelsTx,
 ) where

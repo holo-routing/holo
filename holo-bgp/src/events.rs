@@ -10,7 +10,7 @@ use chrono::Utc;
 use holo_protocol::InstanceShared;
 use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusChannelsTx;
-use holo_utils::ip::{IpAddrKind, IpNetworkKind};
+use holo_utils::ip::IpAddrKind;
 use holo_utils::policy::{PolicyResult, PolicyType};
 use holo_utils::socket::{TcpConnInfo, TcpStream};
 use ipnetwork::IpNetwork;
@@ -272,7 +272,7 @@ fn process_nbr_update(
 fn process_nbr_reach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
-    nlri_prefixes: Vec<A::IpNetwork>,
+    nlri_prefixes: Vec<A::Prefix>,
     mut attrs: Attrs,
     local_asn: u32,
     shared: &InstanceShared,
@@ -327,7 +327,7 @@ fn process_nbr_reach_prefixes<A>(
         afi_safi: A::AFI_SAFI,
         routes: nlri_prefixes
             .into_iter()
-            .map(|prefix| (prefix.into(), rpinfo.clone()))
+            .map(|prefix| (A::prefix_to_ip_network(prefix), rpinfo.clone()))
             .collect(),
         policies: apply_policy_cfg
             .import_policy
@@ -343,7 +343,7 @@ fn process_nbr_reach_prefixes<A>(
 fn process_nbr_unreach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
-    nlri_prefixes: Vec<A::IpNetwork>,
+    nlri_prefixes: Vec<A::Prefix>,
     ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
@@ -461,7 +461,7 @@ where
     let table = A::table(&mut rib.tables);
     for (prefix, result) in prefixes {
         // Get RIB destination.
-        let prefix = A::IpNetwork::get(prefix).unwrap();
+        let prefix = A::prefix_from_ip_network(prefix).unwrap();
         let dest = table.prefixes.entry(prefix).or_default();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
 
@@ -538,7 +538,7 @@ where
     let table = A::table(&mut rib.tables);
     for (prefix, result) in prefixes {
         // Get RIB destination.
-        let prefix = A::IpNetwork::get(prefix).unwrap();
+        let prefix = A::prefix_from_ip_network(prefix).unwrap();
         let dest = table.prefixes.entry(prefix).or_default();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
 
@@ -607,7 +607,7 @@ where
 {
     let rib = &mut instance.state.rib;
     let table = A::table(&mut rib.tables);
-    let prefix = A::IpNetwork::get(prefix).unwrap();
+    let prefix = A::prefix_from_ip_network(prefix).unwrap();
 
     match result {
         PolicyResult::Accept(rpinfo) => {
@@ -750,7 +750,7 @@ where
 
     // Remove routing table entries that no longer hold any data.
     for prefix in queued_prefixes {
-        if let prefix_trie::map::Entry::Occupied(entry) =
+        if let std::collections::btree_map::Entry::Occupied(entry) =
             table.prefixes.entry(prefix)
         {
             let dest = entry.get();
@@ -773,7 +773,7 @@ where
 fn withdraw_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
-    routes: &[A::IpNetwork],
+    routes: &[A::Prefix],
     attr_sets: &mut AttrSetsCxt,
 ) where
     A: AddressFamily,
@@ -802,7 +802,7 @@ fn withdraw_routes<A>(
 pub(crate) fn advertise_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
-    routes: Vec<(A::IpNetwork, Box<Route>)>,
+    routes: Vec<(A::Prefix, Box<Route>)>,
     shared: &InstanceShared,
     attr_sets: &mut AttrSetsCxt,
     policy_apply_tasks: &PolicyApplyTasks,
@@ -827,7 +827,9 @@ pub(crate) fn advertise_routes<A>(
     // Enqueue export policy application.
     let routes = routes
         .into_iter()
-        .map(|(prefix, route)| (prefix.into(), route.policy_info()))
+        .map(|(prefix, route)| {
+            (A::prefix_to_ip_network(prefix), route.policy_info())
+        })
         .collect::<Vec<_>>();
     if !routes.is_empty() {
         let msg = PolicyApplyMsg::Neighbor {

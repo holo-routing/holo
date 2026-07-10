@@ -8,7 +8,7 @@ use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
 use holo_utils::bgp::AfiSafi;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind, Ipv4AddrExt, Ipv6AddrExt};
-use ipnetwork::{Ipv4Network, Ipv6Network};
+use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 use itertools::Itertools;
 
 use crate::neighbor::{
@@ -34,6 +34,8 @@ pub trait AddressFamily: Sized {
     type IpAddr: IpAddrKind;
     // The type of IP network used by this address family.
     type IpNetwork: IpNetworkKind<Self::IpAddr> + prefix_trie::Prefix;
+    // The NLRI key used by the BGP RIB for this address family.
+    type Prefix: Copy + Ord;
 
     // Get the routing table for this address family from the provided
     // `RoutingTables`.
@@ -50,6 +52,12 @@ pub trait AddressFamily: Sized {
 
     // Modify the next hop(s) for transmission.
     fn nexthop_tx_change(nbr: &Neighbor, local: bool, attrs: &mut BaseAttrs);
+
+    // Convert between generic IP prefixes used by policy/RIB APIs and the
+    // per-address-family NLRI key.
+    fn prefix_from_ip_network(prefix: IpNetwork) -> Option<Self::Prefix>;
+
+    fn prefix_to_ip_network(prefix: Self::Prefix) -> IpNetwork;
 
     // Build BGP UPDATE messages based on the provided update queue.
     fn build_updates(queue: &mut NeighborUpdateQueue<Self>) -> Vec<Message>;
@@ -70,6 +78,7 @@ impl AddressFamily for Ipv4Unicast {
 
     type IpAddr = Ipv4Addr;
     type IpNetwork = Ipv4Network;
+    type Prefix = Ipv4Network;
 
     fn table(tables: &mut RoutingTables) -> &mut RoutingTable<Self> {
         &mut tables.ipv4_unicast
@@ -120,6 +129,14 @@ impl AddressFamily for Ipv4Unicast {
                 }
             }
         }
+    }
+
+    fn prefix_from_ip_network(prefix: IpNetwork) -> Option<Self::Prefix> {
+        Ipv4Network::get(prefix)
+    }
+
+    fn prefix_to_ip_network(prefix: Self::Prefix) -> IpNetwork {
+        prefix.into()
     }
 
     fn build_updates(queue: &mut NeighborUpdateQueue<Self>) -> Vec<Message> {
@@ -191,6 +208,7 @@ impl AddressFamily for Ipv6Unicast {
 
     type IpAddr = Ipv6Addr;
     type IpNetwork = Ipv6Network;
+    type Prefix = Ipv6Network;
 
     fn table(tables: &mut RoutingTables) -> &mut RoutingTable<Self> {
         &mut tables.ipv6_unicast
@@ -253,6 +271,14 @@ impl AddressFamily for Ipv6Unicast {
                 }
             }
         }
+    }
+
+    fn prefix_from_ip_network(prefix: IpNetwork) -> Option<Self::Prefix> {
+        Ipv6Network::get(prefix)
+    }
+
+    fn prefix_to_ip_network(prefix: Self::Prefix) -> IpNetwork {
+        prefix.into()
     }
 
     fn build_updates(queue: &mut NeighborUpdateQueue<Self>) -> Vec<Message> {

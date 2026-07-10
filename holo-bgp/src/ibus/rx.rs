@@ -170,6 +170,7 @@ fn process_route_del_af<A>(
     // Get prefix RIB entry.
     let rib = &mut instance.state.rib;
     let table = A::table(&mut rib.tables);
+    let prefix = A::prefix_from_ip_network(prefix.into()).unwrap();
     let dest = table.prefixes.entry(prefix).or_default();
 
     // Remove redistributed route.

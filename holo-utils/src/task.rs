@@ -165,6 +165,16 @@ impl<T> Drop for Task<T> {
 // ===== impl TimeoutTask =====
 
 impl TimeoutTask {
+    /// Returns an inert timeout handle for deterministic protocol tests.
+    #[cfg(feature = "testing")]
+    pub fn new<F, Fut>(_timeout: Duration, _cb: F) -> TimeoutTask
+    where
+        F: FnOnce() -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
+    {
+        TimeoutTask {}
+    }
+
     /// Spawns a new task that will call the provided async closure when the
     /// specified timeout expires.
     ///

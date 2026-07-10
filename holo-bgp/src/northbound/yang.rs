@@ -6,6 +6,7 @@
 
 use std::borrow::Cow;
 
+use holo_utils::protocol::Protocol;
 use holo_yang::{ToYang, TryFromYang};
 use num_traits::FromPrimitive;
 
@@ -196,6 +197,7 @@ impl ToYang for RouteOrigin {
                 remote_addr, ..
             } => remote_addr.to_string().into(),
             RouteOrigin::Protocol(protocol) => protocol.to_yang(),
+            RouteOrigin::Aggregate => Protocol::BGP.to_yang(),
         }
     }
 }

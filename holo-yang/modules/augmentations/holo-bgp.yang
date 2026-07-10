@@ -23,6 +23,10 @@ module holo-bgp {
     prefix bgp;
   }
 
+  import ietf-inet-types {
+    prefix inet;
+  }
+
   organization
     "Holo Routing Stack";
 
@@ -185,6 +189,32 @@ module holo-bgp {
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/bgp:bgp/bgp:global/"
         + "bgp:afi-safis/bgp:afi-safi/bgp:ipv4-unicast" {
+    list aggregate {
+      key "prefix";
+      description
+        "IPv4 aggregate route origination parameters.";
+
+      leaf prefix {
+        type inet:ipv4-prefix;
+        description
+          "Aggregate IPv4 prefix.";
+      }
+
+      leaf summary-only {
+        type boolean;
+        default "false";
+        description
+          "Suppress advertisement of contributing more-specific routes.";
+      }
+
+      leaf as-set {
+        type boolean;
+        default "false";
+        description
+          "Include contributor ASNs in an AS_SET segment.";
+      }
+    }
+
     list redistribution {
       key "type";
       description
@@ -205,6 +235,32 @@ module holo-bgp {
   augment "/rt:routing/rt:control-plane-protocols/"
         + "rt:control-plane-protocol/bgp:bgp/bgp:global/"
         + "bgp:afi-safis/bgp:afi-safi/bgp:ipv6-unicast" {
+    list aggregate {
+      key "prefix";
+      description
+        "IPv6 aggregate route origination parameters.";
+
+      leaf prefix {
+        type inet:ipv6-prefix;
+        description
+          "Aggregate IPv6 prefix.";
+      }
+
+      leaf summary-only {
+        type boolean;
+        default "false";
+        description
+          "Suppress advertisement of contributing more-specific routes.";
+      }
+
+      leaf as-set {
+        type boolean;
+        default "false";
+        description
+          "Include contributor ASNs in an AS_SET segment.";
+      }
+    }
+
     list redistribution {
       key "type";
       description

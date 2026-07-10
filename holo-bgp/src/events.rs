@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::IpAddr;
 
 use chrono::Utc;
@@ -662,14 +663,20 @@ where
         .get(&A::AFI_SAFI)
         .map(|afi_safi| &afi_safi.multipath)
         .unwrap_or(&instance.config.multipath);
+    let aggregates = instance
+        .config
+        .afi_safi
+        .get(&A::AFI_SAFI)
+        .map(|afi_safi| afi_safi.aggregates.clone())
+        .unwrap_or_default();
 
     // Phase 2: Route Selection.
     //
     // Process each queued destination in the RIB.
     let table = A::table(&mut instance.state.rib.tables);
     let queued_prefixes = std::mem::take(&mut table.queued_prefixes);
-    let mut reach = vec![];
-    let mut unreach = vec![];
+    let mut reach = BTreeMap::new();
+    let mut unreach = BTreeSet::new();
     for prefix in queued_prefixes.iter().copied() {
         let Some(dest) = table.prefixes.get_mut(&prefix) else {
             continue;
@@ -698,8 +705,51 @@ where
 
         // Group best routes and unfeasible routes separately.
         match best_route {
-            Some(best_route) => reach.push((prefix, best_route)),
-            None => unreach.push(prefix),
+            Some(best_route) => {
+                reach.insert(prefix, best_route);
+            }
+            None => {
+                unreach.insert(prefix);
+            }
+        }
+    }
+
+    let aggregate_reeval = rib::aggregates_update::<A>(
+        table,
+        &mut instance.state.rib.attr_sets,
+        &aggregates,
+        instance.config.asn,
+        instance.state.router_id,
+        selection_cfg,
+        mpath_cfg,
+        &instance.config.distance,
+        &instance.config.trace_opts,
+        &instance.tx.ibus,
+    );
+    for prefix in aggregate_reeval
+        .into_iter()
+        .chain(rib::aggregate_reeval_prefixes(table, &aggregates))
+    {
+        let Some(dest) = table.prefixes.get(&prefix) else {
+            continue;
+        };
+        if let Some(local_route) = &dest.local {
+            reach.insert(
+                prefix,
+                Box::new(Route {
+                    origin: local_route.origin,
+                    attrs: local_route.attrs.clone(),
+                    route_type: local_route.route_type,
+                    igp_cost: None,
+                    last_modified: local_route.last_modified,
+                    ineligible_reason: None,
+                    reject_reason: None,
+                }),
+            );
+            unreach.remove(&prefix);
+        } else {
+            reach.remove(&prefix);
+            unreach.insert(prefix);
         }
     }
 
@@ -718,15 +768,22 @@ where
         // Any routes that fail to meet the distribution criteria are marked
         // as unreachable to ensure previous advertisements are withdrawn.
         let mut nbr_unreach = unreach.clone();
-        let mut nbr_reach = reach.clone();
+        let mut nbr_reach = reach
+            .iter()
+            .map(|(prefix, route)| (*prefix, route.clone()))
+            .collect::<Vec<_>>();
         nbr_unreach.extend(
             nbr_reach
-                .extract_if(.., |(_, route)| !nbr.distribute_filter(route))
+                .extract_if(.., |(prefix, route)| {
+                    rib::aggregate_suppresses(table, &aggregates, *prefix)
+                        || !nbr.distribute_filter(route)
+                })
                 .map(|(prefix, _)| prefix),
         );
 
         // Withdraw unfeasible routes immediately.
         if !nbr_unreach.is_empty() {
+            let nbr_unreach = nbr_unreach.into_iter().collect::<Vec<_>>();
             withdraw_routes::<A>(
                 nbr,
                 table,
@@ -755,6 +812,8 @@ where
         {
             let dest = entry.get();
             if dest.local.is_none()
+                && dest.aggregate.is_none()
+                && dest.redistribute.is_none()
                 && dest.adj_rib.values().all(|adj_rib| {
                     adj_rib.in_pre().is_none()
                         && adj_rib.in_post().is_none()

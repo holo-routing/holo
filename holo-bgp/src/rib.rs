@@ -12,7 +12,9 @@ use std::time::Instant;
 
 use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusChannelsTx;
+use holo_utils::ip::IpNetworkKind;
 use holo_utils::protocol::Protocol;
+use ipnetwork::IpNetwork;
 use prefix_trie::map::PrefixMap;
 use serde::{Deserialize, Serialize};
 
@@ -21,11 +23,14 @@ use crate::debug::Debug;
 use crate::ibus;
 use crate::neighbor::{Neighbor, PeerType};
 use crate::northbound::configuration::{
-    DistanceCfg, InstanceTraceOptions, MultipathCfg, RouteSelectionCfg,
+    AggregateCfg, DistanceCfg, InstanceTraceOptions, MultipathCfg,
+    RouteSelectionCfg,
 };
 use crate::packet::attribute::{
-    Attrs, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr,
+    Aggregator, AsPath, Attrs, BaseAttrs, Comms, ExtComms, Extv6Comms,
+    LargeComms, UnknownAttr,
 };
+use crate::packet::iana::Origin;
 use crate::policy::RoutePolicyInfo;
 
 // Default values.
@@ -58,6 +63,7 @@ pub struct Destination {
     pub local: Option<Box<LocalRoute>>,
     pub adj_rib: BTreeMap<IpAddr, AdjRib>,
     pub redistribute: Option<Box<Route>>,
+    pub aggregate: Option<Box<Route>>,
 }
 
 #[derive(Debug, Default)]
@@ -88,7 +94,7 @@ pub struct Route {
     pub reject_reason: Option<RouteRejectReason>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub enum RouteOrigin {
     // Route learned from a neighbor.
@@ -98,6 +104,8 @@ pub enum RouteOrigin {
     },
     // Route was injected or redistributed from another protocol.
     Protocol(Protocol),
+    // Route was locally originated by BGP aggregation.
+    Aggregate,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -527,8 +535,12 @@ impl Route {
             }
         }
 
-        // "Isso non ecziste!"
-        unreachable!()
+        let reason = RouteRejectReason::HigherPeerAddress;
+        match self.origin.cmp(&other.origin) {
+            Ordering::Less => RouteCompare::Preferred(reason),
+            Ordering::Greater => RouteCompare::LessPreferred(reason),
+            Ordering::Equal => unreachable!(),
+        }
     }
 }
 
@@ -536,7 +548,11 @@ impl Route {
 
 impl RouteOrigin {
     pub(crate) fn is_local(&self) -> bool {
-        matches!(self, RouteOrigin::Protocol { .. })
+        matches!(self, RouteOrigin::Protocol { .. } | RouteOrigin::Aggregate)
+    }
+
+    pub(crate) fn is_aggregate(&self) -> bool {
+        matches!(self, RouteOrigin::Aggregate)
     }
 }
 
@@ -725,6 +741,8 @@ where
         .filter_map(|adj_rib| adj_rib.in_post.as_mut())
         // Consider locally redistributed routes too.
         .chain(dest.redistribute.as_mut())
+        // Consider locally originated aggregate routes too.
+        .chain(dest.aggregate.as_mut())
     {
         route.reject_reason = None;
         route.ineligible_reason = None;
@@ -815,7 +833,7 @@ pub(crate) fn loc_rib_update<A>(
         };
 
         // Install local route in the global RIB.
-        if !local_route.origin.is_local() {
+        if !local_route.origin.is_local() || local_route.origin.is_aggregate() {
             ibus::tx::route_install(
                 ibus_tx,
                 prefix,
@@ -840,11 +858,206 @@ pub(crate) fn loc_rib_update<A>(
             attr_sets.remove_route_attr_sets(&local_route.attrs);
 
             // Uninstall route from the global RIB.
-            if !local_route.origin.is_local() {
+            if !local_route.origin.is_local()
+                || local_route.origin.is_aggregate()
+            {
                 ibus::tx::route_uninstall(ibus_tx, prefix);
             }
         }
     }
+}
+
+pub(crate) fn aggregates_update<A>(
+    table: &mut RoutingTable<A>,
+    attr_sets: &mut AttrSetsCxt,
+    aggregates: &BTreeMap<IpNetwork, AggregateCfg>,
+    local_asn: u32,
+    router_id: Ipv4Addr,
+    selection_cfg: &RouteSelectionCfg,
+    mpath_cfg: &MultipathCfg,
+    distance_cfg: &DistanceCfg,
+    trace_opts: &InstanceTraceOptions,
+    ibus_tx: &IbusChannelsTx,
+) -> BTreeSet<A::IpNetwork>
+where
+    A: AddressFamily,
+{
+    let mut affected = BTreeSet::new();
+
+    for (aggregate_prefix, aggregate_cfg) in aggregates {
+        let Some(aggregate_prefix) = A::IpNetwork::get(*aggregate_prefix)
+        else {
+            continue;
+        };
+
+        let contributors = aggregate_contributors(table, aggregate_prefix);
+        let aggregate_route = (!contributors.is_empty()).then(|| {
+            aggregate_route(
+                contributors.iter().map(|(_, route)| route),
+                aggregate_cfg,
+                local_asn,
+                router_id,
+                attr_sets,
+            )
+        });
+
+        let dest = table.prefixes.entry(aggregate_prefix).or_default();
+        let changed = match (&dest.aggregate, &aggregate_route) {
+            (None, None) => false,
+            (Some(_), None) | (None, Some(_)) => true,
+            (Some(old), Some(new)) => {
+                old.attrs != new.attrs || old.route_type != new.route_type
+            }
+        };
+
+        if !changed {
+            continue;
+        }
+
+        if let Some(old_route) = dest.aggregate.take() {
+            attr_sets.remove_route_attr_sets(&old_route.attrs);
+        }
+        dest.aggregate = aggregate_route.map(Box::new);
+
+        let best_route =
+            best_path::<A>(dest, local_asn, &table.nht, selection_cfg);
+        loc_rib_update::<A>(
+            aggregate_prefix,
+            dest,
+            best_route.clone(),
+            attr_sets,
+            selection_cfg,
+            mpath_cfg,
+            distance_cfg,
+            trace_opts,
+            ibus_tx,
+        );
+
+        affected.insert(aggregate_prefix);
+        for (prefix, _) in contributors {
+            affected.insert(prefix);
+        }
+    }
+
+    affected
+}
+
+pub(crate) fn aggregate_suppresses<A>(
+    table: &RoutingTable<A>,
+    aggregates: &BTreeMap<IpNetwork, AggregateCfg>,
+    prefix: A::IpNetwork,
+) -> bool
+where
+    A: AddressFamily,
+{
+    aggregates.iter().any(|(aggregate_prefix, aggregate_cfg)| {
+        if !aggregate_cfg.summary_only {
+            return false;
+        }
+
+        let Some(aggregate_prefix) = A::IpNetwork::get(*aggregate_prefix)
+        else {
+            return false;
+        };
+        if !is_more_specific::<A>(aggregate_prefix, prefix) {
+            return false;
+        }
+
+        table
+            .prefixes
+            .get(&aggregate_prefix)
+            .and_then(|dest| dest.local.as_ref())
+            .is_some_and(|route| route.origin.is_aggregate())
+    })
+}
+
+pub(crate) fn aggregate_reeval_prefixes<A>(
+    table: &RoutingTable<A>,
+    aggregates: &BTreeMap<IpNetwork, AggregateCfg>,
+) -> BTreeSet<A::IpNetwork>
+where
+    A: AddressFamily,
+{
+    if aggregates.is_empty() {
+        return BTreeSet::new();
+    }
+
+    table
+        .prefixes
+        .iter()
+        .filter_map(|(prefix, dest)| dest.local.as_ref().map(|_| prefix))
+        .collect()
+}
+
+fn aggregate_contributors<A>(
+    table: &RoutingTable<A>,
+    aggregate_prefix: A::IpNetwork,
+) -> Vec<(A::IpNetwork, LocalRoute)>
+where
+    A: AddressFamily,
+{
+    table
+        .prefixes
+        .iter()
+        .filter(|(prefix, _)| is_more_specific::<A>(aggregate_prefix, *prefix))
+        .filter_map(|(prefix, dest)| {
+            let route = dest.local.as_deref()?;
+            (!route.origin.is_aggregate()).then_some((prefix, route.clone()))
+        })
+        .collect()
+}
+
+fn aggregate_route<'a>(
+    contributors: impl Iterator<Item = &'a LocalRoute>,
+    aggregate_cfg: &AggregateCfg,
+    local_asn: u32,
+    router_id: Ipv4Addr,
+    attr_sets: &mut AttrSetsCxt,
+) -> Route {
+    let mut contributor_asns = BTreeSet::new();
+    let mut path_info_lost = false;
+
+    for contributor in contributors {
+        let as_path = &contributor.attrs.base.value.as_path;
+        path_info_lost |= as_path.path_length() > 0;
+        contributor_asns.extend(as_path.iter());
+    }
+
+    let attrs = Attrs {
+        base: BaseAttrs {
+            origin: Origin::Incomplete,
+            as_path: if aggregate_cfg.as_set {
+                AsPath::from_set(contributor_asns)
+            } else {
+                AsPath::default()
+            },
+            aggregator: Some(Aggregator {
+                asn: local_asn,
+                identifier: router_id,
+            }),
+            atomic_aggregate: (path_info_lost && !aggregate_cfg.as_set)
+                .then_some(()),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let route_attrs = attr_sets.get_route_attr_sets(&attrs);
+    Route::new(RouteOrigin::Aggregate, route_attrs, RouteType::Internal)
+}
+
+fn is_more_specific<A>(aggregate: A::IpNetwork, prefix: A::IpNetwork) -> bool
+where
+    A: AddressFamily,
+{
+    if aggregate == prefix {
+        return false;
+    }
+
+    let aggregate: IpNetwork = aggregate.into();
+    let prefix: IpNetwork = prefix.into();
+    let aggregate_len = aggregate.prefix();
+    let prefix_len = prefix.prefix();
+    aggregate_len < prefix_len && aggregate.contains(prefix.ip())
 }
 
 pub(crate) fn attrs_tx_update<A>(
@@ -928,8 +1141,12 @@ pub(crate) fn nexthop_untrack<A>(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::VecDeque;
+
+    use ipnetwork::Ipv4Network;
+
     use super::*;
-    use crate::packet::attribute::BaseAttrs;
+    use crate::packet::attribute::{AsPathSegmentType, BaseAttrs};
 
     fn make_route(
         origin: RouteOrigin,
@@ -968,6 +1185,48 @@ mod tests {
 
     fn local_origin() -> RouteOrigin {
         RouteOrigin::Protocol(Protocol::STATIC)
+    }
+
+    fn test_attrs(as_path: AsPath) -> RouteAttrs {
+        RouteAttrs {
+            base: Arc::new(AttrSet {
+                index: 0,
+                value: BaseAttrs {
+                    as_path,
+                    ..Default::default()
+                },
+            }),
+            comm: None,
+            ext_comm: None,
+            extv6_comm: None,
+            large_comm: None,
+            unknown: None,
+        }
+    }
+
+    fn test_as_path(asns: impl IntoIterator<Item = u32>) -> AsPath {
+        AsPath {
+            segments: VecDeque::from([
+                crate::packet::attribute::AsPathSegment {
+                    seg_type: AsPathSegmentType::Sequence,
+                    members: asns.into_iter().collect(),
+                },
+            ]),
+        }
+    }
+
+    fn test_local_route(origin: RouteOrigin, as_path: AsPath) -> LocalRoute {
+        LocalRoute {
+            origin,
+            attrs: test_attrs(as_path),
+            route_type: RouteType::Internal,
+            last_modified: Instant::now(),
+            nexthops: None,
+        }
+    }
+
+    fn v4(prefix: &str) -> Ipv4Network {
+        prefix.parse().unwrap()
     }
 
     #[test]
@@ -1064,5 +1323,153 @@ mod tests {
             RouteCompare::Preferred(RouteRejectReason::PreferExternal) => {}
             other => panic!("expected PreferExternal, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn aggregate_contributors_are_active_more_specifics_only() {
+        let mut table = RoutingTable::<Ipv4Unicast>::default();
+        table.prefixes.insert(
+            v4("10.0.0.0/8"),
+            Destination {
+                local: Some(Box::new(test_local_route(
+                    RouteOrigin::Aggregate,
+                    AsPath::default(),
+                ))),
+                ..Default::default()
+            },
+        );
+        table.prefixes.insert(
+            v4("10.1.0.0/16"),
+            Destination {
+                local: Some(Box::new(test_local_route(
+                    local_origin(),
+                    test_as_path([65001]),
+                ))),
+                ..Default::default()
+            },
+        );
+        table
+            .prefixes
+            .insert(v4("10.2.0.0/16"), Destination::default());
+        table.prefixes.insert(
+            v4("192.0.2.0/24"),
+            Destination {
+                local: Some(Box::new(test_local_route(
+                    local_origin(),
+                    test_as_path([65002]),
+                ))),
+                ..Default::default()
+            },
+        );
+
+        let contributors = aggregate_contributors(&table, v4("10.0.0.0/8"));
+        let prefixes = contributors
+            .into_iter()
+            .map(|(prefix, _)| prefix)
+            .collect::<Vec<_>>();
+
+        assert_eq!(prefixes, vec![v4("10.1.0.0/16")]);
+    }
+
+    #[test]
+    fn aggregate_route_sets_aggregator_and_atomic_without_as_set() {
+        let contributors = vec![
+            test_local_route(local_origin(), test_as_path([65001, 65002])),
+            test_local_route(local_origin(), test_as_path([65003])),
+        ];
+        let mut attr_sets = AttrSetsCxt::default();
+        let cfg = AggregateCfg {
+            summary_only: false,
+            as_set: false,
+        };
+
+        let route = aggregate_route(
+            contributors.iter(),
+            &cfg,
+            64496,
+            Ipv4Addr::new(192, 0, 2, 1),
+            &mut attr_sets,
+        );
+
+        let attrs = route.attrs.base.value.clone();
+        let aggregator = attrs.aggregator.unwrap();
+        assert_eq!(route.origin, RouteOrigin::Aggregate);
+        assert_eq!(aggregator.asn, 64496);
+        assert_eq!(aggregator.identifier, Ipv4Addr::new(192, 0, 2, 1));
+        assert!(attrs.atomic_aggregate.is_some());
+        assert!(attrs.as_path.segments.is_empty());
+    }
+
+    #[test]
+    fn aggregate_route_as_set_deduplicates_contributor_asns() {
+        let contributors = vec![
+            test_local_route(local_origin(), test_as_path([65001, 65002])),
+            test_local_route(local_origin(), test_as_path([65002, 65003])),
+        ];
+        let mut attr_sets = AttrSetsCxt::default();
+        let cfg = AggregateCfg {
+            summary_only: false,
+            as_set: true,
+        };
+
+        let route = aggregate_route(
+            contributors.iter(),
+            &cfg,
+            64496,
+            Ipv4Addr::new(192, 0, 2, 1),
+            &mut attr_sets,
+        );
+
+        let attrs = route.attrs.base.value.clone();
+        assert!(attrs.atomic_aggregate.is_none());
+        assert_eq!(attrs.as_path.segments.len(), 1);
+        let segment = attrs.as_path.segments.front().unwrap();
+        assert_eq!(segment.seg_type, AsPathSegmentType::Set);
+        assert_eq!(
+            segment.members.iter().copied().collect::<Vec<_>>(),
+            vec![65001, 65002, 65003]
+        );
+    }
+
+    #[test]
+    fn summary_only_suppresses_only_when_aggregate_is_active() {
+        let mut table = RoutingTable::<Ipv4Unicast>::default();
+        table.prefixes.insert(
+            v4("10.0.0.0/8"),
+            Destination {
+                local: Some(Box::new(test_local_route(
+                    RouteOrigin::Aggregate,
+                    AsPath::default(),
+                ))),
+                ..Default::default()
+            },
+        );
+        table.prefixes.insert(
+            v4("10.1.0.0/16"),
+            Destination {
+                local: Some(Box::new(test_local_route(
+                    local_origin(),
+                    test_as_path([65001]),
+                ))),
+                ..Default::default()
+            },
+        );
+        let aggregates = BTreeMap::from([(
+            IpNetwork::from(v4("10.0.0.0/8")),
+            AggregateCfg {
+                summary_only: true,
+                as_set: false,
+            },
+        )]);
+
+        assert!(aggregate_suppresses(&table, &aggregates, v4("10.1.0.0/16")));
+        assert!(!aggregate_suppresses(&table, &aggregates, v4("10.0.0.0/8")));
+
+        table.prefixes.get_mut(&v4("10.0.0.0/8")).unwrap().local = None;
+        assert!(!aggregate_suppresses(
+            &table,
+            &aggregates,
+            v4("10.1.0.0/16")
+        ));
     }
 }

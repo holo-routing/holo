@@ -40,10 +40,16 @@ pub(crate) fn route_install(
         })
         .collect::<BTreeSet<_>>();
 
+    let kind = if route.origin.is_aggregate() {
+        RouteKind::Blackhole
+    } else {
+        RouteKind::Unicast
+    };
+
     // Install route.
     let msg = RouteMsg {
         protocol: Protocol::BGP,
-        kind: RouteKind::Unicast,
+        kind,
         prefix: prefix.into(),
         distance: distance.into(),
         metric: route.attrs.base.value.med.unwrap_or(0),

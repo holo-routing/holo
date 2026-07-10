@@ -719,6 +719,24 @@ impl AsPath {
             .flat_map(|segment| segment.members.iter().copied())
     }
 
+    pub(crate) fn from_set<I>(asns: I) -> AsPath
+    where
+        I: IntoIterator<Item = u32>,
+    {
+        let members = asns.into_iter().collect::<VecDeque<_>>();
+        if members.is_empty() {
+            return AsPath::default();
+        }
+
+        AsPath {
+            segments: [AsPathSegment {
+                seg_type: AsPathSegmentType::Set,
+                members,
+            }]
+            .into(),
+        }
+    }
+
     pub(crate) fn prepend(&mut self, asn: u32) {
         if let Some(segment) = self.segments.front_mut()
             && segment.seg_type == AsPathSegmentType::Sequence

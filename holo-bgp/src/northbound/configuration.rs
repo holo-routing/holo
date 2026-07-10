@@ -19,6 +19,7 @@ use holo_utils::policy::{ApplyPolicyCfg, DefaultPolicyType};
 use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
+use ipnetwork::IpNetwork;
 
 use crate::af::{Ipv4Unicast, Ipv6Unicast};
 use crate::instance::{Instance, InstanceUpView};
@@ -34,6 +35,7 @@ pub enum ListEntry {
     #[default]
     None,
     AfiSafi(AfiSafi),
+    Aggregate(AfiSafi, IpNetwork),
     Redistribution(AfiSafi, Protocol),
     TraceOption(InstanceTraceOption),
     Neighbor(IpAddr),
@@ -53,6 +55,7 @@ pub enum Event {
     NeighborUpdateAuth(IpAddr),
     RedistributeIbusSub(Protocol, AddressFamily),
     RedistributeDelete(Protocol, AddressFamily, AfiSafi),
+    AggregateUpdate,
     UpdateTraceOptions,
 }
 
@@ -96,6 +99,7 @@ pub struct InstanceAfiSafiCfg {
     pub prefix_limit: PrefixLimitCfg,
     pub send_default_route: bool,
     pub apply_policy: ApplyPolicyCfg,
+    pub aggregates: BTreeMap<IpNetwork, AggregateCfg>,
     pub redistribution: HashMap<Protocol, RedistributionCfg>,
 }
 
@@ -202,6 +206,12 @@ pub struct PrefixLimitCfg {
     pub warning_threshold_pct: Option<u8>,
     pub teardown: bool,
     pub idle_time: Option<u32>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct AggregateCfg {
+    pub summary_only: bool,
+    pub as_set: bool,
 }
 
 #[derive(Debug, Default)]
@@ -532,6 +542,53 @@ fn load_callbacks() -> Callbacks<Instance> {
             let send = args.dnode.get_bool();
             afi_safi.send_default_route = send;
         })
+        .path(bgp::global::afi_safis::afi_safi::ipv4_unicast::aggregate::PATH)
+        .create_apply(|instance, args| {
+            let afi_safi = args.list_entry.into_afi_safi().unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            let prefix = args.dnode.get_prefix_relative("./prefix").unwrap();
+            afi_safi_cfg.aggregates.insert(prefix, Default::default());
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AggregateUpdate);
+        })
+        .delete_apply(|instance, args| {
+            let (afi_safi, prefix) = args.list_entry.into_aggregate().unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi_cfg.aggregates.remove(&prefix);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AggregateUpdate);
+        })
+        .lookup(|_instance, list_entry, dnode| {
+            let afi_safi = list_entry.into_afi_safi().unwrap();
+            let prefix = dnode.get_prefix_relative("./prefix").unwrap();
+            ListEntry::Aggregate(afi_safi, prefix)
+        })
+        .path(bgp::global::afi_safis::afi_safi::ipv4_unicast::aggregate::summary_only::PATH)
+        .modify_apply(|instance, args| {
+            let (afi_safi, prefix) = args.list_entry.into_aggregate().unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+            let aggregate = afi_safi_cfg.aggregates.get_mut(&prefix).unwrap();
+
+            aggregate.summary_only = args.dnode.get_bool();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AggregateUpdate);
+        })
+        .path(bgp::global::afi_safis::afi_safi::ipv4_unicast::aggregate::as_set::PATH)
+        .modify_apply(|instance, args| {
+            let (afi_safi, prefix) = args.list_entry.into_aggregate().unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+            let aggregate = afi_safi_cfg.aggregates.get_mut(&prefix).unwrap();
+
+            aggregate.as_set = args.dnode.get_bool();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AggregateUpdate);
+        })
         .path(bgp::global::afi_safis::afi_safi::ipv4_unicast::redistribution::PATH)
         .create_apply(|instance, args| {
             let afi_safi = args.list_entry.into_afi_safi().unwrap();
@@ -617,6 +674,53 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let send = args.dnode.get_bool();
             afi_safi.send_default_route = send;
+        })
+        .path(bgp::global::afi_safis::afi_safi::ipv6_unicast::aggregate::PATH)
+        .create_apply(|instance, args| {
+            let afi_safi = args.list_entry.into_afi_safi().unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            let prefix = args.dnode.get_prefix_relative("./prefix").unwrap();
+            afi_safi_cfg.aggregates.insert(prefix, Default::default());
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AggregateUpdate);
+        })
+        .delete_apply(|instance, args| {
+            let (afi_safi, prefix) = args.list_entry.into_aggregate().unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi_cfg.aggregates.remove(&prefix);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AggregateUpdate);
+        })
+        .lookup(|_instance, list_entry, dnode| {
+            let afi_safi = list_entry.into_afi_safi().unwrap();
+            let prefix = dnode.get_prefix_relative("./prefix").unwrap();
+            ListEntry::Aggregate(afi_safi, prefix)
+        })
+        .path(bgp::global::afi_safis::afi_safi::ipv6_unicast::aggregate::summary_only::PATH)
+        .modify_apply(|instance, args| {
+            let (afi_safi, prefix) = args.list_entry.into_aggregate().unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+            let aggregate = afi_safi_cfg.aggregates.get_mut(&prefix).unwrap();
+
+            aggregate.summary_only = args.dnode.get_bool();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AggregateUpdate);
+        })
+        .path(bgp::global::afi_safis::afi_safi::ipv6_unicast::aggregate::as_set::PATH)
+        .modify_apply(|instance, args| {
+            let (afi_safi, prefix) = args.list_entry.into_aggregate().unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+            let aggregate = afi_safi_cfg.aggregates.get_mut(&prefix).unwrap();
+
+            aggregate.as_set = args.dnode.get_bool();
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::AggregateUpdate);
         })
         .path(bgp::global::afi_safis::afi_safi::ipv6_unicast::redistribution::PATH)
         .create_apply(|instance, args| {
@@ -1593,6 +1697,11 @@ impl Provider for Instance {
                     }
                 }
             }
+            Event::AggregateUpdate => {
+                if let Some((instance, _)) = self.as_up() {
+                    instance.state.schedule_decision_process(instance.tx);
+                }
+            }
             Event::UpdateTraceOptions => {
                 for nbr in self.neighbors.values_mut() {
                     let nbr_trace_opts = &nbr.config.trace_opts;
@@ -1760,6 +1869,7 @@ impl Default for InstanceAfiSafiCfg {
             prefix_limit: Default::default(),
             send_default_route: false,
             apply_policy: Default::default(),
+            aggregates: Default::default(),
             redistribution: Default::default(),
         }
     }

@@ -5,7 +5,6 @@
 //
 
 use arbitrary::Arbitrary;
-use holo_utils::ip::AddressFamily;
 use num_derive::{FromPrimitive, ToPrimitive};
 use serde::{Deserialize, Serialize};
 
@@ -191,7 +190,18 @@ pub enum RouteRefreshErrorSubcode {
 }
 
 // Address Family identifiers (AFI).
-pub type Afi = AddressFamily;
+//
+// IANA registry:
+// https://www.iana.org/assignments/address-family-numbers/address-family-numbers.xhtml
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(FromPrimitive, ToPrimitive)]
+#[derive(Deserialize, Serialize)]
+#[derive(Arbitrary)]
+pub enum Afi {
+    Ipv4 = 1,
+    Ipv6 = 2,
+    L2vpn = 25,
+}
 
 // Subsequent Address Family Identifiers (SAFI).
 //

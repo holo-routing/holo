@@ -28,7 +28,6 @@ use holo_utils::ibus::{
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
 use holo_utils::task::Task;
-use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 use tracing::{debug_span, warn};
@@ -36,7 +35,9 @@ use tracing::{debug_span, warn};
 use crate::birt::Birt;
 use crate::interface::Interfaces;
 use crate::netlink::NetlinkRequest;
-use crate::northbound::configuration::StaticRoute;
+use crate::northbound::configuration::{
+    NetworkInstance, StaticRoute, StaticRouteKey,
+};
 use crate::rib::Rib;
 
 pub struct Master {
@@ -52,8 +53,13 @@ pub struct Master {
     pub interfaces: Interfaces,
     // RIB.
     pub rib: Rib,
+    // Network instances (VRFs), keyed by name.
+    pub network_instances: BTreeMap<String, NetworkInstance>,
+    // network-instance binding per protocol instance (VRF the instance runs
+    // in). Consumed by per-VRF routing.
+    pub instance_ni: BTreeMap<InstanceId, String>,
     // Static routes.
-    pub static_routes: BTreeMap<IpNetwork, StaticRoute>,
+    pub static_routes: BTreeMap<StaticRouteKey, StaticRoute>,
     // SR configuration data.
     pub sr_config: SrCfg,
     // BIER configuration data.
@@ -64,12 +70,38 @@ pub struct Master {
     pub birt: Birt,
 }
 
-#[derive(Debug, Eq, Hash, PartialEq, PartialOrd, new, Ord)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct InstanceId {
     // Instance protocol.
     pub protocol: Protocol,
     // Instance name.
     pub name: String,
+    // Network instance (VRF) this protocol instance runs in.
+    pub network_instance: String,
+}
+
+impl InstanceId {
+    pub const DEFAULT_NETWORK_INSTANCE: &str = "default";
+
+    pub fn new(protocol: Protocol, name: String) -> Self {
+        Self::new_with_network_instance(
+            protocol,
+            name,
+            Self::DEFAULT_NETWORK_INSTANCE.to_owned(),
+        )
+    }
+
+    pub fn new_with_network_instance(
+        protocol: Protocol,
+        name: String,
+        network_instance: String,
+    ) -> Self {
+        Self {
+            protocol,
+            name,
+            network_instance,
+        }
+    }
 }
 
 #[derive(Debug, new)]
@@ -221,6 +253,8 @@ pub fn start(
             shared: shared.clone(),
             interfaces: Default::default(),
             rib: Rib::new(rib_update_queue_tx),
+            network_instances: Default::default(),
+            instance_ni: Default::default(),
             static_routes: Default::default(),
             sr_config: Default::default(),
             bier_config: Default::default(),

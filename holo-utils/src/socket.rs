@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::ffi::CString;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::os::raw::{c_int, c_ushort, c_void};
 use std::os::unix::io::AsRawFd;
@@ -83,6 +84,19 @@ type Result<T> = std::io::Result<T>;
 
 // Extension methods for all socket types.
 pub trait SocketExt: Sized + AsRawFd {
+    // Binds the socket to the given interface.
+    fn set_bindtodevice(&self, ifname: &str) -> Result<()> {
+        let optval = CString::new(ifname)?;
+
+        setsockopt(
+            self,
+            libc::SOL_SOCKET,
+            libc::SO_BINDTODEVICE,
+            optval.as_ptr() as *const libc::c_void,
+            optval.as_bytes_with_nul().len() as libc::socklen_t,
+        )
+    }
+
     // Sets the value of the IP_TOS option for this socket.
     fn set_ipv4_tos(&self, tos: u8) -> Result<()> {
         let optval = tos as c_int;

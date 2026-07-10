@@ -1590,6 +1590,7 @@ impl Provider for Instance {
                         AfiSafi::Ipv6Unicast => {
                             redistribute_delete::<Ipv6Unicast>(&mut instance, protocol);
                         }
+                        AfiSafi::L3vpnIpv4Unicast | AfiSafi::L3vpnIpv6Unicast | AfiSafi::L2vpnEvpn => {}
                     }
                 }
             }
@@ -1695,7 +1696,7 @@ where
         dest.redistribute = None;
 
         // Enqueue prefix for the BGP Decision Process.
-        table.queued_prefixes.insert(prefix);
+        table.queued_prefixes.insert(*prefix);
     }
 
     // Schedule the BGP Decision Process.

@@ -14,10 +14,11 @@ use holo_bgp::packet::attribute::{
 };
 use holo_bgp::packet::iana::Origin;
 use holo_bgp::packet::message::{
-    DecodeCxt, Message, MpReachNlri, MpUnreachNlri, NegotiatedCapability,
-    ReachNlri, UnreachNlri, UpdateMsg,
+    DecodeCxt, EncodeCxt, LabeledIpv4Nlri, Message, MpReachNlri, MpUnreachNlri,
+    NegotiatedCapability, ReachNlri, UnreachNlri, UpdateMsg,
 };
 use holo_utils::bgp::{Comm, ExtComm, Extv6Comm, LargeComm};
+use holo_utils::mpls::Label;
 
 use super::{test_decode_msg, test_encode_msg};
 
@@ -153,6 +154,71 @@ fn test_encode_update2() {
 fn test_decode_update2() {
     let (ref bytes, ref msg) = *UPDATE2;
     test_decode_msg(bytes, msg);
+}
+
+#[test]
+fn test_roundtrip_labeled_unicast_update() {
+    let msg = Message::Update(UpdateMsg {
+        reach: None,
+        unreach: None,
+        mp_reach: Some(MpReachNlri::Ipv4LabeledUnicast {
+            prefixes: vec![LabeledIpv4Nlri {
+                label: Label::new(16000),
+                prefix: net4!("192.0.2.0/24"),
+            }],
+            nexthop: ip4!("198.51.100.1"),
+        }),
+        mp_unreach: Some(MpUnreachNlri::Ipv4LabeledUnicast {
+            prefixes: vec![LabeledIpv4Nlri {
+                label: Label::new(16001),
+                prefix: net4!("192.0.2.128/25"),
+            }],
+        }),
+        attrs: Some(Attrs {
+            base: BaseAttrs {
+                origin: Origin::Igp,
+                ..Default::default()
+            },
+            ..Default::default()
+        }),
+    });
+
+    let encode_cxt = EncodeCxt {
+        capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
+    };
+    let decode_cxt = DecodeCxt {
+        peer_type: PeerType::Internal,
+        peer_as: 65550,
+        reject_as_sets: true,
+        capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
+    };
+    let bytes = msg.encode(&encode_cxt);
+    let msg_size = Message::get_message_len(&bytes)
+        .expect("Buffer doesn't contain a full BGP message");
+    let decoded = Message::decode(&bytes[..msg_size], &decode_cxt).unwrap();
+
+    let Message::Update(decoded) = decoded else {
+        panic!("expected UPDATE");
+    };
+    assert_eq!(
+        decoded.mp_reach,
+        Some(MpReachNlri::Ipv4LabeledUnicast {
+            prefixes: vec![LabeledIpv4Nlri {
+                label: Label::new(16000),
+                prefix: net4!("192.0.2.0/24"),
+            }],
+            nexthop: ip4!("198.51.100.1"),
+        })
+    );
+    assert_eq!(
+        decoded.mp_unreach,
+        Some(MpUnreachNlri::Ipv4LabeledUnicast {
+            prefixes: vec![LabeledIpv4Nlri {
+                label: Label::new(16001),
+                prefix: net4!("192.0.2.128/25"),
+            }],
+        })
+    );
 }
 
 #[test]

@@ -28,6 +28,8 @@ use serde::{Deserialize, Serialize};
 pub enum AfiSafi {
     Ipv4Unicast,
     Ipv6Unicast,
+    Ipv4LabeledUnicast,
+    Ipv6LabeledUnicast,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -84,6 +86,12 @@ impl ToYang for AfiSafi {
         match self {
             AfiSafi::Ipv4Unicast => "iana-bgp-types:ipv4-unicast".into(),
             AfiSafi::Ipv6Unicast => "iana-bgp-types:ipv6-unicast".into(),
+            AfiSafi::Ipv4LabeledUnicast => {
+                "iana-bgp-types:ipv4-labeled-unicast".into()
+            }
+            AfiSafi::Ipv6LabeledUnicast => {
+                "iana-bgp-types:ipv6-labeled-unicast".into()
+            }
         }
     }
 }
@@ -93,6 +101,12 @@ impl TryFromYang for AfiSafi {
         match value {
             "iana-bgp-types:ipv4-unicast" => Some(AfiSafi::Ipv4Unicast),
             "iana-bgp-types:ipv6-unicast" => Some(AfiSafi::Ipv6Unicast),
+            "iana-bgp-types:ipv4-labeled-unicast" => {
+                Some(AfiSafi::Ipv4LabeledUnicast)
+            }
+            "iana-bgp-types:ipv6-labeled-unicast" => {
+                Some(AfiSafi::Ipv6LabeledUnicast)
+            }
             _ => None,
         }
     }

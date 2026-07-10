@@ -12,7 +12,10 @@ use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
 
-use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    AddressFamily, Ipv4LabeledUnicast, Ipv4Unicast, Ipv6LabeledUnicast,
+    Ipv6Unicast,
+};
 use crate::debug::Debug;
 use crate::instance::{Instance, InstanceUpView};
 use crate::policy::RoutePolicyInfo;
@@ -44,6 +47,8 @@ pub(crate) fn process_nht_update(
 
     process_nht_update_af::<Ipv4Unicast>(&mut instance, addr, metric);
     process_nht_update_af::<Ipv6Unicast>(&mut instance, addr, metric);
+    process_nht_update_af::<Ipv4LabeledUnicast>(&mut instance, addr, metric);
+    process_nht_update_af::<Ipv6LabeledUnicast>(&mut instance, addr, metric);
 }
 
 pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
@@ -57,10 +62,12 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
 
     match msg.prefix {
         IpNetwork::V4(..) => {
-            process_route_add_af::<Ipv4Unicast>(&mut instance, msg);
+            process_route_add_af::<Ipv4Unicast>(&mut instance, msg.clone());
+            process_route_add_af::<Ipv4LabeledUnicast>(&mut instance, msg);
         }
         IpNetwork::V6(..) => {
-            process_route_add_af::<Ipv6Unicast>(&mut instance, msg);
+            process_route_add_af::<Ipv6Unicast>(&mut instance, msg.clone());
+            process_route_add_af::<Ipv6LabeledUnicast>(&mut instance, msg);
         }
     }
 }
@@ -78,9 +85,19 @@ pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
     match msg.prefix {
         IpNetwork::V4(prefix) => {
             process_route_del_af::<Ipv4Unicast>(&mut instance, prefix, proto);
+            process_route_del_af::<Ipv4LabeledUnicast>(
+                &mut instance,
+                prefix,
+                proto,
+            );
         }
         IpNetwork::V6(prefix) => {
             process_route_del_af::<Ipv6Unicast>(&mut instance, prefix, proto);
+            process_route_del_af::<Ipv6LabeledUnicast>(
+                &mut instance,
+                prefix,
+                proto,
+            );
         }
     }
 }
@@ -133,6 +150,7 @@ where
         route: RoutePolicyInfo::new(
             RouteOrigin::Protocol(msg.protocol),
             RouteType::Internal,
+            None,
             msg.tag,
             Some(msg.opaque_attrs),
             Default::default(),
@@ -170,6 +188,7 @@ fn process_route_del_af<A>(
     // Get prefix RIB entry.
     let rib = &mut instance.state.rib;
     let table = A::table(&mut rib.tables);
+    let prefix = A::prefix_from_ip_network(prefix.into()).unwrap();
     let dest = table.prefixes.entry(prefix).or_default();
 
     // Remove redistributed route.

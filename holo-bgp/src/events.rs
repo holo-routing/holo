@@ -10,13 +10,16 @@ use chrono::Utc;
 use holo_protocol::InstanceShared;
 use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusChannelsTx;
-use holo_utils::ip::{IpAddrKind, IpNetworkKind};
+use holo_utils::ip::IpAddrKind;
 use holo_utils::policy::{PolicyResult, PolicyType};
 use holo_utils::socket::{TcpConnInfo, TcpStream};
 use ipnetwork::IpNetwork;
 use num_traits::FromPrimitive;
 
-use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    AddressFamily, Ipv4LabeledUnicast, Ipv4Unicast, Ipv6LabeledUnicast,
+    Ipv6Unicast,
+};
 use crate::debug::Debug;
 use crate::error::{Error, IoError, NbrRxError};
 use crate::instance::{InstanceUpView, PolicyApplyTasks};
@@ -219,6 +222,41 @@ fn process_nbr_update(
                         &instance.state.policy_apply_tasks,
                     );
                 }
+                MpReachNlri::Ipv4LabeledUnicast { prefixes, nexthop } => {
+                    attrs.base.nexthop = Some(nexthop.into());
+                    process_nbr_reach_nlris::<Ipv4LabeledUnicast>(
+                        nbr,
+                        rib,
+                        prefixes
+                            .into_iter()
+                            .map(|nlri| (nlri.prefix, Some(nlri.label)))
+                            .collect(),
+                        attrs,
+                        instance.config.asn,
+                        instance.shared,
+                        &instance.state.policy_apply_tasks,
+                    );
+                }
+                MpReachNlri::Ipv6LabeledUnicast {
+                    prefixes,
+                    nexthop,
+                    ll_nexthop,
+                } => {
+                    attrs.base.nexthop = Some(nexthop.into());
+                    attrs.base.ll_nexthop = ll_nexthop;
+                    process_nbr_reach_nlris::<Ipv6LabeledUnicast>(
+                        nbr,
+                        rib,
+                        prefixes
+                            .into_iter()
+                            .map(|nlri| (nlri.prefix, Some(nlri.label)))
+                            .collect(),
+                        attrs,
+                        instance.config.asn,
+                        instance.shared,
+                        &instance.state.policy_apply_tasks,
+                    );
+                }
             }
         } else {
             // Treat as withdraw.
@@ -231,6 +269,22 @@ fn process_nbr_update(
                 MpReachNlri::Ipv6Unicast { prefixes, .. } => {
                     process_nbr_unreach_prefixes::<Ipv6Unicast>(
                         nbr, rib, prefixes, ibus_tx,
+                    );
+                }
+                MpReachNlri::Ipv4LabeledUnicast { prefixes, .. } => {
+                    process_nbr_unreach_prefixes::<Ipv4LabeledUnicast>(
+                        nbr,
+                        rib,
+                        prefixes.into_iter().map(|nlri| nlri.prefix).collect(),
+                        ibus_tx,
+                    );
+                }
+                MpReachNlri::Ipv6LabeledUnicast { prefixes, .. } => {
+                    process_nbr_unreach_prefixes::<Ipv6LabeledUnicast>(
+                        nbr,
+                        rib,
+                        prefixes.into_iter().map(|nlri| nlri.prefix).collect(),
+                        ibus_tx,
                     );
                 }
             }
@@ -260,6 +314,22 @@ fn process_nbr_update(
                     nbr, rib, prefixes, ibus_tx,
                 );
             }
+            MpUnreachNlri::Ipv4LabeledUnicast { prefixes } => {
+                process_nbr_unreach_prefixes::<Ipv4LabeledUnicast>(
+                    nbr,
+                    rib,
+                    prefixes.into_iter().map(|nlri| nlri.prefix).collect(),
+                    ibus_tx,
+                );
+            }
+            MpUnreachNlri::Ipv6LabeledUnicast { prefixes } => {
+                process_nbr_unreach_prefixes::<Ipv6LabeledUnicast>(
+                    nbr,
+                    rib,
+                    prefixes.into_iter().map(|nlri| nlri.prefix).collect(),
+                    ibus_tx,
+                );
+            }
         }
     }
 
@@ -272,7 +342,32 @@ fn process_nbr_update(
 fn process_nbr_reach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
-    nlri_prefixes: Vec<A::IpNetwork>,
+    nlri_prefixes: Vec<A::Prefix>,
+    attrs: Attrs,
+    local_asn: u32,
+    shared: &InstanceShared,
+    policy_apply_tasks: &PolicyApplyTasks,
+) where
+    A: AddressFamily,
+{
+    process_nbr_reach_nlris::<A>(
+        nbr,
+        rib,
+        nlri_prefixes
+            .into_iter()
+            .map(|prefix| (prefix, None))
+            .collect(),
+        attrs,
+        local_asn,
+        shared,
+        policy_apply_tasks,
+    );
+}
+
+fn process_nbr_reach_nlris<A>(
+    nbr: &Neighbor,
+    rib: &mut Rib,
+    nlris: Vec<(A::Prefix, Option<holo_utils::mpls::Label>)>,
     mut attrs: Attrs,
     local_asn: u32,
     shared: &InstanceShared,
@@ -304,10 +399,11 @@ fn process_nbr_reach_prefixes<A>(
     // Update pre-policy Adj-RIB-In routes.
     let table = A::table(&mut rib.tables);
     let route_attrs = rib.attr_sets.get_route_attr_sets(&attrs);
-    for prefix in &nlri_prefixes {
+    for (prefix, label) in &nlris {
         let dest = table.prefixes.entry(*prefix).or_default();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
-        let route = Route::new(origin, route_attrs.clone(), route_type);
+        let mut route = Route::new(origin, route_attrs.clone(), route_type);
+        route.label = *label;
         adj_rib.update_in_pre(Box::new(route), &mut rib.attr_sets);
     }
 
@@ -320,14 +416,25 @@ fn process_nbr_reach_prefixes<A>(
         .unwrap_or(&nbr.config.apply_policy);
 
     // Enqueue import policy application.
-    let rpinfo = RoutePolicyInfo::new(origin, route_type, None, None, attrs);
     let msg = PolicyApplyMsg::Neighbor {
         policy_type: PolicyType::Import,
         nbr_addr: nbr.remote_addr,
         afi_safi: A::AFI_SAFI,
-        routes: nlri_prefixes
+        routes: nlris
             .into_iter()
-            .map(|prefix| (prefix.into(), rpinfo.clone()))
+            .map(|(prefix, label)| {
+                (
+                    A::prefix_to_ip_network(prefix),
+                    RoutePolicyInfo::new(
+                        origin,
+                        route_type,
+                        label,
+                        None,
+                        None,
+                        attrs.clone(),
+                    ),
+                )
+            })
             .collect(),
         policies: apply_policy_cfg
             .import_policy
@@ -343,7 +450,7 @@ fn process_nbr_reach_prefixes<A>(
 fn process_nbr_unreach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
-    nlri_prefixes: Vec<A::IpNetwork>,
+    nlri_prefixes: Vec<A::Prefix>,
     ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
@@ -404,6 +511,12 @@ fn process_nbr_route_refresh(
         (Afi::Ipv6, Safi::Unicast) => {
             nbr.resend_adj_rib_out::<Ipv6Unicast>(instance);
         }
+        (Afi::Ipv4, Safi::LabeledUnicast) => {
+            nbr.resend_adj_rib_out::<Ipv4LabeledUnicast>(instance);
+        }
+        (Afi::Ipv6, Safi::LabeledUnicast) => {
+            nbr.resend_adj_rib_out::<Ipv6LabeledUnicast>(instance);
+        }
         _ => {
             // Ignore unsupported AFI/SAFI combination.
             return Ok(());
@@ -461,18 +574,19 @@ where
     let table = A::table(&mut rib.tables);
     for (prefix, result) in prefixes {
         // Get RIB destination.
-        let prefix = A::IpNetwork::get(prefix).unwrap();
+        let prefix = A::prefix_from_ip_network(prefix).unwrap();
         let dest = table.prefixes.entry(prefix).or_default();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
 
         // Update post-policy Adj-RIB-In routes.
         match result {
             PolicyResult::Accept(rpinfo) => {
-                let route = Route::new(
+                let mut route = Route::new(
                     rpinfo.origin,
                     rib.attr_sets.get_route_attr_sets(&rpinfo.attrs),
                     rpinfo.route_type,
                 );
+                route.label = rpinfo.label;
 
                 // Update nexthop tracking.
                 if let Some(old_route) = adj_rib.in_post() {
@@ -538,27 +652,30 @@ where
     let table = A::table(&mut rib.tables);
     for (prefix, result) in prefixes {
         // Get RIB destination.
-        let prefix = A::IpNetwork::get(prefix).unwrap();
+        let prefix = A::prefix_from_ip_network(prefix).unwrap();
         let dest = table.prefixes.entry(prefix).or_default();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
 
         // Update post-policy Adj-RIB-Out routes.
         match result {
             PolicyResult::Accept(rpinfo) => {
-                let route = Route::new(
+                let mut route = Route::new(
                     rpinfo.origin,
                     rib.attr_sets.get_route_attr_sets(&rpinfo.attrs),
                     rpinfo.route_type,
                 );
+                route.label = rpinfo.label;
 
                 // Check if the Adj-RIB-Out was updated.
                 let update = if let Some(adj_rib_route) = adj_rib.out_post() {
                     adj_rib_route.attrs != route.attrs
+                        || adj_rib_route.label != route.label
                 } else {
                     true
                 };
 
                 if update {
+                    let label = route.label;
                     adj_rib
                         .update_out_post(Box::new(route), &mut rib.attr_sets);
 
@@ -573,7 +690,11 @@ where
 
                     // Update neighbor's Tx queue.
                     let update_queue = A::update_queue(&mut nbr.update_queues);
-                    update_queue.reach.entry(attrs).or_default().insert(prefix);
+                    update_queue
+                        .reach
+                        .entry(attrs)
+                        .or_default()
+                        .insert(prefix, label);
                 }
             }
             PolicyResult::Reject => {
@@ -607,7 +728,7 @@ where
 {
     let rib = &mut instance.state.rib;
     let table = A::table(&mut rib.tables);
-    let prefix = A::IpNetwork::get(prefix).unwrap();
+    let prefix = A::prefix_from_ip_network(prefix).unwrap();
 
     match result {
         PolicyResult::Accept(rpinfo) => {
@@ -616,11 +737,12 @@ where
 
             // Update redistributed route in the RIB.
             let route_attrs = rib.attr_sets.get_route_attr_sets(&rpinfo.attrs);
-            let route = Route::new(
+            let mut route = Route::new(
                 rpinfo.origin,
                 route_attrs.clone(),
                 RouteType::Internal,
             );
+            route.label = rpinfo.label;
             dest.redistribute = Some(Box::new(route));
         }
         PolicyResult::Reject => {
@@ -694,6 +816,7 @@ where
             &instance.config.distance,
             &instance.config.trace_opts,
             &instance.tx.ibus,
+            instance.shared,
         );
 
         // Group best routes and unfeasible routes separately.
@@ -750,7 +873,7 @@ where
 
     // Remove routing table entries that no longer hold any data.
     for prefix in queued_prefixes {
-        if let prefix_trie::map::Entry::Occupied(entry) =
+        if let std::collections::btree_map::Entry::Occupied(entry) =
             table.prefixes.entry(prefix)
         {
             let dest = entry.get();
@@ -773,7 +896,7 @@ where
 fn withdraw_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
-    routes: &[A::IpNetwork],
+    routes: &[A::Prefix],
     attr_sets: &mut AttrSetsCxt,
 ) where
     A: AddressFamily,
@@ -802,7 +925,7 @@ fn withdraw_routes<A>(
 pub(crate) fn advertise_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
-    routes: Vec<(A::IpNetwork, Box<Route>)>,
+    routes: Vec<(A::Prefix, Box<Route>)>,
     shared: &InstanceShared,
     attr_sets: &mut AttrSetsCxt,
     policy_apply_tasks: &PolicyApplyTasks,
@@ -827,7 +950,9 @@ pub(crate) fn advertise_routes<A>(
     // Enqueue export policy application.
     let routes = routes
         .into_iter()
-        .map(|(prefix, route)| (prefix.into(), route.policy_info()))
+        .map(|(prefix, route)| {
+            (A::prefix_to_ip_network(prefix), route.policy_info())
+        })
         .collect::<Vec<_>>();
     if !routes.is_empty() {
         let msg = PolicyApplyMsg::Neighbor {

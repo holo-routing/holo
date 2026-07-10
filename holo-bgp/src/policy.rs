@@ -11,6 +11,7 @@ use std::sync::Arc;
 use derive_new::new;
 use holo_utils::bgp::{AfiSafi, RouteType};
 use holo_utils::ip::IpNetworkKind;
+use holo_utils::mpls::Label;
 use holo_utils::policy::{
     BgpNexthop, BgpPolicyAction, BgpPolicyCondition, BgpSetCommMethod,
     BgpSetCommOptions, BgpSetMed, DefaultPolicyType, MatchSets,
@@ -36,6 +37,7 @@ use crate::tasks::messages::input::PolicyResultMsg;
 pub struct RoutePolicyInfo {
     pub origin: RouteOrigin,
     pub route_type: RouteType,
+    pub label: Option<Label>,
     pub tag: Option<u32>,
     pub opaque_attrs: Option<RouteOpaqueAttrs>,
     pub attrs: Attrs,

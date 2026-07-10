@@ -14,6 +14,7 @@ use holo_utils::bytes::{BytesExt, BytesMutExt, TLS_BUF};
 use holo_utils::ip::{
     Ipv4AddrExt, Ipv4NetworkExt, Ipv6AddrExt, Ipv6NetworkExt,
 };
+use holo_utils::mpls::Label;
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use num_derive::{FromPrimitive, ToPrimitive};
 use num_traits::{FromPrimitive, ToPrimitive};
@@ -210,6 +211,15 @@ pub enum MpReachNlri {
         nexthop: Ipv6Addr,
         ll_nexthop: Option<Ipv6Addr>,
     },
+    Ipv4LabeledUnicast {
+        prefixes: Vec<LabeledIpv4Nlri>,
+        nexthop: Ipv4Addr,
+    },
+    Ipv6LabeledUnicast {
+        prefixes: Vec<LabeledIpv6Nlri>,
+        nexthop: Ipv6Addr,
+        ll_nexthop: Option<Ipv6Addr>,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -217,6 +227,22 @@ pub enum MpReachNlri {
 pub enum MpUnreachNlri {
     Ipv4Unicast { prefixes: Vec<Ipv4Network> },
     Ipv6Unicast { prefixes: Vec<Ipv6Network> },
+    Ipv4LabeledUnicast { prefixes: Vec<LabeledIpv4Nlri> },
+    Ipv6LabeledUnicast { prefixes: Vec<LabeledIpv6Nlri> },
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct LabeledIpv4Nlri {
+    pub label: Label,
+    pub prefix: Ipv4Network,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Deserialize, Serialize)]
+pub struct LabeledIpv6Nlri {
+    pub label: Label,
+    pub prefix: Ipv6Network,
 }
 
 //
@@ -1025,6 +1051,43 @@ pub(crate) fn encode_ipv6_prefix(buf: &mut BytesMut, prefix: &Ipv6Network) {
     buf.put(&prefix_bytes[0..plen_wire]);
 }
 
+pub(crate) fn encode_labeled_ipv4_prefix(
+    buf: &mut BytesMut,
+    nlri: &LabeledIpv4Nlri,
+) {
+    encode_labeled_prefix(
+        buf,
+        nlri.label,
+        nlri.prefix.prefix(),
+        &nlri.prefix.ip().octets(),
+    );
+}
+
+pub(crate) fn encode_labeled_ipv6_prefix(
+    buf: &mut BytesMut,
+    nlri: &LabeledIpv6Nlri,
+) {
+    encode_labeled_prefix(
+        buf,
+        nlri.label,
+        nlri.prefix.prefix(),
+        &nlri.prefix.ip().octets(),
+    );
+}
+
+fn encode_labeled_prefix(
+    buf: &mut BytesMut,
+    label: Label,
+    plen: u8,
+    prefix_bytes: &[u8],
+) {
+    let label_entry = (label.get() << 4) | 1;
+    buf.put_u8(plen + 24);
+    buf.put_u24(label_entry);
+    let plen_wire = prefix_wire_len(plen);
+    buf.put(&prefix_bytes[0..plen_wire]);
+}
+
 pub fn decode_ipv4_prefix(
     buf: &mut Bytes,
 ) -> Result<Option<Ipv4Network>, UpdateMessageError> {
@@ -1081,6 +1144,90 @@ pub fn decode_ipv6_prefix(
     let prefix = prefix.apply_mask();
 
     Ok(Some(prefix))
+}
+
+pub fn decode_labeled_ipv4_prefix(
+    buf: &mut Bytes,
+) -> Result<Option<LabeledIpv4Nlri>, UpdateMessageError> {
+    let plen = buf.try_get_u8()?;
+    if plen < 24 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+
+    let (label, label_len) = decode_label_stack(buf)?;
+    if plen < label_len {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let plen = plen - label_len;
+    let plen_wire = prefix_wire_len(plen);
+    if plen_wire > buf.remaining() || plen > Ipv4Network::MAX_PREFIXLEN {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+
+    let mut prefix_bytes = [0; Ipv4Addr::LENGTH];
+    buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
+    let prefix = Ipv4Network::new(Ipv4Addr::from(prefix_bytes), plen)
+        .map(|prefix| prefix.apply_mask())
+        .map_err(|_| UpdateMessageError::InvalidNetworkField)?;
+
+    if !prefix.is_routable() {
+        return Ok(None);
+    }
+
+    Ok(Some(LabeledIpv4Nlri { label, prefix }))
+}
+
+pub fn decode_labeled_ipv6_prefix(
+    buf: &mut Bytes,
+) -> Result<Option<LabeledIpv6Nlri>, UpdateMessageError> {
+    let plen = buf.try_get_u8()?;
+    if plen < 24 {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+
+    let (label, label_len) = decode_label_stack(buf)?;
+    if plen < label_len {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+    let plen = plen - label_len;
+    let plen_wire = prefix_wire_len(plen);
+    if plen_wire > buf.remaining() || plen > Ipv6Network::MAX_PREFIXLEN {
+        return Err(UpdateMessageError::InvalidNetworkField);
+    }
+
+    let mut prefix_bytes = [0; Ipv6Addr::LENGTH];
+    buf.try_copy_to_slice(&mut prefix_bytes[..plen_wire])?;
+    let prefix = Ipv6Network::new(Ipv6Addr::from(prefix_bytes), plen)
+        .map(|prefix| prefix.apply_mask())
+        .map_err(|_| UpdateMessageError::InvalidNetworkField)?;
+
+    if !prefix.is_routable() {
+        return Ok(None);
+    }
+
+    Ok(Some(LabeledIpv6Nlri { label, prefix }))
+}
+
+fn decode_label_stack(
+    buf: &mut Bytes,
+) -> Result<(Label, u8), UpdateMessageError> {
+    let mut first_label = None;
+    let mut label_len = 0;
+    loop {
+        if buf.remaining() < 3 {
+            return Err(UpdateMessageError::InvalidNetworkField);
+        }
+
+        let entry = buf.try_get_u24()?;
+        label_len += 24;
+        let label = (entry >> 4) & Label::VALUE_MASK;
+        first_label.get_or_insert(Label::new(label));
+        if entry & 1 == 1 {
+            break;
+        }
+    }
+
+    Ok((first_label.unwrap(), label_len))
 }
 
 // Calculates the number of bytes required to encode a prefix.

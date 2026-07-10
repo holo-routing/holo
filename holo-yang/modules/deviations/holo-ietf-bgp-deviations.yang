@@ -90,11 +90,11 @@ module holo-ietf-bgp-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:global/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-labeled-unicast" {
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:global/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-labeled-unicast/bgp:prefix-limit/bgp:prefix-limit-exceeded" {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:global/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-labeled-unicast" {
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:global/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-labeled-unicast/bgp:prefix-limit/bgp:prefix-limit-exceeded" {
     deviate not-supported;
   }
 
@@ -198,11 +198,11 @@ module holo-ietf-bgp-deviations {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:neighbor/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-labeled-unicast" {
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:neighbor/bgp:afi-safis/bgp:afi-safi/bgp:ipv4-labeled-unicast/bgp:prefix-limit/bgp:prefix-limit-exceeded" {
     deviate not-supported;
   }
 
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:neighbor/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-labeled-unicast" {
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/bgp:bgp/bgp:neighbors/bgp:neighbor/bgp:afi-safis/bgp:afi-safi/bgp:ipv6-labeled-unicast/bgp:prefix-limit/bgp:prefix-limit-exceeded" {
     deviate not-supported;
   }
 

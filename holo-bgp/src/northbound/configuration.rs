@@ -20,7 +20,7 @@ use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 
-use crate::af::{Ipv4Unicast, Ipv6Unicast};
+use crate::af::{Ipv4LabeledUnicast, Ipv4Unicast, Ipv6LabeledUnicast, Ipv6Unicast};
 use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{Neighbor, PeerType, fsm};
 use crate::network;
@@ -1590,6 +1590,12 @@ impl Provider for Instance {
                         AfiSafi::Ipv6Unicast => {
                             redistribute_delete::<Ipv6Unicast>(&mut instance, protocol);
                         }
+                        AfiSafi::Ipv4LabeledUnicast => {
+                            redistribute_delete::<Ipv4LabeledUnicast>(&mut instance, protocol);
+                        }
+                        AfiSafi::Ipv6LabeledUnicast => {
+                            redistribute_delete::<Ipv6LabeledUnicast>(&mut instance, protocol);
+                        }
                     }
                 }
             }
@@ -1695,7 +1701,7 @@ where
         dest.redistribute = None;
 
         // Enqueue prefix for the BGP Decision Process.
-        table.queued_prefixes.insert(prefix);
+        table.queued_prefixes.insert(*prefix);
     }
 
     // Schedule the BGP Decision Process.

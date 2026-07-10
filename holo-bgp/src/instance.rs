@@ -20,7 +20,9 @@ use holo_utils::task::{Task, TimeoutTask};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
-use crate::af::{Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    Ipv4LabeledUnicast, Ipv4Unicast, Ipv6LabeledUnicast, Ipv6Unicast,
+};
 use crate::debug::{Debug, InstanceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::neighbor::{Neighbors, fsm};
@@ -545,6 +547,16 @@ fn process_protocol_msg(
                         instance, neighbors, nbr_addr, routes,
                     )?
                 }
+                (PolicyType::Import, AfiSafi::Ipv4LabeledUnicast) => {
+                    events::process_nbr_policy_import::<Ipv4LabeledUnicast>(
+                        instance, neighbors, nbr_addr, routes,
+                    )?
+                }
+                (PolicyType::Import, AfiSafi::Ipv6LabeledUnicast) => {
+                    events::process_nbr_policy_import::<Ipv6LabeledUnicast>(
+                        instance, neighbors, nbr_addr, routes,
+                    )?
+                }
                 (PolicyType::Export, AfiSafi::Ipv4Unicast) => {
                     events::process_nbr_policy_export::<Ipv4Unicast>(
                         instance, neighbors, nbr_addr, routes,
@@ -552,6 +564,16 @@ fn process_protocol_msg(
                 }
                 (PolicyType::Export, AfiSafi::Ipv6Unicast) => {
                     events::process_nbr_policy_export::<Ipv6Unicast>(
+                        instance, neighbors, nbr_addr, routes,
+                    )?
+                }
+                (PolicyType::Export, AfiSafi::Ipv4LabeledUnicast) => {
+                    events::process_nbr_policy_export::<Ipv4LabeledUnicast>(
+                        instance, neighbors, nbr_addr, routes,
+                    )?
+                }
+                (PolicyType::Export, AfiSafi::Ipv6LabeledUnicast) => {
+                    events::process_nbr_policy_export::<Ipv6LabeledUnicast>(
                         instance, neighbors, nbr_addr, routes,
                     )?
                 }
@@ -571,12 +593,28 @@ fn process_protocol_msg(
                         instance, prefix, result,
                     )?
                 }
+                AfiSafi::Ipv4LabeledUnicast => {
+                    events::process_redistribute_policy_import::<
+                        Ipv4LabeledUnicast,
+                    >(instance, prefix, result)?
+                }
+                AfiSafi::Ipv6LabeledUnicast => {
+                    events::process_redistribute_policy_import::<
+                        Ipv6LabeledUnicast,
+                    >(instance, prefix, result)?
+                }
             },
         },
         // Decision process.
         ProtocolInputMsg::TriggerDecisionProcess(_) => {
             events::decision_process::<Ipv4Unicast>(instance, neighbors)?;
             events::decision_process::<Ipv6Unicast>(instance, neighbors)?;
+            events::decision_process::<Ipv4LabeledUnicast>(
+                instance, neighbors,
+            )?;
+            events::decision_process::<Ipv6LabeledUnicast>(
+                instance, neighbors,
+            )?;
         }
     }
 

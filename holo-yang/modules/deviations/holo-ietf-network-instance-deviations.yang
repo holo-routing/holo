@@ -1,0 +1,62 @@
+module holo-ietf-network-instance-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-network-instance-deviations";
+  prefix holo-ietf-network-instance-deviations;
+
+  import ietf-network-instance {
+    prefix ni;
+  }
+
+  import ietf-interfaces {
+    prefix if;
+  }
+
+  import ietf-ip {
+    prefix ip;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the
+     ietf-network-instance module.
+
+     Holo uses network-instances as flat VRF definitions; it does not
+     use YANG schema-mount to mount per-instance schema trees, so the
+     mandatory 'root-type' mount points are removed.
+
+     Interface binding via 'bind-ni-name' is deferred (removed here);
+     it is enabled together with the interface-daemon southbound
+     support that learns and applies VRF membership.";
+
+  /*
+   * Not supported nodes
+   */
+
+  deviation "/ni:network-instances/ni:network-instance/ni:root-type" {
+    deviate not-supported;
+  }
+
+  deviation "/ni:network-instances/ni:network-instance/ni:ni-type" {
+    deviate not-supported;
+  }
+
+  deviation "/if:interfaces/if:interface/ni:bind-ni-name" {
+    deviate not-supported;
+  }
+
+  deviation "/if:interfaces/if:interface/ip:ipv4/ni:bind-ni-name" {
+    deviate not-supported;
+  }
+
+  deviation "/if:interfaces/if:interface/ip:ipv6/ni:bind-ni-name" {
+    deviate not-supported;
+  }
+
+  // The notification's leafrefs reference the bind-ni-name leaves removed
+  // above; remove it too until interface binding is implemented.
+  deviation "/ni:bind-ni-name-failed" {
+    deviate not-supported;
+  }
+}

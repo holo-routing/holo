@@ -1,0 +1,4 @@
+{"NbrTx":{"SendMessage":{"nbr_addr":"192.0.2.2","msg":{"Open":{"version":4,"my_as":65000,"holdtime":90,"identifier":"192.0.2.1","capabilities":[{"MultiProtocol":{"afi":"Ipv4","safi":"Unicast"}},{"FourOctetAsNumber":{"asn":65000}},"RouteRefresh"]}}}}}
+{"NbrTx":{"SendMessage":{"nbr_addr":"192.0.2.2","msg":{"Keepalive":{}}}}}
+{"NbrTx":{"UpdateCapabilities":[{"MultiProtocol":{"afi":"Ipv4","safi":"Unicast"}},"FourOctetAsNumber","RouteRefresh"]}}
+{"NbrTx":{"SendMessage":{"nbr_addr":"192.0.2.2","msg":{"Notification":{"error_code":6,"error_subcode":1,"data":[]}}}}}

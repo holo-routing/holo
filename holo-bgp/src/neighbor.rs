@@ -15,13 +15,17 @@ use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusChannelsTx;
+use holo_utils::mpls::Label;
 use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use num_traits::{FromPrimitive, ToPrimitive};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Sender, UnboundedSender};
 
-use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    AddressFamily, Ipv4Unicast, Ipv6Unicast, L2vpnEvpn, Vpnv4Unicast,
+    Vpnv6Unicast,
+};
 use crate::debug::Debug;
 use crate::error::Error;
 use crate::instance::{Instance, InstanceUpView};
@@ -113,13 +117,17 @@ pub struct NeighborTasks {
 pub struct NeighborUpdateQueues {
     pub ipv4_unicast: NeighborUpdateQueue<Ipv4Unicast>,
     pub ipv6_unicast: NeighborUpdateQueue<Ipv6Unicast>,
+    pub vpnv4_unicast: NeighborUpdateQueue<Vpnv4Unicast>,
+    pub vpnv6_unicast: NeighborUpdateQueue<Vpnv6Unicast>,
+    pub l2vpn_evpn: NeighborUpdateQueue<L2vpnEvpn>,
 }
 
 // Neighbor Tx update queue.
 #[derive(Debug)]
 pub struct NeighborUpdateQueue<A: AddressFamily> {
-    pub reach: BTreeMap<Attrs, BTreeSet<A::IpNetwork>>,
-    pub unreach: BTreeSet<A::IpNetwork>,
+    pub reach: BTreeMap<Attrs, BTreeSet<A::Prefix>>,
+    pub unreach: BTreeSet<A::Prefix>,
+    pub labels: BTreeMap<A::Prefix, Label>,
 }
 
 // Type aliases.
@@ -240,7 +248,10 @@ impl Neighbor {
                     if self.config.transport.passive_mode {
                         Some(fsm::State::Active)
                     } else {
-                        self.connect(&instance.tx.protocol_input.tcp_connect);
+                        self.connect(
+                            &instance.tx.protocol_input.tcp_connect,
+                            instance.network_instance,
+                        );
                         Some(fsm::State::Connect)
                     }
                 }
@@ -273,7 +284,10 @@ impl Neighbor {
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::Timer(fsm::Timer::ConnectRetry) => {
-                    self.connect(&instance.tx.protocol_input.tcp_connect);
+                    self.connect(
+                        &instance.tx.protocol_input.tcp_connect,
+                        instance.network_instance,
+                    );
                     self.connect_retry_start(
                         &instance.tx.protocol_input.nbr_timer,
                     );
@@ -312,7 +326,10 @@ impl Neighbor {
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::Timer(fsm::Timer::ConnectRetry) => {
-                    self.connect(&instance.tx.protocol_input.tcp_connect);
+                    self.connect(
+                        &instance.tx.protocol_input.tcp_connect,
+                        instance.network_instance,
+                    );
                     self.connect_retry_start(
                         &instance.tx.protocol_input.nbr_timer,
                     );
@@ -585,6 +602,8 @@ impl Neighbor {
         // Send initial routing updates.
         self.initial_routing_update::<Ipv4Unicast>(instance);
         self.initial_routing_update::<Ipv6Unicast>(instance);
+        self.initial_routing_update::<Vpnv4Unicast>(instance);
+        self.initial_routing_update::<Vpnv6Unicast>(instance);
     }
 
     // Closes the BGP session, performing necessary cleanup and releasing resources.
@@ -613,6 +632,8 @@ impl Neighbor {
         self.capabilities_nego.clear();
         self.clear_routes::<Ipv4Unicast>(rib, &instance_tx.ibus);
         self.clear_routes::<Ipv6Unicast>(rib, &instance_tx.ibus);
+        self.clear_routes::<Vpnv4Unicast>(rib, &instance_tx.ibus);
+        self.clear_routes::<Vpnv6Unicast>(rib, &instance_tx.ibus);
         self.tasks = Default::default();
         self.msg_txp = None;
 
@@ -679,21 +700,19 @@ impl Neighbor {
         .into();
 
         // Multiprotocol capabilities.
-        if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv4Unicast)
-            && afi_safi.enabled
-        {
-            capabilities.insert(Capability::MultiProtocol {
-                afi: Afi::Ipv4,
-                safi: Safi::Unicast,
-            });
-        }
-        if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv6Unicast)
-            && afi_safi.enabled
-        {
-            capabilities.insert(Capability::MultiProtocol {
-                afi: Afi::Ipv6,
-                safi: Safi::Unicast,
-            });
+        let afi_safis = [
+            (AfiSafi::Ipv4Unicast, Afi::Ipv4, Safi::Unicast),
+            (AfiSafi::Ipv6Unicast, Afi::Ipv6, Safi::Unicast),
+            (AfiSafi::L3vpnIpv4Unicast, Afi::Ipv4, Safi::LabeledVpn),
+            (AfiSafi::L3vpnIpv6Unicast, Afi::Ipv6, Safi::LabeledVpn),
+            (AfiSafi::L2vpnEvpn, Afi::L2vpn, Safi::Evpn),
+        ];
+        for (afi_safi, afi, safi) in afi_safis {
+            if let Some(afi_safi) = self.config.afi_safi.get(&afi_safi)
+                && afi_safi.enabled
+            {
+                capabilities.insert(Capability::MultiProtocol { afi, safi });
+            }
         }
 
         // Keep track of the advertised capabilities.
@@ -842,8 +861,14 @@ impl Neighbor {
     }
 
     // Starts a TCP connection task to the neighbor's remote address.
-    fn connect(&mut self, tcp_connectp: &Sender<TcpConnectMsg>) {
-        let task = tasks::tcp_connect(self, tcp_connectp);
+    fn connect(
+        &mut self,
+        tcp_connectp: &Sender<TcpConnectMsg>,
+        network_instance: &str,
+    ) {
+        let vrf_device = (network_instance != "default")
+            .then(|| network_instance.to_owned());
+        let task = tasks::tcp_connect(self, tcp_connectp, vrf_device);
         self.tasks.connect = Some(task);
     }
 
@@ -906,6 +931,10 @@ impl Neighbor {
             return;
         }
 
+        if events::default_originate_neighbor_enabled::<A>(self) {
+            events::ensure_default_originate_route::<A>(instance);
+        }
+
         // Get list of best routes for this address-family.
         let table = A::table(&mut instance.state.rib.tables);
         let routes = table
@@ -917,15 +946,18 @@ impl Neighbor {
                         origin: route.origin,
                         attrs: route.attrs.clone(),
                         route_type: route.route_type,
+                        vpn_label: route.vpn_label,
                         igp_cost: None,
                         last_modified: route.last_modified,
                         ineligible_reason: None,
                         reject_reason: None,
                     };
-                    (prefix, Box::new(route))
+                    (*prefix, Box::new(route))
                 })
             })
-            .filter(|(_, route)| self.distribute_filter(route))
+            .filter(|(prefix, route)| {
+                self.distribute_filter::<A>(*prefix, route)
+            })
             .collect::<Vec<_>>();
 
         // Advertise the best routes.
@@ -933,6 +965,7 @@ impl Neighbor {
             self,
             table,
             routes,
+            instance.config.asn,
             instance.shared,
             &mut instance.state.rib.attr_sets,
             &instance.state.policy_apply_tasks,
@@ -966,7 +999,7 @@ impl Neighbor {
 
             // Update neighbor's Tx queue.
             let update_queue = A::update_queue(&mut self.update_queues);
-            update_queue.reach.entry(attrs).or_default().insert(prefix);
+            update_queue.reach.entry(attrs).or_default().insert(*prefix);
         }
     }
 
@@ -983,7 +1016,7 @@ impl Neighbor {
                 if let Some(adj_in_route) = adj_rib.in_post() {
                     rib::nexthop_untrack(
                         &mut table.nht,
-                        &prefix,
+                        prefix,
                         adj_in_route,
                         ibus_tx,
                     );
@@ -996,7 +1029,7 @@ impl Neighbor {
             }
 
             // Enqueue prefix for the BGP Decision Process.
-            table.queued_prefixes.insert(prefix);
+            table.queued_prefixes.insert(*prefix);
         }
     }
 
@@ -1058,7 +1091,27 @@ impl Neighbor {
     }
 
     // Determines whether the given route is eligible for distribution.
-    pub(crate) fn distribute_filter(&self, route: &Route) -> bool {
+    pub(crate) fn distribute_filter<A>(
+        &self,
+        prefix: A::Prefix,
+        route: &Route,
+    ) -> bool
+    where
+        A: AddressFamily,
+    {
+        if is_default_originate_route::<A>(prefix, route)
+            && !self
+                .config
+                .afi_safi
+                .get(&A::AFI_SAFI)
+                .is_some_and(|afi_safi| {
+                    afi_safi.enabled
+                        && afi_safi.send_default_route == Some(true)
+                })
+        {
+            return false;
+        }
+
         // Suppress advertisements to peers if their AS number is present
         // in the AS path of the route, unless overridden by configuration.
         if !self.config.as_path_options.disable_peer_as_filter
@@ -1126,6 +1179,19 @@ impl Neighbor {
     }
 }
 
+fn is_default_originate_route<A>(prefix: A::Prefix, route: &Route) -> bool
+where
+    A: AddressFamily,
+{
+    if route.origin
+        != RouteOrigin::Protocol(holo_utils::protocol::Protocol::BGP)
+    {
+        return false;
+    }
+
+    events::default_originate_prefix::<A>() == Some(prefix)
+}
+
 // ===== impl MessageStatistics =====
 
 impl MessageStatistics {
@@ -1153,6 +1219,8 @@ impl NeighborUpdateQueues {
         [
             self.ipv4_unicast.build_updates(),
             self.ipv6_unicast.build_updates(),
+            self.vpnv4_unicast.build_updates(),
+            self.vpnv6_unicast.build_updates(),
         ]
         .concat()
     }
@@ -1177,6 +1245,7 @@ where
         NeighborUpdateQueue {
             reach: Default::default(),
             unreach: Default::default(),
+            labels: Default::default(),
         }
     }
 }

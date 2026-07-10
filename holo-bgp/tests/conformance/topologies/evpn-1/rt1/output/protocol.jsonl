@@ -1,0 +1,3 @@
+{"NbrTx":{"SendMessage":{"nbr_addr":"192.0.2.2","msg":{"Open":{"version":4,"my_as":65000,"holdtime":90,"identifier":"192.0.2.1","capabilities":[{"MultiProtocol":{"afi":"L2vpn","safi":"Evpn"}},{"FourOctetAsNumber":{"asn":65000}},"RouteRefresh"]}}}}}
+{"NbrTx":{"SendMessage":{"nbr_addr":"192.0.2.2","msg":{"Keepalive":{}}}}}
+{"NbrTx":{"UpdateCapabilities":[{"MultiProtocol":{"afi":"L2vpn","safi":"Evpn"}},"FourOctetAsNumber","RouteRefresh"]}}

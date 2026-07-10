@@ -47,6 +47,7 @@ pub enum Resource {}
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
     InstanceUpdate,
+    DecisionProcess,
     NeighborUpdate(IpAddr),
     NeighborDelete(IpAddr),
     NeighborReset(IpAddr, NotificationMsg),
@@ -94,7 +95,7 @@ pub struct InstanceAfiSafiCfg {
     pub multipath: MultipathCfg,
     pub route_selection: RouteSelectionCfg,
     pub prefix_limit: PrefixLimitCfg,
-    pub send_default_route: bool,
+    pub send_default_route: Option<bool>,
     pub apply_policy: ApplyPolicyCfg,
     pub redistribution: HashMap<Protocol, RedistributionCfg>,
 }
@@ -164,7 +165,7 @@ pub struct NeighborTransportCfg {
 pub struct NeighborAfiSafiCfg {
     pub enabled: bool,
     pub prefix_limit: PrefixLimitCfg,
-    pub send_default_route: bool,
+    pub send_default_route: Option<bool>,
     pub apply_policy: ApplyPolicyCfg,
 }
 
@@ -530,7 +531,19 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let send = args.dnode.get_bool();
-            afi_safi.send_default_route = send;
+            afi_safi.send_default_route = (!args.dnode.is_default()).then_some(send);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
+        })
+        .delete_apply(|instance, args| {
+            let afi_safi = args.list_entry.into_afi_safi().unwrap();
+            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi.send_default_route = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
         })
         .path(bgp::global::afi_safis::afi_safi::ipv4_unicast::redistribution::PATH)
         .create_apply(|instance, args| {
@@ -616,7 +629,19 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let send = args.dnode.get_bool();
-            afi_safi.send_default_route = send;
+            afi_safi.send_default_route = (!args.dnode.is_default()).then_some(send);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
+        })
+        .delete_apply(|instance, args| {
+            let afi_safi = args.list_entry.into_afi_safi().unwrap();
+            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi.send_default_route = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
         })
         .path(bgp::global::afi_safis::afi_safi::ipv6_unicast::redistribution::PATH)
         .create_apply(|instance, args| {
@@ -1322,7 +1347,20 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let send = args.dnode.get_bool();
-            afi_safi.send_default_route = send;
+            afi_safi.send_default_route = (!args.dnode.is_default()).then_some(send);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
+        })
+        .delete_apply(|instance, args| {
+            let (nbr_addr, afi_safi) = args.list_entry.into_neighbor_afi_safi().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+            let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi.send_default_route = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
         })
         .path(bgp::neighbors::neighbor::afi_safis::afi_safi::ipv6_unicast::prefix_limit::max_prefixes::PATH)
         .modify_apply(|instance, args| {
@@ -1389,7 +1427,20 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let send = args.dnode.get_bool();
-            afi_safi.send_default_route = send;
+            afi_safi.send_default_route = (!args.dnode.is_default()).then_some(send);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
+        })
+        .delete_apply(|instance, args| {
+            let (nbr_addr, afi_safi) = args.list_entry.into_neighbor_afi_safi().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+            let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi.send_default_route = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
         })
         .path(bgp::neighbors::neighbor::trace_options::flag::PATH)
         .create_apply(|instance, args| {
@@ -1515,6 +1566,13 @@ impl Provider for Instance {
     fn process_event(&mut self, event: Event) {
         match event {
             Event::InstanceUpdate => self.update(),
+            Event::DecisionProcess => {
+                let Some((instance, _)) = self.as_up() else {
+                    return;
+                };
+
+                instance.state.schedule_decision_process(instance.tx);
+            }
             Event::NeighborUpdate(nbr_addr) => {
                 let Some((mut instance, neighbors)) = self.as_up() else {
                     return;
@@ -1590,6 +1648,7 @@ impl Provider for Instance {
                         AfiSafi::Ipv6Unicast => {
                             redistribute_delete::<Ipv6Unicast>(&mut instance, protocol);
                         }
+                        AfiSafi::L3vpnIpv4Unicast | AfiSafi::L3vpnIpv6Unicast | AfiSafi::L2vpnEvpn => {}
                     }
                 }
             }
@@ -1695,7 +1754,7 @@ where
         dest.redistribute = None;
 
         // Enqueue prefix for the BGP Decision Process.
-        table.queued_prefixes.insert(prefix);
+        table.queued_prefixes.insert(*prefix);
     }
 
     // Schedule the BGP Decision Process.
@@ -1758,7 +1817,7 @@ impl Default for InstanceAfiSafiCfg {
             multipath: Default::default(),
             route_selection: Default::default(),
             prefix_limit: Default::default(),
-            send_default_route: false,
+            send_default_route: None,
             apply_policy: Default::default(),
             redistribution: Default::default(),
         }
@@ -1828,7 +1887,7 @@ impl Default for NeighborAfiSafiCfg {
         NeighborAfiSafiCfg {
             enabled,
             prefix_limit: Default::default(),
-            send_default_route: false,
+            send_default_route: None,
             apply_policy: Default::default(),
         }
     }

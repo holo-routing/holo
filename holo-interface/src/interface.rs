@@ -47,6 +47,10 @@ pub struct Interface {
     pub flags: InterfaceFlags,
     pub addresses: BTreeMap<IpNetwork, InterfaceAddress>,
     pub mac_address: MacAddr,
+    // L3 master (VRF) this interface is enslaved to, if any (IFLA_MASTER).
+    pub master_ifindex: Option<u32>,
+    // Routing table id, if this interface is itself a VRF device.
+    pub vrf_table_id: Option<u32>,
     pub owner: Owner,
     pub vrrp: Option<VrrpHandle>,
     pub subscriptions: HashMap<usize, InterfaceSub>,
@@ -142,6 +146,8 @@ impl Interfaces {
             flags: InterfaceFlags::default(),
             addresses: Default::default(),
             mac_address: Default::default(),
+            master_ifindex: None,
+            vrf_table_id: None,
             owner: Owner::CONFIG,
             vrrp: None,
             subscriptions: Default::default(),
@@ -159,6 +165,8 @@ impl Interfaces {
         mtu: u32,
         flags: InterfaceFlags,
         mac_address: MacAddr,
+        master_ifindex: Option<u32>,
+        vrf_table_id: Option<u32>,
         netlink_tx: &UnboundedSender<NetlinkRequest>,
     ) {
         match self
@@ -175,6 +183,8 @@ impl Interfaces {
                     && iface.mtu == Some(mtu)
                     && iface.flags == flags
                     && iface.mac_address == mac_address
+                    && iface.master_ifindex == master_ifindex
+                    && iface.vrf_table_id == vrf_table_id
                 {
                     return;
                 }
@@ -189,6 +199,8 @@ impl Interfaces {
                 iface.mtu = Some(mtu);
                 iface.flags = flags;
                 iface.mac_address = mac_address;
+                iface.master_ifindex = master_ifindex;
+                iface.vrf_table_id = vrf_table_id;
 
                 // Notify subscribers about the interface update.
                 for sub in self
@@ -219,6 +231,8 @@ impl Interfaces {
                     flags,
                     addresses: Default::default(),
                     mac_address,
+                    master_ifindex,
+                    vrf_table_id,
                     owner: Owner::SYSTEM,
                     vrrp: None,
                     subscriptions: Default::default(),

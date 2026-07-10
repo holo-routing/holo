@@ -1,0 +1,13 @@
+{"Ibus":{"RouterIdUpdate":"192.0.2.1"}}
+{"Protocol":{"TriggerDecisionProcess":null}}
+{"Protocol":{"NbrTimer":{"nbr_addr":"198.51.100.2","timer":"AutoStart"}}}
+{"Protocol":{"TcpAccept":{"conn_info":{"local_addr":"198.51.100.1","local_port":179,"remote_addr":"198.51.100.2","remote_port":41200}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"198.51.100.2","msg":{"Ok":{"Open":{"version":4,"my_as":65000,"holdtime":90,"identifier":"192.0.2.2","capabilities":[{"MultiProtocol":{"afi":"Ipv4","safi":"LabeledUnicast"}},{"MultiProtocol":{"afi":"Ipv6","safi":"LabeledUnicast"}},{"FourOctetAsNumber":{"asn":65000}},"RouteRefresh"]}}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"198.51.100.2","msg":{"Ok":{"Keepalive":{}}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"198.51.100.2","msg":{"Ok":{"Update":{"mp_reach":{"Ipv4LabeledUnicast":{"prefixes":[{"label":16000,"prefix":"192.0.2.0/24"}],"nexthop":"198.51.100.2"}},"attrs":{"base":{"origin":"Igp","as_path":{"segments":[]}}}}}}}}}
+{"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Import","nbr_addr":"198.51.100.2","afi_safi":"Ipv4LabeledUnicast","routes":[["192.0.2.0/24",{"Accept":{"origin":{"Neighbor":{"identifier":"192.0.2.2","remote_addr":"198.51.100.2"}},"route_type":"Internal","attrs":{"base":{"origin":"Igp","as_path":{"segments":[]},"nexthop":"198.51.100.2"}},"label":16000}}]]}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"198.51.100.2","msg":{"Ok":{"Update":{"mp_reach":{"Ipv6LabeledUnicast":{"prefixes":[{"label":16001,"prefix":"2001:db8:100::/64"}],"nexthop":"2001:db8::2","ll_nexthop":null}},"attrs":{"base":{"origin":"Igp","as_path":{"segments":[]}}}}}}}}}
+{"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Import","nbr_addr":"198.51.100.2","afi_safi":"Ipv6LabeledUnicast","routes":[["2001:db8:100::/64",{"Accept":{"origin":{"Neighbor":{"identifier":"192.0.2.2","remote_addr":"198.51.100.2"}},"route_type":"Internal","attrs":{"base":{"origin":"Igp","as_path":{"segments":[]},"nexthop":"2001:db8::2"}},"label":16001}}]]}}}}
+{"Ibus":{"NexthopUpd":{"addr":"198.51.100.2","metric":0}}}
+{"Ibus":{"NexthopUpd":{"addr":"2001:db8::2","metric":0}}}
+{"Protocol":{"TriggerDecisionProcess":null}}

@@ -1,0 +1,2 @@
+{"PolicyMatchSetsUpd":{"prefixes":[[["ACCEPTED","Ipv4"],{"name":"ACCEPTED","mode":"Ipv4","prefixes":[{"prefix":"198.51.100.2/32","masklen_lower":32,"masklen_upper":32}]}]],"neighbors":{},"tags":{},"bgp":{"as_paths":{},"comms":{},"ext_comms":{},"extv6_comms":{},"large_comms":{},"nexthops":{}}}}
+{"PolicyUpd":{"name":"SOFT-IN","stmt_order":["10"],"stmts":{"10":{"name":"10","prefix_set_match_type":"Any","tag_set_match_type":"Any","conditions":[["MatchPrefixSet",{"MatchPrefixSet":"ACCEPTED"}]],"actions":[["Accept",{"Accept":true}]]}}}}

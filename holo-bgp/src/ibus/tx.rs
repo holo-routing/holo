@@ -22,12 +22,19 @@ pub(crate) fn router_id_sub(ibus_tx: &IbusChannelsTx) {
     ibus_tx.router_id_sub();
 }
 
+pub(crate) fn interface_sub(ibus_tx: &IbusChannelsTx) {
+    ibus_tx.interface_sub(None, None);
+}
+
 pub(crate) fn route_install(
     ibus_tx: &IbusChannelsTx,
+    table_id: Option<u32>,
     prefix: impl Into<IpNetwork>,
     route: &LocalRoute,
     distance: u8,
 ) {
+    let labels = route.vpn_label.into_iter().collect::<Vec<_>>();
+
     // Fill-in nexthops.
     let nexthops = route
         .nexthops
@@ -35,7 +42,7 @@ pub(crate) fn route_install(
         .flat_map(|nexthops| nexthops.iter())
         .map(|nexthop| Nexthop::Recursive {
             addr: *nexthop,
-            labels: vec![],
+            labels: labels.clone(),
             resolved: Default::default(),
         })
         .collect::<BTreeSet<_>>();
@@ -44,6 +51,7 @@ pub(crate) fn route_install(
     let msg = RouteMsg {
         protocol: Protocol::BGP,
         kind: RouteKind::Unicast,
+        table_id,
         prefix: prefix.into(),
         distance: distance.into(),
         metric: route.attrs.base.value.med.unwrap_or(0),
@@ -56,11 +64,13 @@ pub(crate) fn route_install(
 
 pub(crate) fn route_uninstall(
     ibus_tx: &IbusChannelsTx,
+    table_id: Option<u32>,
     prefix: impl Into<IpNetwork>,
 ) {
     // Uninstall route.
     let msg = RouteKeyMsg {
         protocol: Protocol::BGP,
+        table_id,
         prefix: prefix.into(),
     };
     ibus_tx.route_ip_del(msg);

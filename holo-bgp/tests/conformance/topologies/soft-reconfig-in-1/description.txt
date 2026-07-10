@@ -1,0 +1,1 @@
+BGP inbound soft reconfiguration re-applies import policy to retained Adj-RIB-In.

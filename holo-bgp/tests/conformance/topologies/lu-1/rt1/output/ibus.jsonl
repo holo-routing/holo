@@ -1,0 +1,7 @@
+{"RouterIdSub":{}}
+{"NexthopTrack":{"addr":"198.51.100.2"}}
+{"NexthopTrack":{"addr":"2001:db8::2"}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"192.0.2.0/24","distance":200,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"198.51.100.2","labels":[16000],"resolved":[]}}]}}
+{"RouteMplsAdd":{"protocol":"bgp","label":16,"nexthops":[{"Recursive":{"addr":"198.51.100.2","labels":[16000],"resolved":[]}}],"route":["bgp","192.0.2.0/24"],"replace":true}}
+{"RouteIpAdd":{"protocol":"bgp","prefix":"2001:db8:100::/64","distance":200,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"2001:db8::2","labels":[16001],"resolved":[]}}]}}
+{"RouteMplsAdd":{"protocol":"bgp","label":17,"nexthops":[{"Recursive":{"addr":"2001:db8::2","labels":[16001],"resolved":[]}}],"route":["bgp","2001:db8:100::/64"],"replace":true}}

@@ -239,6 +239,7 @@ pub(crate) fn process_bfd_state_update(
     };
 
     // On LAN interfaces, both L1 and L2 adjacencies share the same BFD session.
+    let mut adjacency_down = false;
     iface.with_adjacencies(&mut arenas.adjacencies, |iface, adj| {
         let bfd = adj
             .bfd
@@ -255,10 +256,13 @@ pub(crate) fn process_bfd_state_update(
                     AdjacencyEvent::BfdDown,
                     AdjacencyState::Down,
                 );
+                adjacency_down = true;
             }
         }
     });
-    instance.schedule_lsp_origination(instance.config.level_type);
+    if adjacency_down {
+        instance.schedule_lsp_origination(instance.config.level_type);
+    }
 
     Ok(())
 }

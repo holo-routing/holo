@@ -1,0 +1,74 @@
+{
+  "ietf-interfaces:interfaces": {
+    "interface": [
+      {
+        "name": "lo",
+        "type": "iana-if-type:softwareLoopback",
+        "ietf-ip:ipv4": {},
+        "ietf-ip:ipv6": {}
+      },
+      {
+        "name": "eth-rt2",
+        "type": "iana-if-type:ethernetCsmacd",
+        "ietf-ip:ipv4": {},
+        "ietf-ip:ipv6": {}
+      }
+    ]
+  },
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "test",
+          "ietf-bgp:bgp": {
+            "global": {
+              "as": 65000,
+              "identifier": "192.0.2.1",
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-labeled-unicast",
+                    "enabled": true
+                  },
+                  {
+                    "name": "iana-bgp-types:ipv6-labeled-unicast",
+                    "enabled": true
+                  }
+                ]
+              }
+            },
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "198.51.100.2",
+                  "peer-as": 65000,
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-labeled-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "default-import-policy": "accept-route",
+                          "default-export-policy": "accept-route"
+                        }
+                      },
+                      {
+                        "name": "iana-bgp-types:ipv6-labeled-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "default-import-policy": "accept-route",
+                          "default-export-policy": "accept-route"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
@@ -20,7 +21,9 @@ use holo_utils::task::{Task, TimeoutTask};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
-use crate::af::{Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    Ipv4Unicast, Ipv6Unicast, L2vpnEvpn, Vpnv4Unicast, Vpnv6Unicast,
+};
 use crate::debug::{Debug, InstanceInactiveReason};
 use crate::error::{Error, IoError};
 use crate::neighbor::{Neighbors, fsm};
@@ -39,6 +42,8 @@ use crate::{events, ibus, network, tasks};
 pub struct Instance {
     // Instance name.
     pub name: String,
+    // Network instance (VRF) this BGP instance runs in.
+    pub network_instance: String,
     // Instance system data.
     pub system: InstanceSys,
     // Instance configuration data.
@@ -71,6 +76,13 @@ pub struct InstanceState {
     pub decision_process_task: Option<TimeoutTask>,
     // BGP RIB.
     pub rib: Rib,
+    // Interface addresses learned from the interface provider.
+    pub interfaces: BTreeMap<String, InterfaceState>,
+}
+
+#[derive(Debug, Default)]
+pub struct InterfaceState {
+    pub addrs: BTreeSet<ipnetwork::IpNetwork>,
 }
 
 #[derive(Debug)]
@@ -120,6 +132,7 @@ pub struct ProtocolInputChannelsRx {
 
 pub struct InstanceUpView<'a> {
     pub name: &'a str,
+    pub network_instance: &'a str,
     pub system: &'a InstanceSys,
     pub config: &'a InstanceCfg,
     pub state: &'a mut InstanceState,
@@ -141,6 +154,9 @@ impl Instance {
             Ok(()) if !self.is_active() => {
                 self.start(router_id.unwrap());
             }
+            Ok(()) if self.is_active() => {
+                self.start_configured_neighbors();
+            }
             Err(reason) if self.is_active() => {
                 self.stop(reason);
             }
@@ -152,10 +168,16 @@ impl Instance {
     fn start(&mut self, router_id: Ipv4Addr) {
         Debug::InstanceStart.log();
 
-        match InstanceState::new(router_id, &self.tx) {
+        match InstanceState::new(
+            router_id,
+            &self.tx,
+            Some(self.network_instance.as_str())
+                .filter(|name| *name != "default"),
+        ) {
             Ok(state) => {
                 // Store instance initial state.
                 self.state = Some(state);
+                self.start_configured_neighbors();
             }
             Err(error) => {
                 Error::InstanceStartError(Box::new(error)).log();
@@ -188,6 +210,26 @@ impl Instance {
         self.state.is_some()
     }
 
+    // Starts any configured neighbors that are still idle.
+    pub(crate) fn start_configured_neighbors(&mut self) {
+        if let Some((mut instance, neighbors)) = self.as_up() {
+            for nbr in neighbors.values_mut() {
+                let has_enabled_afi_safi = nbr
+                    .config
+                    .afi_safi
+                    .values()
+                    .any(|afi_safi| afi_safi.enabled);
+                if nbr.config.enabled
+                    && nbr.config.peer_as != 0
+                    && has_enabled_afi_safi
+                    && nbr.state == fsm::State::Idle
+                {
+                    nbr.fsm_event(&mut instance, fsm::Event::Start);
+                }
+            }
+        }
+    }
+
     // Returns whether the instance is ready for BGP operation.
     fn is_ready(
         &self,
@@ -214,6 +256,7 @@ impl Instance {
         if let Some(state) = &mut self.state {
             let instance = InstanceUpView {
                 name: &self.name,
+                network_instance: &self.network_instance,
                 system: &self.system,
                 config: &self.config,
                 state,
@@ -244,6 +287,7 @@ impl ProtocolInstance for Instance {
 
         Instance {
             name,
+            network_instance: shared.network_instance.clone(),
             system: Default::default(),
             config: Default::default(),
             state: None,
@@ -321,12 +365,13 @@ impl InstanceState {
     fn new(
         router_id: Ipv4Addr,
         instance_tx: &InstanceChannelsTx<Instance>,
+        vrf_device: Option<&str>,
     ) -> Result<InstanceState, Error> {
         let mut listening_sockets = Vec::new();
 
         // Create TCP listeners.
         for af in [AddressFamily::Ipv4, AddressFamily::Ipv6] {
-            let socket = network::listen_socket(af)
+            let socket = network::listen_socket(af, vrf_device)
                 .map(Arc::new)
                 .map_err(IoError::TcpSocketError)?;
             let task = tasks::tcp_listener(
@@ -375,6 +420,7 @@ impl InstanceState {
             policy_apply_tasks,
             decision_process_task: None,
             rib: Default::default(),
+            interfaces: Default::default(),
         })
     }
 
@@ -434,6 +480,16 @@ impl PolicyApplyTasks {
     pub(crate) fn enqueue(&self, msg: PolicyApplyMsg) {
         let _ = self.tx.send(msg);
     }
+
+    #[cfg(test)]
+    pub(crate) fn new_for_testing(
+        tx: crossbeam_channel::Sender<PolicyApplyMsg>,
+    ) -> Self {
+        Self {
+            tx,
+            _tasks: Vec::new(),
+        }
+    }
 }
 
 // ===== helper functions =====
@@ -447,6 +503,22 @@ fn process_ibus_msg(
     }
 
     match msg {
+        IbusMsg::BfdStateUpd { sess_key, state } => {
+            // BFD peer state update notification.
+            ibus::rx::process_bfd_state_update(instance, sess_key, state);
+        }
+        IbusMsg::InterfaceUpd(msg) => {
+            // Interface update notification.
+            ibus::rx::process_iface_update(instance, msg);
+        }
+        IbusMsg::InterfaceAddressAdd(msg) => {
+            // Interface address addition notification.
+            ibus::rx::process_addr_add(instance, msg);
+        }
+        IbusMsg::InterfaceAddressDel(msg) => {
+            // Interface address deletion notification.
+            ibus::rx::process_addr_del(instance, msg);
+        }
         IbusMsg::NexthopUpd { addr, metric } => {
             // Nexthop tracking update notification.
             ibus::rx::process_nht_update(instance, addr, metric);
@@ -458,6 +530,17 @@ fn process_ibus_msg(
         IbusMsg::PolicyMatchSetsUpd(match_sets) => {
             // Update the local copy of the policy match sets.
             instance.shared.policy_match_sets = match_sets;
+
+            if let Some((mut instance, neighbors)) = instance.as_up() {
+                events::reapply_import_policy_all::<Ipv4Unicast>(
+                    &mut instance,
+                    neighbors,
+                );
+                events::reapply_import_policy_all::<Ipv6Unicast>(
+                    &mut instance,
+                    neighbors,
+                );
+            }
         }
         IbusMsg::PolicyUpd(policy) => {
             // Update the local copy of the policy definition.
@@ -465,10 +548,32 @@ fn process_ibus_msg(
                 .shared
                 .policies
                 .insert(policy.name.clone(), policy.clone());
+
+            if let Some((mut instance, neighbors)) = instance.as_up() {
+                events::reapply_import_policy_all::<Ipv4Unicast>(
+                    &mut instance,
+                    neighbors,
+                );
+                events::reapply_import_policy_all::<Ipv6Unicast>(
+                    &mut instance,
+                    neighbors,
+                );
+            }
         }
         IbusMsg::PolicyDel(policy_name) => {
             // Remove the local copy of the policy definition.
             instance.shared.policies.remove(&policy_name);
+
+            if let Some((mut instance, neighbors)) = instance.as_up() {
+                events::reapply_import_policy_all::<Ipv4Unicast>(
+                    &mut instance,
+                    neighbors,
+                );
+                events::reapply_import_policy_all::<Ipv6Unicast>(
+                    &mut instance,
+                    neighbors,
+                );
+            }
         }
         IbusMsg::RouteRedistributeAdd(msg) => {
             // Route redistribute update notification.
@@ -555,6 +660,9 @@ fn process_protocol_msg(
                         instance, neighbors, nbr_addr, routes,
                     )?
                 }
+                (_, AfiSafi::L3vpnIpv4Unicast)
+                | (_, AfiSafi::L3vpnIpv6Unicast)
+                | (_, AfiSafi::L2vpnEvpn) => {}
             },
             PolicyResultMsg::Redistribute {
                 afi_safi,
@@ -571,12 +679,18 @@ fn process_protocol_msg(
                         instance, prefix, result,
                     )?
                 }
+                AfiSafi::L3vpnIpv4Unicast
+                | AfiSafi::L3vpnIpv6Unicast
+                | AfiSafi::L2vpnEvpn => {}
             },
         },
         // Decision process.
         ProtocolInputMsg::TriggerDecisionProcess(_) => {
             events::decision_process::<Ipv4Unicast>(instance, neighbors)?;
             events::decision_process::<Ipv6Unicast>(instance, neighbors)?;
+            events::decision_process::<Vpnv4Unicast>(instance, neighbors)?;
+            events::decision_process::<Vpnv6Unicast>(instance, neighbors)?;
+            events::decision_process::<L2vpnEvpn>(instance, neighbors)?;
         }
     }
 

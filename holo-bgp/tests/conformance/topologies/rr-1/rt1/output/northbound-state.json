@@ -1,0 +1,110 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "test",
+          "ietf-bgp:bgp": {
+            "global": {
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "statistics": {
+                      "total-prefixes": 0
+                    }
+                  }
+                ]
+              },
+              "statistics": {
+                "total-prefixes": 0
+              }
+            },
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "198.51.100.2",
+                  "peer-type": "internal",
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                          "received": 0,
+                          "sent": 0,
+                          "installed": 0
+                        }
+                      }
+                    ]
+                  },
+                  "session-state": "idle"
+                },
+                {
+                  "remote-address": "198.51.100.3",
+                  "peer-type": "internal",
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                          "received": 0,
+                          "sent": 0,
+                          "installed": 0
+                        }
+                      }
+                    ]
+                  },
+                  "session-state": "idle"
+                },
+                {
+                  "remote-address": "198.51.100.4",
+                  "peer-type": "internal",
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                          "received": 0,
+                          "sent": 0,
+                          "installed": 0
+                        }
+                      }
+                    ]
+                  },
+                  "session-state": "idle"
+                },
+                {
+                  "remote-address": "198.51.100.5",
+                  "peer-type": "internal",
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                          "received": 0,
+                          "sent": 0,
+                          "installed": 0
+                        }
+                      }
+                    ]
+                  },
+                  "session-state": "idle"
+                }
+              ]
+            },
+            "rib": {
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

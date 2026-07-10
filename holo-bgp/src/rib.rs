@@ -10,21 +10,27 @@ use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 use std::time::Instant;
 
+use holo_protocol::InstanceShared;
 use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusChannelsTx;
+use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
-use prefix_trie::map::PrefixMap;
 use serde::{Deserialize, Serialize};
 
-use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    AddressFamily, Ipv4Unicast, Ipv6Unicast, L2vpnEvpn, Vpnv4Unicast,
+    Vpnv6Unicast,
+};
 use crate::debug::Debug;
 use crate::ibus;
-use crate::neighbor::{Neighbor, PeerType};
+use crate::neighbor::{Neighbor, Neighbors, PeerType};
 use crate::northbound::configuration::{
-    DistanceCfg, InstanceTraceOptions, MultipathCfg, RouteSelectionCfg,
+    DistanceCfg, InstanceTraceOptions, MultipathCfg, PrivateAsRemove,
+    RouteSelectionCfg,
 };
 use crate::packet::attribute::{
-    Attrs, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr,
+    Attrs, BaseAttrs, ClusterList, Comms, ExtComms, Extv6Comms, LargeComms,
+    UnknownAttr,
 };
 use crate::policy::RoutePolicyInfo;
 
@@ -44,12 +50,15 @@ pub struct Rib {
 pub struct RoutingTables {
     pub ipv4_unicast: RoutingTable<Ipv4Unicast>,
     pub ipv6_unicast: RoutingTable<Ipv6Unicast>,
+    pub vpnv4_unicast: RoutingTable<Vpnv4Unicast>,
+    pub vpnv6_unicast: RoutingTable<Vpnv6Unicast>,
+    pub l2vpn_evpn: RoutingTable<L2vpnEvpn>,
 }
 
 #[derive(Debug)]
 pub struct RoutingTable<A: AddressFamily> {
-    pub prefixes: PrefixMap<A::IpNetwork, Destination>,
-    pub queued_prefixes: BTreeSet<A::IpNetwork>,
+    pub prefixes: BTreeMap<A::Prefix, Destination>,
+    pub queued_prefixes: BTreeSet<A::Prefix>,
     pub nht: HashMap<IpAddr, NhtEntry<A>>,
 }
 
@@ -73,6 +82,7 @@ pub struct LocalRoute {
     pub origin: RouteOrigin,
     pub attrs: RouteAttrs,
     pub route_type: RouteType,
+    pub vpn_label: Option<Label>,
     pub last_modified: Instant,
     pub nexthops: Option<BTreeSet<IpAddr>>,
 }
@@ -82,6 +92,7 @@ pub struct Route {
     pub origin: RouteOrigin,
     pub attrs: RouteAttrs,
     pub route_type: RouteType,
+    pub vpn_label: Option<Label>,
     pub igp_cost: Option<u32>,
     pub last_modified: Instant,
     pub ineligible_reason: Option<RouteIneligibleReason>,
@@ -135,7 +146,7 @@ pub struct AttrSet<T> {
 #[derive(Debug, Eq, PartialEq)]
 pub struct NhtEntry<A: AddressFamily> {
     pub metric: Option<u32>,
-    pub prefixes: BTreeMap<A::IpNetwork, u32>,
+    pub prefixes: BTreeMap<A::Prefix, u32>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -158,10 +169,12 @@ pub enum RouteRejectReason {
     HigherRouterId,
     HigherPeerAddress,
     RejectedImportPolicy,
+    EvpnMacMobilityLowerSequence,
+    EvpnMacMobilitySticky,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum RouteCompare {
+pub enum RouteCompare {
     Preferred(RouteRejectReason),
     LessPreferred(RouteRejectReason),
     MultipathEqual,
@@ -304,6 +317,7 @@ impl Route {
             origin,
             attrs,
             route_type,
+            vpn_label: None,
             igp_cost: None,
             last_modified: Instant::now(),
             ineligible_reason: None,
@@ -315,6 +329,7 @@ impl Route {
         RoutePolicyInfo {
             origin: self.origin,
             route_type: self.route_type,
+            label: self.vpn_label,
             tag: None,
             opaque_attrs: None,
             attrs: self.attrs.get(),
@@ -688,7 +703,8 @@ where
     let max_paths = match best_route.route_type {
         RouteType::Internal => mpath_cfg.ibgp_max_paths,
         RouteType::External => mpath_cfg.ebgp_max_paths,
-    };
+    }
+    .max(1);
     let nexthops = dest
         .adj_rib
         .values()
@@ -707,8 +723,12 @@ where
 // ===== global functions =====
 
 pub(crate) fn best_path<A>(
+    prefix: A::Prefix,
     dest: &mut Destination,
     local_asn: u32,
+    identifier: Option<Ipv4Addr>,
+    cluster_ids: &BTreeSet<Ipv4Addr>,
+    neighbors: &Neighbors,
     nht: &HashMap<IpAddr, NhtEntry<A>>,
     selection_cfg: &RouteSelectionCfg,
 ) -> Option<Box<Route>>
@@ -730,8 +750,25 @@ where
         route.ineligible_reason = None;
 
         // First, check if the route is eligible.
-        if route.attrs.base.value.as_path.contains(local_asn) {
+        if is_as_loop(route, local_asn, neighbors) {
             route.ineligible_reason = Some(RouteIneligibleReason::AsLoop);
+            continue;
+        }
+        if route.attrs.base.value.originator_id.is_some()
+            && route.attrs.base.value.originator_id == identifier
+        {
+            route.ineligible_reason = Some(RouteIneligibleReason::Originator);
+            continue;
+        }
+        if route.attrs.base.value.cluster_list.as_ref().is_some_and(
+            |cluster_list| {
+                cluster_list
+                    .0
+                    .iter()
+                    .any(|cluster_id| cluster_ids.contains(cluster_id))
+            },
+        ) {
+            route.ineligible_reason = Some(RouteIneligibleReason::ClusterLoop);
             continue;
         }
 
@@ -754,7 +791,10 @@ where
             }
             Some(best_route) => {
                 // Update the best route if the current route is preferred.
-                match route.compare(best_route, selection_cfg, None) {
+                match A::route_compare_override(prefix, route, best_route)
+                    .unwrap_or_else(|| {
+                        route.compare(best_route, selection_cfg, None)
+                    }) {
                     RouteCompare::Preferred(reason) => {
                         best_route.reject_reason = Some(reason);
                         *best_route = route;
@@ -773,8 +813,25 @@ where
     best_route.cloned()
 }
 
+fn is_as_loop(route: &Route, local_asn: u32, neighbors: &Neighbors) -> bool {
+    let count = route.attrs.base.value.as_path.count(local_asn);
+    if count == 0 {
+        return false;
+    }
+
+    let allowed = match &route.origin {
+        RouteOrigin::Neighbor { remote_addr, .. } => neighbors
+            .get(remote_addr)
+            .map(|nbr| nbr.config.as_path_options.allow_own_as)
+            .unwrap_or_default(),
+        _ => 0,
+    };
+
+    count > allowed
+}
+
 pub(crate) fn loc_rib_update<A>(
-    prefix: A::IpNetwork,
+    prefix: A::Prefix,
     dest: &mut Destination,
     best_route: Option<Box<Route>>,
     attr_sets: &mut AttrSetsCxt,
@@ -782,13 +839,15 @@ pub(crate) fn loc_rib_update<A>(
     mpath_cfg: &MultipathCfg,
     distance_cfg: &DistanceCfg,
     trace_opts: &InstanceTraceOptions,
+    shared: &InstanceShared,
     ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
 {
     if let Some(best_route) = best_route {
         if trace_opts.route {
-            Debug::BestPathFound(prefix.into(), &best_route).log();
+            Debug::BestPathFound(A::prefix_to_ip_network(prefix), &best_route)
+                .log();
         }
 
         // Compute route nexthops, considering multipath configuration.
@@ -800,9 +859,14 @@ pub(crate) fn loc_rib_update<A>(
             && local_route.origin == best_route.origin
             && local_route.attrs == best_route.attrs
             && local_route.route_type == best_route.route_type
+            && local_route.vpn_label == best_route.vpn_label
             && local_route.nexthops == nexthops
         {
             return;
+        }
+
+        if let Some(local_route) = &dest.local {
+            A::vpn_import_uninstall(prefix, local_route, shared, ibus_tx);
         }
 
         // Create new local route.
@@ -810,38 +874,48 @@ pub(crate) fn loc_rib_update<A>(
             origin: best_route.origin,
             attrs: best_route.attrs,
             route_type: best_route.route_type,
+            vpn_label: best_route.vpn_label,
             last_modified: best_route.last_modified,
             nexthops,
         };
+        let distance = match best_route.route_type {
+            RouteType::Internal => distance_cfg.internal,
+            RouteType::External => distance_cfg.external,
+        };
 
         // Install local route in the global RIB.
-        if !local_route.origin.is_local() {
+        if A::INSTALL_LOC_RIB && !local_route.origin.is_local() {
             ibus::tx::route_install(
                 ibus_tx,
-                prefix,
+                None,
+                A::prefix_to_ip_network(prefix),
                 &local_route,
-                match best_route.route_type {
-                    RouteType::Internal => distance_cfg.internal,
-                    RouteType::External => distance_cfg.external,
-                },
+                distance,
             );
         }
+        A::vpn_import_install(prefix, &local_route, shared, ibus_tx, distance);
 
         // Insert local route into the Loc-RIB.
         dest.local = Some(Box::new(local_route));
     } else {
         if trace_opts.route {
-            Debug::BestPathNotFound(prefix.into()).log();
+            Debug::BestPathNotFound(A::prefix_to_ip_network(prefix)).log();
         }
 
         // Remove route from the Loc-RIB.
         if let Some(local_route) = dest.local.take() {
+            A::vpn_import_uninstall(prefix, &local_route, shared, ibus_tx);
+
             // Check attribute sets that might need to be removed.
             attr_sets.remove_route_attr_sets(&local_route.attrs);
 
             // Uninstall route from the global RIB.
-            if !local_route.origin.is_local() {
-                ibus::tx::route_uninstall(ibus_tx, prefix);
+            if A::INSTALL_LOC_RIB && !local_route.origin.is_local() {
+                ibus::tx::route_uninstall(
+                    ibus_tx,
+                    None,
+                    A::prefix_to_ip_network(prefix),
+                );
             }
         }
     }
@@ -851,6 +925,9 @@ pub(crate) fn attrs_tx_update<A>(
     attrs: &mut Attrs,
     nbr: &Neighbor,
     local_asn: u32,
+    cluster_id: Option<Ipv4Addr>,
+    route_origin: RouteOrigin,
+    route_type: RouteType,
     local: bool,
 ) where
     A: AddressFamily,
@@ -863,8 +940,42 @@ pub(crate) fn attrs_tx_update<A>(
             }
         }
         PeerType::External => {
-            // Prepend local AS number.
-            attrs.base.as_path.prepend(local_asn);
+            // Egress AS-path knobs are intentionally applied to this
+            // per-advertisement copy, after export policy and before encoding.
+            // Transform the original route path before local prepends so
+            // leading-private removal sees the received path, not our ASN.
+            match nbr.config.private_as_remove {
+                Some(PrivateAsRemove::RemoveLeading) => {
+                    attrs.base.as_path.remove_private_leading();
+                }
+                Some(PrivateAsRemove::RemoveAll) => {
+                    attrs.base.as_path.remove_private_all();
+                }
+                Some(PrivateAsRemove::ReplaceAll) => {
+                    attrs.base.as_path.replace_private(local_asn);
+                }
+                None => {}
+            }
+
+            if nbr.config.as_path_options.replace_peer_as {
+                attrs.base.as_path.replace(nbr.config.peer_as, local_asn);
+            }
+
+            if let Some(local_as) = nbr.config.local_as
+                && !nbr.config.local_as_options.no_prepend
+                && !nbr.config.local_as_options.replace_as
+            {
+                attrs.base.as_path.prepend(local_as);
+            }
+
+            // Prepend local AS number. With local-as replace-as, present the
+            // configured local-as in place of the global ASN.
+            let prepend_asn = if nbr.config.local_as_options.replace_as {
+                nbr.config.local_as.unwrap_or(local_asn)
+            } else {
+                local_asn
+            };
+            attrs.base.as_path.prepend(prepend_asn);
 
             // Do not propagate the MULTI_EXIT_DISC attribute.
             attrs.base.med = None;
@@ -874,13 +985,31 @@ pub(crate) fn attrs_tx_update<A>(
         }
     }
 
+    if route_type == RouteType::Internal
+        && nbr.peer_type == PeerType::Internal
+        && let RouteOrigin::Neighbor {
+            identifier,
+            remote_addr,
+        } = route_origin
+        && remote_addr != nbr.remote_addr
+        && let Some(cluster_id) = cluster_id
+    {
+        attrs.base.originator_id.get_or_insert(identifier);
+        attrs
+            .base
+            .cluster_list
+            .get_or_insert_with(|| ClusterList(Vec::new()))
+            .0
+            .insert(0, cluster_id);
+    }
+
     // Update the next-hop attribute based on the address family if necessary.
     A::nexthop_tx_change(nbr, local, &mut attrs.base);
 }
 
 pub(crate) fn nexthop_track<A>(
     nht: &mut HashMap<IpAddr, NhtEntry<A>>,
-    prefix: A::IpNetwork,
+    prefix: A::Prefix,
     route: &Route,
     ibus_tx: &IbusChannelsTx,
 ) where
@@ -896,7 +1025,7 @@ pub(crate) fn nexthop_track<A>(
 
 pub(crate) fn nexthop_untrack<A>(
     nht: &mut HashMap<IpAddr, NhtEntry<A>>,
-    prefix: &A::IpNetwork,
+    prefix: &A::Prefix,
     route: &Route,
     ibus_tx: &IbusChannelsTx,
 ) where
@@ -928,8 +1057,17 @@ pub(crate) fn nexthop_untrack<A>(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::VecDeque;
+
+    use holo_utils::socket::TcpConnInfo;
+
     use super::*;
-    use crate::packet::attribute::BaseAttrs;
+    use crate::af::{Ipv4Unicast, L2vpnEvpn};
+    use crate::evpn;
+    use crate::packet::attribute::{
+        AsPath, AsPathSegment, AsPathSegmentType, BaseAttrs, CommList,
+    };
+    use crate::packet::message::{EvpnMacIpAdvertisement, EvpnRoute};
 
     fn make_route(
         origin: RouteOrigin,
@@ -952,11 +1090,58 @@ mod tests {
             origin,
             attrs,
             route_type,
+            vpn_label: None,
             igp_cost,
             last_modified: Instant::now(),
             ineligible_reason: None,
             reject_reason: None,
         }
+    }
+
+    fn make_evpn_route(remote_addr: IpAddr, sequence: u32) -> Route {
+        let mut base_attrs = BaseAttrs::default();
+        base_attrs.nexthop = Some(IpAddr::V4(Ipv4Addr::new(192, 0, 2, 254)));
+        let mobility = evpn::mac_mobility_ext_comm(false, sequence);
+        Route {
+            origin: RouteOrigin::Neighbor {
+                identifier: Ipv4Addr::new(192, 0, 2, 254),
+                remote_addr,
+            },
+            attrs: RouteAttrs {
+                base: Arc::new(AttrSet {
+                    index: 0,
+                    value: base_attrs,
+                }),
+                comm: None,
+                ext_comm: Some(Arc::new(AttrSet {
+                    index: 0,
+                    value: CommList([mobility].into()),
+                })),
+                extv6_comm: None,
+                large_comm: None,
+                unknown: None,
+            },
+            route_type: RouteType::Internal,
+            vpn_label: None,
+            igp_cost: None,
+            last_modified: Instant::now(),
+            ineligible_reason: None,
+            reject_reason: None,
+        }
+    }
+
+    fn mac_prefix() -> EvpnRoute {
+        EvpnRoute::MacIpAdvertisement(EvpnMacIpAdvertisement {
+            rd: holo_utils::bgp::RouteDistinguisher::As2Administrator {
+                asn: 65000,
+                number: 1,
+            },
+            esi: [0; 10],
+            ethernet_tag_id: 100,
+            mac: [0, 1, 2, 3, 4, 5],
+            ip: None,
+            label: 16000,
+        })
     }
 
     fn ibgp_origin() -> RouteOrigin {
@@ -968,6 +1153,197 @@ mod tests {
 
     fn local_origin() -> RouteOrigin {
         RouteOrigin::Protocol(Protocol::STATIC)
+    }
+
+    fn test_attrs() -> Attrs {
+        let mut attrs = Attrs::default();
+        attrs.base.nexthop = Some(IpAddr::V4(Ipv4Addr::new(10, 0, 0, 254)));
+        attrs
+    }
+
+    #[test]
+    fn attrs_tx_update_adds_rr_attrs_only_for_reflected_ibgp() {
+        let mut nbr = Neighbor::new(
+            IpAddr::V4(Ipv4Addr::new(10, 0, 0, 2)),
+            PeerType::Internal,
+        );
+        nbr.config.route_reflector.cluster_id =
+            Some(Ipv4Addr::new(192, 0, 2, 1));
+        nbr.conn_info = Some(TcpConnInfo {
+            local_addr: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 254)),
+            local_port: 179,
+            remote_addr: nbr.remote_addr,
+            remote_port: 179,
+        });
+        let origin = RouteOrigin::Neighbor {
+            identifier: Ipv4Addr::new(10, 0, 0, 1),
+            remote_addr: IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+        };
+
+        let mut attrs = test_attrs();
+        attrs_tx_update::<Ipv4Unicast>(
+            &mut attrs,
+            &nbr,
+            65000,
+            nbr.config.route_reflector.cluster_id,
+            origin,
+            RouteType::Internal,
+            true,
+        );
+        assert_eq!(attrs.base.originator_id, Some(Ipv4Addr::new(10, 0, 0, 1)));
+        assert_eq!(
+            attrs.base.cluster_list,
+            Some(ClusterList(vec![Ipv4Addr::new(192, 0, 2, 1)]))
+        );
+
+        let mut attrs = test_attrs();
+        attrs_tx_update::<Ipv4Unicast>(
+            &mut attrs,
+            &nbr,
+            65000,
+            nbr.config.route_reflector.cluster_id,
+            origin,
+            RouteType::External,
+            true,
+        );
+        assert_eq!(attrs.base.originator_id, None);
+        assert_eq!(attrs.base.cluster_list, None);
+    }
+
+    #[test]
+    fn best_path_rejects_local_cluster_loop() {
+        let route = make_route(ibgp_origin(), RouteType::Internal, None);
+        let mut attrs = route.attrs.get();
+        attrs.base.cluster_list =
+            Some(ClusterList(vec![Ipv4Addr::new(192, 0, 2, 1)]));
+
+        let mut attr_sets = AttrSetsCxt::default();
+        let mut dest = Destination::default();
+        dest.adj_rib.insert(
+            IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+            AdjRib {
+                in_post: Some(Box::new(Route::new(
+                    ibgp_origin(),
+                    attr_sets.get_route_attr_sets(&attrs),
+                    RouteType::Internal,
+                ))),
+                ..Default::default()
+            },
+        );
+
+        let cluster_ids = BTreeSet::from([Ipv4Addr::new(192, 0, 2, 1)]);
+        let prefix = Ipv4Unicast::prefix_from_ip_network(
+            "192.0.2.0/24".parse().unwrap(),
+        )
+        .unwrap();
+        let best = best_path::<Ipv4Unicast>(
+            prefix,
+            &mut dest,
+            65000,
+            None,
+            &cluster_ids,
+            &Neighbors::default(),
+            &HashMap::new(),
+            &RouteSelectionCfg::default(),
+        );
+
+        assert!(best.is_none());
+        assert_eq!(
+            dest.adj_rib
+                .values()
+                .next()
+                .unwrap()
+                .in_post()
+                .unwrap()
+                .ineligible_reason,
+            Some(RouteIneligibleReason::ClusterLoop)
+        );
+    }
+
+    fn as_path(members: impl IntoIterator<Item = u32>) -> AsPath {
+        AsPath {
+            segments: VecDeque::from([AsPathSegment {
+                seg_type: AsPathSegmentType::Sequence,
+                members: members.into_iter().collect(),
+            }]),
+        }
+    }
+
+    fn ecmp_route(
+        remote_addr: Ipv4Addr,
+        nexthop: Ipv4Addr,
+        as_path_members: impl IntoIterator<Item = u32>,
+    ) -> Box<Route> {
+        let base_attrs = BaseAttrs {
+            as_path: as_path(as_path_members),
+            nexthop: Some(nexthop.into()),
+            med: Some(100),
+            local_pref: Some(DFLT_LOCAL_PREF),
+            ..Default::default()
+        };
+        let attrs = RouteAttrs {
+            base: Arc::new(AttrSet {
+                index: 0,
+                value: base_attrs,
+            }),
+            comm: None,
+            ext_comm: None,
+            extv6_comm: None,
+            large_comm: None,
+            unknown: None,
+        };
+        Box::new(Route {
+            origin: RouteOrigin::Neighbor {
+                identifier: remote_addr,
+                remote_addr: remote_addr.into(),
+            },
+            attrs,
+            route_type: RouteType::External,
+            vpn_label: None,
+            igp_cost: Some(10),
+            last_modified: Instant::now(),
+            ineligible_reason: None,
+            reject_reason: None,
+        })
+    }
+
+    fn add_in_post(
+        dest: &mut Destination,
+        remote_addr: Ipv4Addr,
+        route: Box<Route>,
+    ) {
+        dest.adj_rib.entry(remote_addr.into()).or_default().in_post =
+            Some(route);
+    }
+
+    fn ecmp_destination() -> (Destination, Box<Route>) {
+        let mut dest = Destination::default();
+        let best = ecmp_route(
+            Ipv4Addr::new(192, 0, 2, 1),
+            Ipv4Addr::new(10, 0, 0, 1),
+            [65001],
+        );
+        add_in_post(&mut dest, Ipv4Addr::new(192, 0, 2, 1), best.clone());
+        add_in_post(
+            &mut dest,
+            Ipv4Addr::new(192, 0, 2, 2),
+            ecmp_route(
+                Ipv4Addr::new(192, 0, 2, 2),
+                Ipv4Addr::new(10, 0, 0, 2),
+                [65001],
+            ),
+        );
+        add_in_post(
+            &mut dest,
+            Ipv4Addr::new(192, 0, 2, 3),
+            ecmp_route(
+                Ipv4Addr::new(192, 0, 2, 3),
+                Ipv4Addr::new(10, 0, 0, 3),
+                [65001, 65002],
+            ),
+        );
+
+        (dest, best)
     }
 
     #[test]
@@ -1064,5 +1440,107 @@ mod tests {
             RouteCompare::Preferred(RouteRejectReason::PreferExternal) => {}
             other => panic!("expected PreferExternal, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn evpn_best_path_prefers_higher_mac_mobility_sequence() {
+        let low_peer = IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1));
+        let high_peer = IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2));
+        let prefix = mac_prefix();
+        let mut dest = Destination::default();
+        dest.adj_rib.insert(
+            low_peer,
+            AdjRib {
+                in_post: Some(Box::new(make_evpn_route(low_peer, 1))),
+                ..Default::default()
+            },
+        );
+        dest.adj_rib.insert(
+            high_peer,
+            AdjRib {
+                in_post: Some(Box::new(make_evpn_route(high_peer, 2))),
+                ..Default::default()
+            },
+        );
+        let nht = HashMap::from([(
+            IpAddr::V4(Ipv4Addr::new(192, 0, 2, 254)),
+            NhtEntry::<L2vpnEvpn> {
+                metric: Some(1),
+                prefixes: Default::default(),
+            },
+        )]);
+
+        let route = best_path::<L2vpnEvpn>(
+            prefix,
+            &mut dest,
+            65000,
+            None,
+            &BTreeSet::new(),
+            &Neighbors::default(),
+            &nht,
+            &Default::default(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            route.origin,
+            RouteOrigin::Neighbor {
+                identifier: Ipv4Addr::new(192, 0, 2, 254),
+                remote_addr: high_peer,
+            }
+        );
+    }
+
+    #[test]
+    fn multipath_groups_only_equal_cost_routes() {
+        let (dest, best) = ecmp_destination();
+        let selection_cfg = RouteSelectionCfg::default();
+        let mpath_cfg = MultipathCfg {
+            enabled: true,
+            ebgp_allow_multiple_as: false,
+            ebgp_max_paths: 8,
+            ibgp_max_paths: 1,
+        };
+
+        let nexthops = compute_nexthops::<Ipv4Unicast>(
+            &dest,
+            &best,
+            &selection_cfg,
+            &mpath_cfg,
+        )
+        .unwrap();
+
+        assert_eq!(
+            nexthops,
+            BTreeSet::from([
+                IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1)),
+                IpAddr::V4(Ipv4Addr::new(10, 0, 0, 2)),
+            ])
+        );
+    }
+
+    #[test]
+    fn multipath_max_paths_zero_preserves_single_path() {
+        let (dest, best) = ecmp_destination();
+        let selection_cfg = RouteSelectionCfg::default();
+        let mpath_cfg = MultipathCfg {
+            enabled: true,
+            ebgp_allow_multiple_as: false,
+            ebgp_max_paths: 0,
+            ibgp_max_paths: 0,
+        };
+
+        let nexthops = compute_nexthops::<Ipv4Unicast>(
+            &dest,
+            &best,
+            &selection_cfg,
+            &mpath_cfg,
+        )
+        .unwrap();
+
+        assert_eq!(
+            nexthops,
+            BTreeSet::from([IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1))])
+        );
     }
 }

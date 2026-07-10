@@ -1,0 +1,1 @@
+{"BfdSessionReg":{"sess_key":{"IpSingleHop":{"ifname":"eth-rt2","dst":"10.0.1.2"}},"client_id":{"protocol":"bgp","name":"test"},"client_config":{"local_multiplier":3,"min_tx":1000000,"min_rx":1000000}}}

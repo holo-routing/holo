@@ -1,0 +1,67 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "test",
+          "ietf-bgp:bgp": {
+            "global": {
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "statistics": {
+                      "total-prefixes": 0
+                    }
+                  }
+                ]
+              },
+              "statistics": {
+                "total-prefixes": 0
+              }
+            },
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "192.0.2.2",
+                  "peer-type": "external",
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "prefixes": {
+                          "received": 0,
+                          "sent": 0,
+                          "installed": 0
+                        }
+                      }
+                    ]
+                  },
+                  "session-state": "idle",
+                  "errors": {
+                    "sent": {
+                      "last-error": "iana-bgp-notification:cease-max-prefixes",
+                      "last-error-code": 6,
+                      "last-error-subcode": 1,
+                      "last-error-data": ""
+                    }
+                  }
+                }
+              ]
+            },
+            "rib": {
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

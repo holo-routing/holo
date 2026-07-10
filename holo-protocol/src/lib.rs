@@ -8,6 +8,7 @@ pub mod event_recorder;
 #[cfg(feature = "testing")]
 pub mod test;
 
+use std::collections::{BTreeMap, BTreeSet};
 #[cfg(not(feature = "testing"))]
 use std::panic::AssertUnwindSafe;
 use std::sync::{Arc, Mutex};
@@ -20,10 +21,11 @@ use holo_northbound::{
     NbDaemonReceiver, NbDaemonSender, NbProviderSender, process_northbound_msg,
 };
 use holo_utils::Database;
+use holo_utils::bgp::{RouteDistinguisher, RouteTarget};
 use holo_utils::bier::BierCfg;
 use holo_utils::ibus::{IbusChannelsTx, IbusMsg, IbusReceiver, IbusSender};
 use holo_utils::keychain::Keychains;
-use holo_utils::mpls::LabelManager;
+use holo_utils::mpls::{Label, LabelManager};
 use holo_utils::policy::{MatchSets, Policies};
 use holo_utils::protocol::Protocol;
 use holo_utils::sr::SrCfg;
@@ -90,6 +92,8 @@ where
 /// Shared data among all protocol instances.
 #[derive(Clone, Default, new)]
 pub struct InstanceShared {
+    // Network instance (VRF) this protocol instance runs in.
+    pub network_instance: String,
     // Non-volatile storage.
     pub db: Option<Database>,
     // Hostname.
@@ -106,8 +110,25 @@ pub struct InstanceShared {
     pub sr_config: Arc<SrCfg>,
     // Global BIER configuration.
     pub bier_config: Arc<BierCfg>,
+    // VPN import state learned from network-instance configuration.
+    pub vpn_imports: Arc<Mutex<BTreeMap<String, VpnImport>>>,
+    // VPN export state learned from network-instance configuration.
+    pub vpn_exports: Arc<Mutex<BTreeMap<u32, VpnExport>>>,
     // Event recorder configuration.
     pub event_recorder_config: Option<event_recorder::Config>,
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct VpnImport {
+    pub table_id: Option<u32>,
+    pub import_rts: BTreeSet<RouteTarget>,
+}
+
+#[derive(Clone, Debug)]
+pub struct VpnExport {
+    pub rd: RouteDistinguisher,
+    pub export_rts: BTreeSet<RouteTarget>,
+    pub label: Label,
 }
 
 /// Instance input message.
@@ -159,12 +180,15 @@ where
 impl std::fmt::Debug for InstanceShared {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("InstanceShared")
+            .field("network_instance", &self.network_instance)
             .field("label_manager", &self.label_manager)
             .field("keychains", &self.keychains)
             .field("policy_match_sets", &self.policy_match_sets)
             .field("policies", &self.policies)
             .field("sr_config", &self.sr_config)
             .field("bier_config", &self.bier_config)
+            .field("vpn_imports", &self.vpn_imports)
+            .field("vpn_exports", &self.vpn_exports)
             .finish()
     }
 }
@@ -381,6 +405,72 @@ async fn run<P>(
 // ===== global functions =====
 
 pub fn spawn_protocol_task<P>(
+    name: String,
+    nb_provider_tx: &NbProviderSender,
+    ibus_tx: &IbusChannelsTx,
+    ibus_instance_tx: IbusSender,
+    ibus_instance_rx: IbusReceiver,
+    agg_channels: InstanceAggChannels<P>,
+    shared: InstanceShared,
+) -> NbDaemonSender
+where
+    P: ProtocolInstance,
+{
+    #[cfg(feature = "testing")]
+    {
+        let (_test_tx, test_rx) = mpsc::channel(4);
+        spawn_protocol_task_with_test(
+            name,
+            nb_provider_tx,
+            ibus_tx,
+            ibus_instance_tx,
+            ibus_instance_rx,
+            agg_channels,
+            test_rx,
+            shared,
+        )
+    }
+    #[cfg(not(feature = "testing"))]
+    {
+        spawn_protocol_task_impl(
+            name,
+            nb_provider_tx,
+            ibus_tx,
+            ibus_instance_tx,
+            ibus_instance_rx,
+            agg_channels,
+            shared,
+        )
+    }
+}
+
+#[cfg(feature = "testing")]
+pub fn spawn_protocol_task_with_test<P>(
+    name: String,
+    nb_provider_tx: &NbProviderSender,
+    ibus_tx: &IbusChannelsTx,
+    ibus_instance_tx: IbusSender,
+    ibus_instance_rx: IbusReceiver,
+    agg_channels: InstanceAggChannels<P>,
+    test_rx: Receiver<TestMsg<P::ProtocolOutputMsg>>,
+    shared: InstanceShared,
+) -> NbDaemonSender
+where
+    P: ProtocolInstance,
+{
+    spawn_protocol_task_impl::<P>(
+        name,
+        nb_provider_tx,
+        ibus_tx,
+        ibus_instance_tx,
+        ibus_instance_rx,
+        agg_channels,
+        test_rx,
+        shared,
+    )
+}
+
+fn spawn_protocol_task_impl<P>(
     name: String,
     nb_provider_tx: &NbProviderSender,
     ibus_tx: &IbusChannelsTx,

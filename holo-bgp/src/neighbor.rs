@@ -13,18 +13,24 @@ use std::time::Duration;
 use arbitrary::Arbitrary;
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
+use holo_utils::bfd;
 use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusChannelsTx;
+use holo_utils::mpls::Label;
+use holo_utils::protocol::Protocol;
 use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use num_traits::{FromPrimitive, ToPrimitive};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Sender, UnboundedSender};
 
-use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    AddressFamily, Ipv4Unicast, Ipv6Unicast, L2vpnEvpn, Vpnv4Unicast,
+    Vpnv6Unicast,
+};
 use crate::debug::Debug;
 use crate::error::Error;
-use crate::instance::{Instance, InstanceUpView};
+use crate::instance::{Instance, InstanceUpView, InterfaceState};
 use crate::northbound::configuration::{InstanceCfg, NeighborCfg};
 use crate::northbound::notification;
 use crate::northbound::rpc::ClearType;
@@ -67,6 +73,7 @@ pub struct Neighbor {
     pub tasks: NeighborTasks,
     pub update_queues: NeighborUpdateQueues,
     pub msg_txp: Option<UnboundedSender<NbrTxMsg>>,
+    pub bfd: Option<NeighborBfd>,
 }
 
 // BGP peer type.
@@ -108,18 +115,28 @@ pub struct NeighborTasks {
     pub holdtime: Option<TimeoutTask>,
 }
 
+#[derive(Debug)]
+pub struct NeighborBfd {
+    pub sess_key: bfd::SessionKey,
+    pub state: Option<bfd::State>,
+}
+
 // Neighbor Tx update queues.
 #[derive(Debug, Default)]
 pub struct NeighborUpdateQueues {
     pub ipv4_unicast: NeighborUpdateQueue<Ipv4Unicast>,
     pub ipv6_unicast: NeighborUpdateQueue<Ipv6Unicast>,
+    pub vpnv4_unicast: NeighborUpdateQueue<Vpnv4Unicast>,
+    pub vpnv6_unicast: NeighborUpdateQueue<Vpnv6Unicast>,
+    pub l2vpn_evpn: NeighborUpdateQueue<L2vpnEvpn>,
 }
 
 // Neighbor Tx update queue.
 #[derive(Debug)]
 pub struct NeighborUpdateQueue<A: AddressFamily> {
-    pub reach: BTreeMap<Attrs, BTreeSet<A::IpNetwork>>,
-    pub unreach: BTreeSet<A::IpNetwork>,
+    pub reach: BTreeMap<Attrs, BTreeSet<A::Prefix>>,
+    pub unreach: BTreeSet<A::Prefix>,
+    pub labels: BTreeMap<A::Prefix, Label>,
 }
 
 // Type aliases.
@@ -214,6 +231,7 @@ impl Neighbor {
             tasks: Default::default(),
             update_queues: Default::default(),
             msg_txp: None,
+            bfd: None,
         }
     }
 
@@ -234,13 +252,19 @@ impl Neighbor {
             fsm::State::Idle => match event {
                 fsm::Event::Start
                 | fsm::Event::Timer(fsm::Timer::AutoStart) => {
+                    if self.is_bfd_down() {
+                        return;
+                    }
                     self.connect_retry_start(
                         &instance.tx.protocol_input.nbr_timer,
                     );
                     if self.config.transport.passive_mode {
                         Some(fsm::State::Active)
                     } else {
-                        self.connect(&instance.tx.protocol_input.tcp_connect);
+                        self.connect(
+                            &instance.tx.protocol_input.tcp_connect,
+                            instance.network_instance,
+                        );
                         Some(fsm::State::Connect)
                     }
                 }
@@ -273,7 +297,10 @@ impl Neighbor {
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::Timer(fsm::Timer::ConnectRetry) => {
-                    self.connect(&instance.tx.protocol_input.tcp_connect);
+                    self.connect(
+                        &instance.tx.protocol_input.tcp_connect,
+                        instance.network_instance,
+                    );
                     self.connect_retry_start(
                         &instance.tx.protocol_input.nbr_timer,
                     );
@@ -312,7 +339,10 @@ impl Neighbor {
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::Timer(fsm::Timer::ConnectRetry) => {
-                    self.connect(&instance.tx.protocol_input.tcp_connect);
+                    self.connect(
+                        &instance.tx.protocol_input.tcp_connect,
+                        instance.network_instance,
+                    );
                     self.connect_retry_start(
                         &instance.tx.protocol_input.nbr_timer,
                     );
@@ -520,6 +550,7 @@ impl Neighbor {
     ) {
         // Store TCP connection information.
         self.conn_info = Some(conn_info);
+        self.bfd_update_session(instance);
 
         // Split TCP stream into two halves.
         let (read_half, write_half) = stream.into_split();
@@ -585,6 +616,8 @@ impl Neighbor {
         // Send initial routing updates.
         self.initial_routing_update::<Ipv4Unicast>(instance);
         self.initial_routing_update::<Ipv6Unicast>(instance);
+        self.initial_routing_update::<Vpnv4Unicast>(instance);
+        self.initial_routing_update::<Vpnv6Unicast>(instance);
     }
 
     // Closes the BGP session, performing necessary cleanup and releasing resources.
@@ -613,11 +646,157 @@ impl Neighbor {
         self.capabilities_nego.clear();
         self.clear_routes::<Ipv4Unicast>(rib, &instance_tx.ibus);
         self.clear_routes::<Ipv6Unicast>(rib, &instance_tx.ibus);
+        self.clear_routes::<Vpnv4Unicast>(rib, &instance_tx.ibus);
+        self.clear_routes::<Vpnv6Unicast>(rib, &instance_tx.ibus);
         self.tasks = Default::default();
         self.msg_txp = None;
 
         // Trigger the BGP Decision Process.
         instance_tx.protocol_input.trigger_decision_process();
+    }
+
+    // Registers, updates, or unregisters the BFD session for this neighbor.
+    pub(crate) fn bfd_update_session(&mut self, instance: &InstanceUpView<'_>) {
+        let Some(sess_key) = self.bfd_session_key(&instance.state.interfaces)
+        else {
+            self.bfd_clear_session(instance);
+            return;
+        };
+
+        let needs_register =
+            self.bfd.as_ref().is_none_or(|bfd| bfd.sess_key != sess_key);
+        if !needs_register {
+            return;
+        }
+
+        self.bfd_clear_session(instance);
+        self.bfd_register(sess_key.clone(), instance);
+        self.bfd = Some(NeighborBfd {
+            sess_key,
+            state: None,
+        });
+    }
+
+    // Unregisters and removes the BFD session associated with this neighbor.
+    pub(crate) fn bfd_clear_session(&mut self, instance: &InstanceUpView<'_>) {
+        if let Some(bfd) = self.bfd.take() {
+            self.bfd_unregister(bfd.sess_key, instance);
+        }
+    }
+
+    // Updates the BFD state for this neighbor and resets BGP on BFD down.
+    pub(crate) fn bfd_state_update(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+        state: bfd::State,
+    ) {
+        let Some(bfd) = self.bfd.as_mut() else {
+            return;
+        };
+        if bfd.state == Some(state) {
+            return;
+        }
+        bfd.state = Some(state);
+
+        match state {
+            bfd::State::Down if self.state != fsm::State::Idle => {
+                let msg = NotificationMsg::new(
+                    ErrorCode::Cease,
+                    CeaseSubcode::BfdDown,
+                );
+                self.fsm_event(instance, fsm::Event::Stop(Some(msg)));
+            }
+            bfd::State::Up
+                if self.config.enabled && self.state == fsm::State::Idle =>
+            {
+                self.fsm_event(instance, fsm::Event::Start);
+            }
+            _ => {}
+        }
+    }
+
+    // Returns whether this neighbor is blocked by a BFD Down state.
+    pub(crate) fn is_bfd_down(&self) -> bool {
+        self.bfd
+            .as_ref()
+            .is_some_and(|bfd| bfd.state == Some(bfd::State::Down))
+    }
+
+    // Registers a BFD session for this neighbor with the provider.
+    fn bfd_register(
+        &self,
+        sess_key: bfd::SessionKey,
+        instance: &InstanceUpView<'_>,
+    ) {
+        let client_id =
+            bfd::ClientId::new(Protocol::BGP, instance.name.to_owned());
+        instance.tx.ibus.bfd_session_reg(
+            sess_key,
+            client_id,
+            Some(self.config.bfd.params),
+        );
+    }
+
+    // Unregisters the BFD session associated with the given session key.
+    fn bfd_unregister(
+        &self,
+        sess_key: bfd::SessionKey,
+        instance: &InstanceUpView<'_>,
+    ) {
+        instance.tx.ibus.bfd_session_unreg(sess_key);
+    }
+
+    // Builds the BFD session key matching the BGP transport.
+    pub(crate) fn bfd_session_key(
+        &self,
+        interfaces: &BTreeMap<String, InterfaceState>,
+    ) -> Option<bfd::SessionKey> {
+        if !self.config.enabled || !self.config.bfd.enabled {
+            return None;
+        }
+
+        if self.peer_type == PeerType::External
+            && !self.config.transport.ebgp_multihop_enabled
+        {
+            let ifname = self.bfd_single_hop_ifname(interfaces)?;
+            return Some(bfd::SessionKey::new_ip_single_hop(
+                ifname,
+                self.remote_addr,
+            ));
+        }
+
+        let src = self.config.transport.local_addr.or_else(|| {
+            self.conn_info
+                .as_ref()
+                .map(|conn_info| conn_info.local_addr)
+        })?;
+        Some(bfd::SessionKey::new_ip_multihop(src, self.remote_addr))
+    }
+
+    // Returns the directly connected interface for a single-hop BFD peer.
+    fn bfd_single_hop_ifname(
+        &self,
+        interfaces: &BTreeMap<String, InterfaceState>,
+    ) -> Option<String> {
+        interfaces
+            .iter()
+            .find(|(_, iface)| {
+                iface
+                    .addrs
+                    .iter()
+                    .any(|addr| match (addr, self.remote_addr) {
+                        (
+                            ipnetwork::IpNetwork::V4(prefix),
+                            IpAddr::V4(addr),
+                        ) => prefix.contains(addr),
+                        (
+                            ipnetwork::IpNetwork::V6(prefix),
+                            IpAddr::V6(addr),
+                        ) => prefix.contains(addr),
+                        _ => false,
+                    })
+            })
+            .map(|(ifname, _)| ifname.clone())
     }
 
     // Enqueues a single BGP message for transmission.
@@ -669,31 +848,29 @@ impl Neighbor {
 
     // Sends a BGP OPEN message based on the local configuration.
     fn open_send(&mut self, instance_cfg: &InstanceCfg, identifier: Ipv4Addr) {
+        let local_asn = self.config.local_as.unwrap_or(instance_cfg.asn);
+
         // Base capabilities.
         let mut capabilities: BTreeSet<_> = [
             Capability::RouteRefresh,
-            Capability::FourOctetAsNumber {
-                asn: instance_cfg.asn,
-            },
+            Capability::FourOctetAsNumber { asn: local_asn },
         ]
         .into();
 
         // Multiprotocol capabilities.
-        if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv4Unicast)
-            && afi_safi.enabled
-        {
-            capabilities.insert(Capability::MultiProtocol {
-                afi: Afi::Ipv4,
-                safi: Safi::Unicast,
-            });
-        }
-        if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv6Unicast)
-            && afi_safi.enabled
-        {
-            capabilities.insert(Capability::MultiProtocol {
-                afi: Afi::Ipv6,
-                safi: Safi::Unicast,
-            });
+        let afi_safis = [
+            (AfiSafi::Ipv4Unicast, Afi::Ipv4, Safi::Unicast),
+            (AfiSafi::Ipv6Unicast, Afi::Ipv6, Safi::Unicast),
+            (AfiSafi::L3vpnIpv4Unicast, Afi::Ipv4, Safi::LabeledVpn),
+            (AfiSafi::L3vpnIpv6Unicast, Afi::Ipv6, Safi::LabeledVpn),
+            (AfiSafi::L2vpnEvpn, Afi::L2vpn, Safi::Evpn),
+        ];
+        for (afi_safi, afi, safi) in afi_safis {
+            if let Some(afi_safi) = self.config.afi_safi.get(&afi_safi)
+                && afi_safi.enabled
+            {
+                capabilities.insert(Capability::MultiProtocol { afi, safi });
+            }
         }
 
         // Keep track of the advertised capabilities.
@@ -702,7 +879,7 @@ impl Neighbor {
         // Fill-in and send message.
         let msg = Message::Open(OpenMsg {
             version: OpenMsg::VERSION,
-            my_as: instance_cfg.asn.try_into().unwrap_or(AS_TRANS),
+            my_as: local_asn.try_into().unwrap_or(AS_TRANS),
             holdtime: self.config.timers.holdtime,
             identifier,
             capabilities,
@@ -842,8 +1019,14 @@ impl Neighbor {
     }
 
     // Starts a TCP connection task to the neighbor's remote address.
-    fn connect(&mut self, tcp_connectp: &Sender<TcpConnectMsg>) {
-        let task = tasks::tcp_connect(self, tcp_connectp);
+    fn connect(
+        &mut self,
+        tcp_connectp: &Sender<TcpConnectMsg>,
+        network_instance: &str,
+    ) {
+        let vrf_device = (network_instance != "default")
+            .then(|| network_instance.to_owned());
+        let task = tasks::tcp_connect(self, tcp_connectp, vrf_device);
         self.tasks.connect = Some(task);
     }
 
@@ -906,6 +1089,10 @@ impl Neighbor {
             return;
         }
 
+        if events::default_originate_neighbor_enabled::<A>(self) {
+            events::ensure_default_originate_route::<A>(instance);
+        }
+
         // Get list of best routes for this address-family.
         let table = A::table(&mut instance.state.rib.tables);
         let routes = table
@@ -917,15 +1104,18 @@ impl Neighbor {
                         origin: route.origin,
                         attrs: route.attrs.clone(),
                         route_type: route.route_type,
+                        vpn_label: route.vpn_label,
                         igp_cost: None,
                         last_modified: route.last_modified,
                         ineligible_reason: None,
                         reject_reason: None,
                     };
-                    (prefix, Box::new(route))
+                    (*prefix, Box::new(route))
                 })
             })
-            .filter(|(_, route)| self.distribute_filter(route))
+            .filter(|(prefix, route)| {
+                self.distribute_filter::<A>(*prefix, route, None)
+            })
             .collect::<Vec<_>>();
 
         // Advertise the best routes.
@@ -933,6 +1123,7 @@ impl Neighbor {
             self,
             table,
             routes,
+            instance.config.asn,
             instance.shared,
             &mut instance.state.rib.attr_sets,
             &instance.state.policy_apply_tasks,
@@ -961,12 +1152,18 @@ impl Neighbor {
                 &mut attrs,
                 self,
                 instance.config.asn,
+                self.config
+                    .route_reflector
+                    .cluster_id
+                    .or(instance.config.identifier),
+                route.origin,
+                route.route_type,
                 route.origin.is_local(),
             );
 
             // Update neighbor's Tx queue.
             let update_queue = A::update_queue(&mut self.update_queues);
-            update_queue.reach.entry(attrs).or_default().insert(prefix);
+            update_queue.reach.entry(attrs).or_default().insert(*prefix);
         }
     }
 
@@ -983,7 +1180,7 @@ impl Neighbor {
                 if let Some(adj_in_route) = adj_rib.in_post() {
                     rib::nexthop_untrack(
                         &mut table.nht,
-                        &prefix,
+                        prefix,
                         adj_in_route,
                         ibus_tx,
                     );
@@ -996,7 +1193,7 @@ impl Neighbor {
             }
 
             // Enqueue prefix for the BGP Decision Process.
-            table.queued_prefixes.insert(prefix);
+            table.queued_prefixes.insert(*prefix);
         }
     }
 
@@ -1033,6 +1230,17 @@ impl Neighbor {
                 }
             }
             ClearType::SoftInbound => {
+                events::reapply_nbr_import_policy_for_nbr::<Ipv4Unicast>(
+                    instance.state,
+                    instance.shared,
+                    self,
+                );
+                events::reapply_nbr_import_policy_for_nbr::<Ipv6Unicast>(
+                    instance.state,
+                    instance.shared,
+                    self,
+                );
+
                 // Request the Adj-RIB-In for this neighbor to be re-sent.
                 for (afi, safi) in self
                     .capabilities_nego
@@ -1058,7 +1266,28 @@ impl Neighbor {
     }
 
     // Determines whether the given route is eligible for distribution.
-    pub(crate) fn distribute_filter(&self, route: &Route) -> bool {
+    pub(crate) fn distribute_filter<A>(
+        &self,
+        prefix: A::Prefix,
+        route: &Route,
+        source_rr_client: Option<bool>,
+    ) -> bool
+    where
+        A: AddressFamily,
+    {
+        if is_default_originate_route::<A>(prefix, route)
+            && !self
+                .config
+                .afi_safi
+                .get(&A::AFI_SAFI)
+                .is_some_and(|afi_safi| {
+                    afi_safi.enabled
+                        && afi_safi.send_default_route == Some(true)
+                })
+        {
+            return false;
+        }
+
         // Suppress advertisements to peers if their AS number is present
         // in the AS path of the route, unless overridden by configuration.
         if !self.config.as_path_options.disable_peer_as_filter
@@ -1067,16 +1296,21 @@ impl Neighbor {
             return false;
         }
 
-        // RFC 4271 - Section 9.2:
-        // "When a BGP speaker receives an UPDATE message from an internal
-        // peer, the receiving BGP speaker SHALL NOT re-distribute the
-        // routing information contained in that UPDATE message to other
-        // internal peers".
+        // RFC 4271 Section 9.2 prohibits re-advertising iBGP-learned routes
+        // to iBGP peers unless RFC 4456 route reflection applies.
         if route.route_type == RouteType::Internal
             && let RouteOrigin::Neighbor { remote_addr, .. } = &route.origin
-            && *remote_addr == self.remote_addr
+            && self.peer_type == PeerType::Internal
         {
-            return false;
+            if *remote_addr == self.remote_addr {
+                return false;
+            }
+
+            match source_rr_client {
+                Some(true) => {}
+                Some(false) if self.config.route_reflector.client => {}
+                _ => return false,
+            }
         }
 
         // Handle well-known communities.
@@ -1126,6 +1360,19 @@ impl Neighbor {
     }
 }
 
+fn is_default_originate_route<A>(prefix: A::Prefix, route: &Route) -> bool
+where
+    A: AddressFamily,
+{
+    if route.origin
+        != RouteOrigin::Protocol(holo_utils::protocol::Protocol::BGP)
+    {
+        return false;
+    }
+
+    events::default_originate_prefix::<A>() == Some(prefix)
+}
+
 // ===== impl MessageStatistics =====
 
 impl MessageStatistics {
@@ -1153,6 +1400,8 @@ impl NeighborUpdateQueues {
         [
             self.ipv4_unicast.build_updates(),
             self.ipv6_unicast.build_updates(),
+            self.vpnv4_unicast.build_updates(),
+            self.vpnv6_unicast.build_updates(),
         ]
         .concat()
     }
@@ -1177,6 +1426,70 @@ where
         NeighborUpdateQueue {
             reach: Default::default(),
             unreach: Default::default(),
+            labels: Default::default(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ipnetwork::Ipv4Network;
+
+    use super::*;
+
+    fn interfaces() -> BTreeMap<String, InterfaceState> {
+        BTreeMap::from([(
+            "eth0".to_owned(),
+            InterfaceState {
+                addrs: BTreeSet::from([ipnetwork::IpNetwork::V4(
+                    Ipv4Network::new(Ipv4Addr::new(192, 0, 2, 1), 24).unwrap(),
+                )]),
+            },
+        )])
+    }
+
+    fn bfd_neighbor(remote_addr: Ipv4Addr, peer_type: PeerType) -> Neighbor {
+        let mut nbr = Neighbor::new(remote_addr.into(), peer_type);
+        nbr.config.enabled = true;
+        nbr.config.bfd.enabled = true;
+        nbr
+    }
+
+    #[test]
+    fn bfd_direct_ebgp_uses_single_hop_session() {
+        let nbr = bfd_neighbor(Ipv4Addr::new(192, 0, 2, 2), PeerType::External);
+
+        assert_eq!(
+            nbr.bfd_session_key(&interfaces()),
+            Some(bfd::SessionKey::IpSingleHop {
+                ifname: "eth0".to_owned(),
+                dst: IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2)),
+            })
+        );
+    }
+
+    #[test]
+    fn bfd_ebgp_multihop_uses_multihop_session() {
+        let mut nbr =
+            bfd_neighbor(Ipv4Addr::new(198, 51, 100, 2), PeerType::External);
+        nbr.config.transport.ebgp_multihop_enabled = true;
+        nbr.config.transport.local_addr =
+            Some(Ipv4Addr::new(192, 0, 2, 1).into());
+
+        assert_eq!(
+            nbr.bfd_session_key(&interfaces()),
+            Some(bfd::SessionKey::IpMultihop {
+                src: IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)),
+                dst: IpAddr::V4(Ipv4Addr::new(198, 51, 100, 2)),
+            })
+        );
+    }
+
+    #[test]
+    fn bfd_ibgp_waits_until_source_address_is_known() {
+        let nbr =
+            bfd_neighbor(Ipv4Addr::new(198, 51, 100, 2), PeerType::Internal);
+
+        assert_eq!(nbr.bfd_session_key(&interfaces()), None);
     }
 }

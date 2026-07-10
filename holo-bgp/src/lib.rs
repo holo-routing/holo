@@ -13,6 +13,7 @@ pub mod af;
 pub mod debug;
 pub mod error;
 pub mod events;
+pub mod evpn;
 pub mod ibus;
 pub mod instance;
 pub mod neighbor;

@@ -23,8 +23,10 @@ use crate::packet::error::{AttrError, UpdateMessageError};
 use crate::packet::iana::{Afi, AttrType, Origin, Safi};
 use crate::packet::message::{
     DecodeCxt, EncodeCxt, MpReachNlri, MpUnreachNlri, NegotiatedCapability,
-    ReachNlri, decode_ipv4_prefix, decode_ipv6_prefix, encode_ipv4_prefix,
-    encode_ipv6_prefix,
+    ReachNlri, decode_evpn_route, decode_ipv4_prefix, decode_ipv6_prefix,
+    decode_labeled_vpn_ipv4_prefix, decode_labeled_vpn_ipv6_prefix,
+    encode_evpn_route, encode_ipv4_prefix, encode_ipv6_prefix,
+    encode_labeled_vpn_ipv4_prefix, encode_labeled_vpn_ipv6_prefix,
 };
 
 pub const ATTR_MIN_LEN: u16 = 3;
@@ -743,9 +745,59 @@ impl AsPath {
         }
     }
 
+    pub(crate) fn replace_private(&mut self, to: u32) {
+        for segment in self.segments.iter_mut() {
+            for member in segment.members.iter_mut() {
+                if is_private_asn(*member) {
+                    *member = to;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn remove_private_all(&mut self) {
+        self.segments = std::mem::take(&mut self.segments)
+            .into_iter()
+            .filter_map(|mut segment| {
+                segment.members.retain(|asn| !is_private_asn(*asn));
+                (!segment.members.is_empty()).then_some(segment)
+            })
+            .collect();
+    }
+
+    pub(crate) fn remove_private_leading(&mut self) {
+        while let Some(segment) = self.segments.front_mut() {
+            while segment
+                .members
+                .front()
+                .is_some_and(|asn| is_private_asn(*asn))
+            {
+                segment.members.pop_front();
+            }
+
+            if segment.members.is_empty() {
+                self.segments.pop_front();
+            } else {
+                break;
+            }
+        }
+    }
+
     pub(crate) fn contains(&self, asn: u32) -> bool {
         self.segments.iter().any(|segment| segment.contains(asn))
     }
+
+    pub(crate) fn count(&self, asn: u32) -> u8 {
+        self.segments
+            .iter()
+            .map(|segment| segment.count(asn))
+            .sum::<usize>()
+            .min(u8::MAX as usize) as u8
+    }
+}
+
+pub(crate) fn is_private_asn(asn: u32) -> bool {
+    (64512..=65534).contains(&asn) || (4200000000..=4294967294).contains(&asn)
 }
 
 // ===== impl AsPathSegment =====
@@ -824,6 +876,10 @@ impl AsPathSegment {
 
     fn contains(&self, asn: u32) -> bool {
         self.members.iter().any(|member| asn == *member)
+    }
+
+    fn count(&self, asn: u32) -> usize {
+        self.members.iter().filter(|member| asn == **member).count()
     }
 }
 
@@ -1145,6 +1201,46 @@ impl MpReachNlri {
                     encode_ipv6_prefix(buf, prefix);
                 }
             }
+            MpReachNlri::L3vpnIpv4Unicast { prefixes, nexthop } => {
+                buf.put_u16(Afi::Ipv4 as u16);
+                buf.put_u8(Safi::LabeledVpn as u8);
+                buf.put_u8((8 + Ipv4Addr::LENGTH) as u8);
+                buf.put_slice(&[0; 8]);
+                buf.put_ipv4(nexthop);
+                buf.put_u8(0);
+                for prefix in prefixes {
+                    encode_labeled_vpn_ipv4_prefix(buf, prefix);
+                }
+            }
+            MpReachNlri::L3vpnIpv6Unicast { prefixes, nexthop } => {
+                buf.put_u16(Afi::Ipv6 as u16);
+                buf.put_u8(Safi::LabeledVpn as u8);
+                buf.put_u8((8 + Ipv6Addr::LENGTH) as u8);
+                buf.put_slice(&[0; 8]);
+                buf.put_ipv6(nexthop);
+                buf.put_u8(0);
+                for prefix in prefixes {
+                    encode_labeled_vpn_ipv6_prefix(buf, prefix);
+                }
+            }
+            MpReachNlri::L2vpnEvpn { routes, nexthop } => {
+                buf.put_u16(Afi::L2vpn as u16);
+                buf.put_u8(Safi::Evpn as u8);
+                match nexthop {
+                    IpAddr::V4(addr) => {
+                        buf.put_u8(Ipv4Addr::LENGTH as u8);
+                        buf.put_ipv4(addr);
+                    }
+                    IpAddr::V6(addr) => {
+                        buf.put_u8(Ipv6Addr::LENGTH as u8);
+                        buf.put_ipv6(addr);
+                    }
+                }
+                buf.put_u8(0);
+                for route in routes {
+                    encode_evpn_route(buf, route);
+                }
+            }
         }
 
         // Rewrite attribute length.
@@ -1169,13 +1265,13 @@ impl MpReachNlri {
 
         // Parse SAFI.
         let safi = buf.try_get_u8()?;
-        if Safi::from_u8(safi) != Some(Safi::Unicast) {
+        let Some(safi) = Safi::from_u8(safi) else {
             // Ignore unsupported SAFI.
             return Err(AttrError::Discard);
         };
 
-        match afi {
-            Afi::Ipv4 => {
+        match (afi, safi) {
+            (Afi::Ipv4, Safi::Unicast) => {
                 let mut prefixes = Vec::new();
 
                 // Parse nexthop.
@@ -1200,7 +1296,7 @@ impl MpReachNlri {
                 *mp_reach =
                     Some(MpReachNlri::Ipv4Unicast { prefixes, nexthop });
             }
-            Afi::Ipv6 => {
+            (Afi::Ipv6, Safi::Unicast) => {
                 let mut prefixes = Vec::new();
                 let mut ll_nexthop = None;
 
@@ -1232,6 +1328,97 @@ impl MpReachNlri {
                     nexthop,
                     ll_nexthop,
                 });
+            }
+            (Afi::Ipv4, Safi::LabeledVpn) => {
+                let mut prefixes = Vec::new();
+
+                // Parse nexthop.
+                let nexthop_len = buf.try_get_u8()?;
+                if nexthop_len as usize != 8 + Ipv4Addr::LENGTH
+                    || nexthop_len as usize > buf.remaining()
+                {
+                    return Err(AttrError::Reset);
+                }
+                buf.advance(8);
+                let nexthop = buf.try_get_ipv4()?;
+
+                // Parse prefixes.
+                let _reserved = buf.try_get_u8()?;
+                while buf.remaining() > 0 {
+                    if let Some(prefix) = decode_labeled_vpn_ipv4_prefix(buf)
+                        .map_err(|_| AttrError::Reset)?
+                    {
+                        prefixes.push(prefix);
+                    }
+                }
+
+                *mp_reach =
+                    Some(MpReachNlri::L3vpnIpv4Unicast { prefixes, nexthop });
+            }
+            (Afi::Ipv6, Safi::LabeledVpn) => {
+                let mut prefixes = Vec::new();
+
+                // Parse nexthop.
+                let nexthop_len = buf.try_get_u8()? as usize;
+                let rd_ipv6_len = 8 + Ipv6Addr::LENGTH;
+                if (nexthop_len != Ipv6Addr::LENGTH
+                    && nexthop_len != rd_ipv6_len
+                    && nexthop_len != rd_ipv6_len * 2)
+                    || nexthop_len > buf.remaining()
+                {
+                    return Err(AttrError::Reset);
+                }
+                if nexthop_len != Ipv6Addr::LENGTH {
+                    buf.advance(8);
+                }
+                let nexthop = buf.try_get_ipv6()?;
+                if nexthop_len == rd_ipv6_len * 2 {
+                    buf.advance(rd_ipv6_len);
+                }
+
+                // Parse prefixes.
+                let _reserved = buf.try_get_u8()?;
+                while buf.remaining() > 0 {
+                    if let Some(prefix) = decode_labeled_vpn_ipv6_prefix(buf)
+                        .map_err(|_| AttrError::Reset)?
+                    {
+                        prefixes.push(prefix);
+                    }
+                }
+
+                *mp_reach =
+                    Some(MpReachNlri::L3vpnIpv6Unicast { prefixes, nexthop });
+            }
+            (Afi::L2vpn, Safi::Evpn) => {
+                let mut routes = Vec::new();
+
+                let nexthop_len = buf.try_get_u8()? as usize;
+                if (nexthop_len != Ipv4Addr::LENGTH
+                    && nexthop_len != Ipv6Addr::LENGTH)
+                    || nexthop_len > buf.remaining()
+                {
+                    return Err(AttrError::Reset);
+                }
+                let nexthop = match nexthop_len {
+                    Ipv4Addr::LENGTH => IpAddr::V4(buf.try_get_ipv4()?),
+                    Ipv6Addr::LENGTH => IpAddr::V6(buf.try_get_ipv6()?),
+                    _ => unreachable!(),
+                };
+
+                let _reserved = buf.try_get_u8()?;
+                while buf.remaining() > 0 {
+                    if let Some(route) =
+                        decode_evpn_route(buf).map_err(|_| AttrError::Reset)?
+                    {
+                        routes.push(route);
+                    }
+                }
+
+                *mp_reach = Some(MpReachNlri::L2vpnEvpn { routes, nexthop });
+            }
+            _ => {
+                // Ignore unsupported AFI/SAFI combination.
+                return Err(AttrError::Discard);
             }
         }
 
@@ -1268,6 +1455,27 @@ impl MpUnreachNlri {
                     encode_ipv6_prefix(buf, prefix);
                 }
             }
+            MpUnreachNlri::L3vpnIpv4Unicast { prefixes } => {
+                buf.put_u16(Afi::Ipv4 as u16);
+                buf.put_u8(Safi::LabeledVpn as u8);
+                for prefix in prefixes {
+                    encode_labeled_vpn_ipv4_prefix(buf, prefix);
+                }
+            }
+            MpUnreachNlri::L3vpnIpv6Unicast { prefixes } => {
+                buf.put_u16(Afi::Ipv6 as u16);
+                buf.put_u8(Safi::LabeledVpn as u8);
+                for prefix in prefixes {
+                    encode_labeled_vpn_ipv6_prefix(buf, prefix);
+                }
+            }
+            MpUnreachNlri::L2vpnEvpn { routes } => {
+                buf.put_u16(Afi::L2vpn as u16);
+                buf.put_u8(Safi::Evpn as u8);
+                for route in routes {
+                    encode_evpn_route(buf, route);
+                }
+            }
         }
 
         // Rewrite attribute length.
@@ -1292,14 +1500,14 @@ impl MpUnreachNlri {
 
         // Parse SAFI.
         let safi = buf.try_get_u8()?;
-        if Safi::from_u8(safi) != Some(Safi::Unicast) {
+        let Some(safi) = Safi::from_u8(safi) else {
             // Ignore unsupported SAFI.
             return Err(AttrError::Discard);
         };
 
         // Parse prefixes.
-        match afi {
-            Afi::Ipv4 => {
+        match (afi, safi) {
+            (Afi::Ipv4, Safi::Unicast) => {
                 let mut prefixes = Vec::new();
 
                 while buf.remaining() > 0 {
@@ -1312,7 +1520,7 @@ impl MpUnreachNlri {
 
                 *mp_unreach = Some(MpUnreachNlri::Ipv4Unicast { prefixes });
             }
-            Afi::Ipv6 => {
+            (Afi::Ipv6, Safi::Unicast) => {
                 let mut prefixes = Vec::new();
 
                 while buf.remaining() > 0 {
@@ -1324,6 +1532,51 @@ impl MpUnreachNlri {
                 }
 
                 *mp_unreach = Some(MpUnreachNlri::Ipv6Unicast { prefixes });
+            }
+            (Afi::Ipv4, Safi::LabeledVpn) => {
+                let mut prefixes = Vec::new();
+
+                while buf.remaining() > 0 {
+                    if let Some(prefix) = decode_labeled_vpn_ipv4_prefix(buf)
+                        .map_err(|_| AttrError::Reset)?
+                    {
+                        prefixes.push(prefix);
+                    }
+                }
+
+                *mp_unreach =
+                    Some(MpUnreachNlri::L3vpnIpv4Unicast { prefixes });
+            }
+            (Afi::Ipv6, Safi::LabeledVpn) => {
+                let mut prefixes = Vec::new();
+
+                while buf.remaining() > 0 {
+                    if let Some(prefix) = decode_labeled_vpn_ipv6_prefix(buf)
+                        .map_err(|_| AttrError::Reset)?
+                    {
+                        prefixes.push(prefix);
+                    }
+                }
+
+                *mp_unreach =
+                    Some(MpUnreachNlri::L3vpnIpv6Unicast { prefixes });
+            }
+            (Afi::L2vpn, Safi::Evpn) => {
+                let mut routes = Vec::new();
+
+                while buf.remaining() > 0 {
+                    if let Some(route) =
+                        decode_evpn_route(buf).map_err(|_| AttrError::Reset)?
+                    {
+                        routes.push(route);
+                    }
+                }
+
+                *mp_unreach = Some(MpUnreachNlri::L2vpnEvpn { routes });
+            }
+            _ => {
+                // Ignore unsupported AFI/SAFI combination.
+                return Err(AttrError::Discard);
             }
         }
 

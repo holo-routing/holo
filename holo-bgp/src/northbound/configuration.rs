@@ -13,6 +13,7 @@ use std::sync::{Arc, LazyLock as Lazy};
 use arc_swap::ArcSwap;
 use enum_as_inner::EnumAsInner;
 use holo_northbound::configuration::{Callbacks, CallbacksBuilder, Provider, ValidationCallbacks, ValidationCallbacksBuilder};
+use holo_utils::bfd;
 use holo_utils::bgp::AfiSafi;
 use holo_utils::ip::{AddressFamily, IpAddrKind};
 use holo_utils::policy::{ApplyPolicyCfg, DefaultPolicyType};
@@ -20,14 +21,14 @@ use holo_utils::protocol::Protocol;
 use holo_utils::yang::DataNodeRefExt;
 use holo_yang::TryFromYang;
 
-use crate::af::{Ipv4Unicast, Ipv6Unicast};
+use crate::af::{Ipv4Unicast, Ipv6Unicast, Vpnv4Unicast, Vpnv6Unicast};
 use crate::instance::{Instance, InstanceUpView};
 use crate::neighbor::{Neighbor, PeerType, fsm};
-use crate::network;
 use crate::northbound::yang_gen::bgp;
 use crate::packet::iana::{CeaseSubcode, ErrorCode};
 use crate::packet::message::{Message, NotificationMsg};
 use crate::rib::RouteOrigin;
+use crate::{events, ibus, network};
 
 #[derive(Debug, Default, EnumAsInner)]
 pub enum ListEntry {
@@ -47,10 +48,13 @@ pub enum Resource {}
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
     InstanceUpdate,
+    DecisionProcess,
     NeighborUpdate(IpAddr),
+    NeighborBfdUpdate(IpAddr),
     NeighborDelete(IpAddr),
     NeighborReset(IpAddr, NotificationMsg),
     NeighborUpdateAuth(IpAddr),
+    PolicyImportReapply(Option<IpAddr>, Option<AfiSafi>),
     RedistributeIbusSub(Protocol, AddressFamily),
     RedistributeDelete(Protocol, AddressFamily, AfiSafi),
     UpdateTraceOptions,
@@ -94,7 +98,7 @@ pub struct InstanceAfiSafiCfg {
     pub multipath: MultipathCfg,
     pub route_selection: RouteSelectionCfg,
     pub prefix_limit: PrefixLimitCfg,
-    pub send_default_route: bool,
+    pub send_default_route: Option<bool>,
     pub apply_policy: ApplyPolicyCfg,
     pub redistribution: HashMap<Protocol, RedistributionCfg>,
 }
@@ -127,15 +131,36 @@ pub struct NeighborCfg {
     pub enabled: bool,
     pub peer_as: u32,
     pub local_as: Option<u32>,
+    pub local_as_options: LocalAsOptionsCfg,
     pub private_as_remove: Option<PrivateAsRemove>,
+    pub route_reflector: RouteReflectorCfg,
     pub timers: NeighborTimersCfg,
     pub transport: NeighborTransportCfg,
+    pub bfd: NeighborBfdCfg,
     pub log_neighbor_state_changes: bool,
     pub as_path_options: AsPathOptions,
     pub apply_policy: ApplyPolicyCfg,
     pub prefix_limit: PrefixLimitCfg,
     pub afi_safi: BTreeMap<AfiSafi, NeighborAfiSafiCfg>,
     pub trace_opts: NeighborTraceOptions,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct LocalAsOptionsCfg {
+    pub no_prepend: bool,
+    pub replace_as: bool,
+}
+
+#[derive(Debug)]
+pub struct RouteReflectorCfg {
+    pub client: bool,
+    pub cluster_id: Option<Ipv4Addr>,
+}
+
+#[derive(Debug)]
+pub struct NeighborBfdCfg {
+    pub enabled: bool,
+    pub params: bfd::ClientCfg,
 }
 
 #[derive(Debug)]
@@ -164,7 +189,7 @@ pub struct NeighborTransportCfg {
 pub struct NeighborAfiSafiCfg {
     pub enabled: bool,
     pub prefix_limit: PrefixLimitCfg,
-    pub send_default_route: bool,
+    pub send_default_route: Option<bool>,
     pub apply_policy: ApplyPolicyCfg,
 }
 
@@ -216,6 +241,7 @@ pub struct AsPathOptions {
 
 #[derive(Debug)]
 pub enum PrivateAsRemove {
+    RemoveLeading,
     RemoveAll,
     ReplaceAll,
 }
@@ -428,26 +454,35 @@ fn load_callbacks() -> Callbacks<Instance> {
         .path(bgp::global::afi_safis::afi_safi::apply_policy::import_policy::PATH)
         .create_apply(|instance, args| {
             let afi_safi = args.list_entry.into_afi_safi().unwrap();
-            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let policy = args.dnode.get_string();
-            afi_safi.apply_policy.import_policy.insert(policy);
+            afi_safi_cfg.apply_policy.import_policy.insert(policy);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(None, Some(afi_safi)));
         })
         .delete_apply(|instance, args| {
             let afi_safi = args.list_entry.into_afi_safi().unwrap();
-            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let policy = args.dnode.get_string();
-            afi_safi.apply_policy.import_policy.remove(&policy);
+            afi_safi_cfg.apply_policy.import_policy.remove(&policy);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(None, Some(afi_safi)));
         })
         .path(bgp::global::afi_safis::afi_safi::apply_policy::default_import_policy::PATH)
         .modify_apply(|instance, args| {
             let afi_safi = args.list_entry.into_afi_safi().unwrap();
-            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+            let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let default = args.dnode.get_string();
             let default = DefaultPolicyType::try_from_yang(&default).unwrap();
-            afi_safi.apply_policy.default_import_policy = default;
+            afi_safi_cfg.apply_policy.default_import_policy = default;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(None, Some(afi_safi)));
         })
         .path(bgp::global::afi_safis::afi_safi::apply_policy::export_policy::PATH)
         .create_apply(|instance, args| {
@@ -530,7 +565,19 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let send = args.dnode.get_bool();
-            afi_safi.send_default_route = send;
+            afi_safi.send_default_route = (!args.dnode.is_default()).then_some(send);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
+        })
+        .delete_apply(|instance, args| {
+            let afi_safi = args.list_entry.into_afi_safi().unwrap();
+            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi.send_default_route = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
         })
         .path(bgp::global::afi_safis::afi_safi::ipv4_unicast::redistribution::PATH)
         .create_apply(|instance, args| {
@@ -616,7 +663,19 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let send = args.dnode.get_bool();
-            afi_safi.send_default_route = send;
+            afi_safi.send_default_route = (!args.dnode.is_default()).then_some(send);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
+        })
+        .delete_apply(|instance, args| {
+            let afi_safi = args.list_entry.into_afi_safi().unwrap();
+            let afi_safi = instance.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi.send_default_route = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
         })
         .path(bgp::global::afi_safis::afi_safi::ipv6_unicast::redistribution::PATH)
         .create_apply(|instance, args| {
@@ -649,16 +708,25 @@ fn load_callbacks() -> Callbacks<Instance> {
         .create_apply(|instance, args| {
             let policy = args.dnode.get_string();
             instance.config.apply_policy.import_policy.insert(policy);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(None, None));
         })
         .delete_apply(|instance, args| {
             let policy = args.dnode.get_string();
             instance.config.apply_policy.import_policy.remove(&policy);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(None, None));
         })
         .path(bgp::global::apply_policy::default_import_policy::PATH)
         .modify_apply(|instance, args| {
             let default = args.dnode.get_string();
             let default = DefaultPolicyType::try_from_yang(&default).unwrap();
             instance.config.apply_policy.default_import_policy = default;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(None, None));
         })
         .path(bgp::global::apply_policy::export_policy::PATH)
         .create_apply(|instance, args| {
@@ -836,6 +904,22 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             nbr.config.local_as = None;
         })
+        .path(bgp::neighbors::neighbor::local_as_options::no_prepend::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let no_prepend = args.dnode.get_bool();
+            nbr.config.local_as_options.no_prepend = no_prepend;
+        })
+        .path(bgp::neighbors::neighbor::local_as_options::replace_as::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let replace_as = args.dnode.get_bool();
+            nbr.config.local_as_options.replace_as = replace_as;
+        })
         .path(bgp::neighbors::neighbor::remove_private_as::PATH)
         .modify_apply(|instance, args| {
             let nbr_addr = args.list_entry.into_neighbor().unwrap();
@@ -857,6 +941,43 @@ fn load_callbacks() -> Callbacks<Instance> {
         })
         .delete_apply(|_instance, _args| {
             // Nothing to do.
+        })
+        .path(bgp::neighbors::neighbor::route_reflector::client::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let client = args.dnode.get_bool();
+            nbr.config.route_reflector.client = client;
+
+            schedule_decision_process_all_afs(instance);
+        })
+        .delete_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            nbr.config.route_reflector.client = bgp::neighbors::neighbor::route_reflector::client::DFLT;
+
+            schedule_decision_process_all_afs(instance);
+        })
+        .path(bgp::neighbors::neighbor::route_reflector::cluster_id::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let cluster_id = args.dnode.get_string();
+            let cluster_id = cluster_id.parse::<Ipv4Addr>().unwrap_or_else(|_| Ipv4Addr::from(cluster_id.parse::<u32>().unwrap()));
+            nbr.config.route_reflector.cluster_id = Some(cluster_id);
+
+            schedule_decision_process_all_afs(instance);
+        })
+        .delete_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            nbr.config.route_reflector.cluster_id = None;
+
+            schedule_decision_process_all_afs(instance);
         })
         .path(bgp::neighbors::neighbor::timers::connect_retry_interval::PATH)
         .modify_apply(|instance, args| {
@@ -1043,6 +1164,17 @@ fn load_callbacks() -> Callbacks<Instance> {
             event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
             event_queue.insert(Event::NeighborUpdateAuth(nbr.remote_addr));
         })
+        .path(bgp::neighbors::neighbor::transport::bfd::enabled::PATH)
+        .modify_apply(|instance, args| {
+            let nbr_addr = args.list_entry.into_neighbor().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+
+            let enabled = args.dnode.get_bool();
+            nbr.config.bfd.enabled = enabled;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::NeighborBfdUpdate(nbr.remote_addr));
+        })
         .path(bgp::neighbors::neighbor::logging_options::log_neighbor_state_changes::PATH)
         .modify_apply(|instance, args| {
             let nbr_addr = args.list_entry.into_neighbor().unwrap();
@@ -1082,6 +1214,9 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let policy = args.dnode.get_string();
             nbr.config.apply_policy.import_policy.insert(policy);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(Some(nbr_addr), None));
         })
         .delete_apply(|instance, args| {
             let nbr_addr = args.list_entry.into_neighbor().unwrap();
@@ -1089,6 +1224,9 @@ fn load_callbacks() -> Callbacks<Instance> {
 
             let policy = args.dnode.get_string();
             nbr.config.apply_policy.import_policy.remove(&policy);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(Some(nbr_addr), None));
         })
         .path(bgp::neighbors::neighbor::apply_policy::default_import_policy::PATH)
         .modify_apply(|instance, args| {
@@ -1098,6 +1236,9 @@ fn load_callbacks() -> Callbacks<Instance> {
             let default = args.dnode.get_string();
             let default = DefaultPolicyType::try_from_yang(&default).unwrap();
             nbr.config.apply_policy.default_import_policy = default;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(Some(nbr_addr), None));
         })
         .path(bgp::neighbors::neighbor::apply_policy::export_policy::PATH)
         .create_apply(|instance, args| {
@@ -1207,28 +1348,37 @@ fn load_callbacks() -> Callbacks<Instance> {
         .create_apply(|instance, args| {
             let (nbr_addr, afi_safi) = args.list_entry.into_neighbor_afi_safi().unwrap();
             let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
-            let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
+            let afi_safi_cfg = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let policy = args.dnode.get_string();
-            afi_safi.apply_policy.import_policy.insert(policy);
+            afi_safi_cfg.apply_policy.import_policy.insert(policy);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(Some(nbr_addr), Some(afi_safi)));
         })
         .delete_apply(|instance, args| {
             let (nbr_addr, afi_safi) = args.list_entry.into_neighbor_afi_safi().unwrap();
             let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
-            let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
+            let afi_safi_cfg = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let policy = args.dnode.get_string();
-            afi_safi.apply_policy.import_policy.remove(&policy);
+            afi_safi_cfg.apply_policy.import_policy.remove(&policy);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(Some(nbr_addr), Some(afi_safi)));
         })
         .path(bgp::neighbors::neighbor::afi_safis::afi_safi::apply_policy::default_import_policy::PATH)
         .modify_apply(|instance, args| {
             let (nbr_addr, afi_safi) = args.list_entry.into_neighbor_afi_safi().unwrap();
             let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
-            let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
+            let afi_safi_cfg = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let default = args.dnode.get_string();
             let default = DefaultPolicyType::try_from_yang(&default).unwrap();
-            afi_safi.apply_policy.default_import_policy = default;
+            afi_safi_cfg.apply_policy.default_import_policy = default;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::PolicyImportReapply(Some(nbr_addr), Some(afi_safi)));
         })
         .path(bgp::neighbors::neighbor::afi_safis::afi_safi::apply_policy::export_policy::PATH)
         .create_apply(|instance, args| {
@@ -1322,7 +1472,20 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let send = args.dnode.get_bool();
-            afi_safi.send_default_route = send;
+            afi_safi.send_default_route = (!args.dnode.is_default()).then_some(send);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
+        })
+        .delete_apply(|instance, args| {
+            let (nbr_addr, afi_safi) = args.list_entry.into_neighbor_afi_safi().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+            let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi.send_default_route = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
         })
         .path(bgp::neighbors::neighbor::afi_safis::afi_safi::ipv6_unicast::prefix_limit::max_prefixes::PATH)
         .modify_apply(|instance, args| {
@@ -1389,7 +1552,20 @@ fn load_callbacks() -> Callbacks<Instance> {
             let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
 
             let send = args.dnode.get_bool();
-            afi_safi.send_default_route = send;
+            afi_safi.send_default_route = (!args.dnode.is_default()).then_some(send);
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
+        })
+        .delete_apply(|instance, args| {
+            let (nbr_addr, afi_safi) = args.list_entry.into_neighbor_afi_safi().unwrap();
+            let nbr = instance.neighbors.get_mut(&nbr_addr).unwrap();
+            let afi_safi = nbr.config.afi_safi.get_mut(&afi_safi).unwrap();
+
+            afi_safi.send_default_route = None;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::DecisionProcess);
         })
         .path(bgp::neighbors::neighbor::trace_options::flag::PATH)
         .create_apply(|instance, args| {
@@ -1515,19 +1691,44 @@ impl Provider for Instance {
     fn process_event(&mut self, event: Event) {
         match event {
             Event::InstanceUpdate => self.update(),
+            Event::DecisionProcess => {
+                let Some((instance, _)) = self.as_up() else {
+                    return;
+                };
+
+                instance.state.schedule_decision_process(instance.tx);
+            }
             Event::NeighborUpdate(nbr_addr) => {
                 let Some((mut instance, neighbors)) = self.as_up() else {
                     return;
                 };
                 let nbr = neighbors.get_mut(&nbr_addr).unwrap();
 
-                if nbr.config.enabled {
+                nbr.bfd_update_session(&instance);
+
+                if nbr.config.enabled && !nbr.is_bfd_down() {
                     nbr.fsm_event(&mut instance, fsm::Event::Start);
                 } else {
                     let error_code = ErrorCode::Cease;
                     let error_subcode = CeaseSubcode::AdministrativeShutdown;
                     let msg = NotificationMsg::new(error_code, error_subcode);
                     nbr.fsm_event(&mut instance, fsm::Event::Stop(Some(msg)));
+                }
+            }
+            Event::NeighborBfdUpdate(nbr_addr) => {
+                let Some((mut instance, neighbors)) = self.as_up() else {
+                    return;
+                };
+                let nbr = neighbors.get_mut(&nbr_addr).unwrap();
+
+                if nbr.config.bfd.enabled {
+                    ibus::tx::interface_sub(&instance.tx.ibus);
+                    nbr.bfd_update_session(&instance);
+                } else {
+                    nbr.bfd_clear_session(&instance);
+                    if nbr.config.enabled {
+                        nbr.fsm_event(&mut instance, fsm::Event::Start);
+                    }
                 }
             }
             Event::NeighborDelete(nbr_addr) => {
@@ -1545,6 +1746,7 @@ impl Provider for Instance {
                 let error_code = ErrorCode::Cease;
                 let error_subcode = CeaseSubcode::PeerDeConfigured;
                 let msg = NotificationMsg::new(error_code, error_subcode);
+                nbr.bfd_clear_session(&instance);
                 nbr.fsm_event(&mut instance, fsm::Event::Stop(Some(msg)));
                 neighbors.remove(&nbr_addr);
             }
@@ -1576,6 +1778,52 @@ impl Provider for Instance {
                     network::listen_socket_md5sig_update(&listener.socket, &nbr_addr, key.as_deref());
                 }
             }
+            Event::PolicyImportReapply(nbr_addr, afi_safi) => {
+                let Some((mut instance, neighbors)) = self.as_up() else {
+                    return;
+                };
+
+                match (nbr_addr, afi_safi) {
+                    (Some(nbr_addr), Some(AfiSafi::Ipv4Unicast)) => {
+                        events::reapply_nbr_import_policy::<Ipv4Unicast>(&mut instance, neighbors, nbr_addr);
+                    }
+                    (Some(nbr_addr), Some(AfiSafi::Ipv6Unicast)) => {
+                        events::reapply_nbr_import_policy::<Ipv6Unicast>(&mut instance, neighbors, nbr_addr);
+                    }
+                    (Some(nbr_addr), Some(AfiSafi::L3vpnIpv4Unicast)) => {
+                        events::reapply_nbr_import_policy::<Vpnv4Unicast>(&mut instance, neighbors, nbr_addr);
+                    }
+                    (Some(nbr_addr), Some(AfiSafi::L3vpnIpv6Unicast)) => {
+                        events::reapply_nbr_import_policy::<Vpnv6Unicast>(&mut instance, neighbors, nbr_addr);
+                    }
+                    (Some(_), Some(AfiSafi::L2vpnEvpn)) => {}
+                    (Some(nbr_addr), None) => {
+                        events::reapply_nbr_import_policy::<Ipv4Unicast>(&mut instance, neighbors, nbr_addr);
+                        events::reapply_nbr_import_policy::<Ipv6Unicast>(&mut instance, neighbors, nbr_addr);
+                        events::reapply_nbr_import_policy::<Vpnv4Unicast>(&mut instance, neighbors, nbr_addr);
+                        events::reapply_nbr_import_policy::<Vpnv6Unicast>(&mut instance, neighbors, nbr_addr);
+                    }
+                    (None, Some(AfiSafi::Ipv4Unicast)) => {
+                        events::reapply_import_policy_all::<Ipv4Unicast>(&mut instance, neighbors);
+                    }
+                    (None, Some(AfiSafi::Ipv6Unicast)) => {
+                        events::reapply_import_policy_all::<Ipv6Unicast>(&mut instance, neighbors);
+                    }
+                    (None, Some(AfiSafi::L3vpnIpv4Unicast)) => {
+                        events::reapply_import_policy_all::<Vpnv4Unicast>(&mut instance, neighbors);
+                    }
+                    (None, Some(AfiSafi::L3vpnIpv6Unicast)) => {
+                        events::reapply_import_policy_all::<Vpnv6Unicast>(&mut instance, neighbors);
+                    }
+                    (None, Some(AfiSafi::L2vpnEvpn)) => {}
+                    (None, None) => {
+                        events::reapply_import_policy_all::<Ipv4Unicast>(&mut instance, neighbors);
+                        events::reapply_import_policy_all::<Ipv6Unicast>(&mut instance, neighbors);
+                        events::reapply_import_policy_all::<Vpnv4Unicast>(&mut instance, neighbors);
+                        events::reapply_import_policy_all::<Vpnv6Unicast>(&mut instance, neighbors);
+                    }
+                }
+            }
             Event::RedistributeIbusSub(protocol, af) => {
                 self.tx.ibus.route_redistribute_sub(protocol, Some(af));
             }
@@ -1590,6 +1838,7 @@ impl Provider for Instance {
                         AfiSafi::Ipv6Unicast => {
                             redistribute_delete::<Ipv6Unicast>(&mut instance, protocol);
                         }
+                        AfiSafi::L3vpnIpv4Unicast | AfiSafi::L3vpnIpv6Unicast | AfiSafi::L2vpnEvpn => {}
                     }
                 }
             }
@@ -1695,11 +1944,27 @@ where
         dest.redistribute = None;
 
         // Enqueue prefix for the BGP Decision Process.
-        table.queued_prefixes.insert(prefix);
+        table.queued_prefixes.insert(*prefix);
     }
 
     // Schedule the BGP Decision Process.
     instance.state.schedule_decision_process(instance.tx);
+}
+
+fn schedule_decision_process_all_afs(instance: &mut Instance) {
+    let Some(state) = &mut instance.state else {
+        return;
+    };
+
+    let table = &mut state.rib.tables.ipv4_unicast;
+    let prefixes = table.prefixes.keys().collect::<Vec<_>>();
+    table.queued_prefixes.extend(prefixes);
+
+    let table = &mut state.rib.tables.ipv6_unicast;
+    let prefixes = table.prefixes.keys().collect::<Vec<_>>();
+    table.queued_prefixes.extend(prefixes);
+
+    state.schedule_decision_process(&instance.tx);
 }
 
 // ===== configuration defaults =====
@@ -1758,7 +2023,7 @@ impl Default for InstanceAfiSafiCfg {
             multipath: Default::default(),
             route_selection: Default::default(),
             prefix_limit: Default::default(),
-            send_default_route: false,
+            send_default_route: None,
             apply_policy: Default::default(),
             redistribution: Default::default(),
         }
@@ -1774,15 +2039,41 @@ impl Default for NeighborCfg {
             enabled,
             peer_as: 0,
             local_as: None,
+            local_as_options: Default::default(),
             private_as_remove: None,
+            route_reflector: Default::default(),
             timers: Default::default(),
             transport: Default::default(),
+            bfd: Default::default(),
             log_neighbor_state_changes,
             as_path_options: Default::default(),
             apply_policy: Default::default(),
             prefix_limit: Default::default(),
             afi_safi: Default::default(),
             trace_opts: Default::default(),
+        }
+    }
+}
+
+impl Default for RouteReflectorCfg {
+    fn default() -> RouteReflectorCfg {
+        let client = bgp::neighbors::neighbor::route_reflector::client::DFLT;
+
+        RouteReflectorCfg {
+            client,
+            cluster_id: None,
+        }
+    }
+}
+
+impl Default for LocalAsOptionsCfg {
+    fn default() -> LocalAsOptionsCfg {
+        let no_prepend = bgp::neighbors::neighbor::local_as_options::no_prepend::DFLT;
+        let replace_as = bgp::neighbors::neighbor::local_as_options::replace_as::DFLT;
+
+        LocalAsOptionsCfg {
+            no_prepend,
+            replace_as,
         }
     }
 }
@@ -1821,6 +2112,17 @@ impl Default for NeighborTransportCfg {
     }
 }
 
+impl Default for NeighborBfdCfg {
+    fn default() -> NeighborBfdCfg {
+        let enabled = bgp::neighbors::neighbor::transport::bfd::enabled::DFLT;
+
+        NeighborBfdCfg {
+            enabled,
+            params: Default::default(),
+        }
+    }
+}
+
 impl Default for NeighborAfiSafiCfg {
     fn default() -> NeighborAfiSafiCfg {
         let enabled = bgp::neighbors::neighbor::afi_safis::afi_safi::enabled::DFLT;
@@ -1828,7 +2130,7 @@ impl Default for NeighborAfiSafiCfg {
         NeighborAfiSafiCfg {
             enabled,
             prefix_limit: Default::default(),
-            send_default_route: false,
+            send_default_route: None,
             apply_policy: Default::default(),
         }
     }

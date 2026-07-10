@@ -1,0 +1,16 @@
+{"Ibus":{"RouterIdUpdate":"192.0.2.1"}}
+{"Ibus":{"PolicyMatchSetsUpd":{"prefixes":[[["ACCEPTED","Ipv4"],{"name":"ACCEPTED","mode":"Ipv4","prefixes":[{"prefix":"198.51.100.1/32","masklen_lower":32,"masklen_upper":32}]}]],"neighbors":{},"tags":{},"bgp":{"as_paths":{},"comms":{},"ext_comms":{},"extv6_comms":{},"large_comms":{},"nexthops":{}}}}}
+{"Ibus":{"PolicyUpd":{"name":"SOFT-IN","stmt_order":["10"],"stmts":{"10":{"name":"10","prefix_set_match_type":"Any","tag_set_match_type":"Any","conditions":[["MatchPrefixSet",{"MatchPrefixSet":"ACCEPTED"}]],"actions":[["Accept",{"Accept":true}]]}}}}}
+{"Protocol":{"TriggerDecisionProcess":null}}
+{"Protocol":{"TcpAccept":{"conn_info":{"local_addr":"192.0.2.1","local_port":179,"remote_addr":"192.0.2.2","remote_port":50179}}}}
+{"Protocol":{"NbrTimer":{"nbr_addr":"192.0.2.2","timer":"AutoStart"}}}
+{"Protocol":{"TcpConnect":{"conn_info":{"local_addr":"192.0.2.1","local_port":50180,"remote_addr":"192.0.2.2","remote_port":179}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Err":{"TcpConnClosed":null}}}}}
+{"Protocol":{"TriggerDecisionProcess":null}}
+{"Protocol":{"TcpAccept":{"conn_info":{"local_addr":"192.0.2.1","local_port":179,"remote_addr":"192.0.2.2","remote_port":50181}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Open":{"version":4,"my_as":65001,"holdtime":90,"identifier":"192.0.2.2","capabilities":[{"MultiProtocol":{"afi":"Ipv4","safi":"Unicast"}},{"FourOctetAsNumber":{"asn":65001}},"RouteRefresh"]}}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Keepalive":{}}}}}}
+{"Protocol":{"NbrRx":{"nbr_addr":"192.0.2.2","msg":{"Ok":{"Update":{"reach":{"prefixes":["198.51.100.1/32","198.51.100.2/32"],"nexthop":"192.0.2.2"},"attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65001]}]}}}}}}}}}
+{"Protocol":{"PolicyResult":{"Neighbor":{"policy_type":"Import","nbr_addr":"192.0.2.2","afi_safi":"Ipv4Unicast","routes":[["198.51.100.1/32",{"Accept":{"origin":{"Neighbor":{"identifier":"192.0.2.2","remote_addr":"192.0.2.2"}},"route_type":"External","attrs":{"base":{"origin":"Incomplete","as_path":{"segments":[{"seg_type":"Sequence","members":[65001]}]},"nexthop":"192.0.2.2"}}}}],["198.51.100.2/32","Reject"]]}}}}
+{"Ibus":{"NexthopUpd":{"addr":"192.0.2.2","metric":0}}}
+{"Protocol":{"TriggerDecisionProcess":null}}

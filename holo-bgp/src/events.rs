@@ -4,27 +4,33 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::collections::BTreeSet;
 use std::net::IpAddr;
 
 use chrono::Utc;
 use holo_protocol::InstanceShared;
 use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusChannelsTx;
-use holo_utils::ip::{IpAddrKind, IpNetworkKind};
+use holo_utils::ip::IpAddrKind;
+use holo_utils::mpls::Label;
 use holo_utils::policy::{PolicyResult, PolicyType};
 use holo_utils::socket::{TcpConnInfo, TcpStream};
 use ipnetwork::IpNetwork;
 use num_traits::FromPrimitive;
 
-use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
+use crate::af::{
+    AddressFamily, Ipv4Unicast, Ipv6Unicast, L2vpnEvpn, Vpnv4Prefix,
+    Vpnv4Unicast, Vpnv6Prefix, Vpnv6Unicast,
+};
 use crate::debug::Debug;
 use crate::error::{Error, IoError, NbrRxError};
 use crate::instance::{InstanceUpView, PolicyApplyTasks};
 use crate::neighbor::{Neighbor, Neighbors, PeerType, fsm};
 use crate::packet::attribute::Attrs;
-use crate::packet::iana::{Afi, Safi};
+use crate::packet::iana::{Afi, CeaseSubcode, ErrorCode, Safi};
 use crate::packet::message::{
-    Capability, Message, MpReachNlri, MpUnreachNlri, RouteRefreshMsg, UpdateMsg,
+    Capability, Message, MpReachNlri, MpUnreachNlri, NotificationMsg,
+    RouteRefreshMsg, UpdateMsg,
 };
 use crate::policy::RoutePolicyInfo;
 use crate::rib::{AttrSetsCxt, Rib, Route, RouteOrigin, RoutingTable};
@@ -121,7 +127,18 @@ pub(crate) fn process_nbr_msg(
                 }
                 Message::Update(msg) => {
                     nbr.fsm_event(instance, fsm::Event::RcvdUpdate);
-                    process_nbr_update(instance, nbr, msg)?;
+                    if nbr.state == fsm::State::Established {
+                        if process_nbr_update(instance, nbr, msg)? {
+                            let msg = NotificationMsg::new(
+                                ErrorCode::Cease,
+                                CeaseSubcode::MaximumNumberofPrefixesReached,
+                            );
+                            nbr.fsm_event(
+                                instance,
+                                fsm::Event::Stop(Some(msg)),
+                            );
+                        }
+                    }
                 }
                 Message::Notification(msg) => {
                     nbr.fsm_event(instance, fsm::Event::RcvdNotif(msg.clone()));
@@ -153,7 +170,7 @@ fn process_nbr_update(
     instance: &mut InstanceUpView<'_>,
     nbr: &mut Neighbor,
     msg: UpdateMsg,
-) -> Result<(), Error> {
+) -> Result<bool, Error> {
     let rib = &mut instance.state.rib;
     let ibus_tx = &instance.tx.ibus;
 
@@ -164,7 +181,7 @@ fn process_nbr_update(
         if let Some(attrs) = &msg.attrs {
             let mut attrs = attrs.clone();
             attrs.base.nexthop = Some(reach.nexthop.into());
-            process_nbr_reach_prefixes::<Ipv4Unicast>(
+            if process_nbr_reach_prefixes::<Ipv4Unicast>(
                 nbr,
                 rib,
                 reach.prefixes,
@@ -172,7 +189,9 @@ fn process_nbr_update(
                 instance.config.asn,
                 instance.shared,
                 &instance.state.policy_apply_tasks,
-            );
+            ) {
+                return Ok(true);
+            }
         } else {
             // Treat as withdraw.
             process_nbr_unreach_prefixes::<Ipv4Unicast>(
@@ -192,7 +211,7 @@ fn process_nbr_update(
             match mp_reach {
                 MpReachNlri::Ipv4Unicast { prefixes, nexthop } => {
                     attrs.base.nexthop = Some(nexthop.into());
-                    process_nbr_reach_prefixes::<Ipv4Unicast>(
+                    if process_nbr_reach_prefixes::<Ipv4Unicast>(
                         nbr,
                         rib,
                         prefixes,
@@ -200,7 +219,9 @@ fn process_nbr_update(
                         instance.config.asn,
                         instance.shared,
                         &instance.state.policy_apply_tasks,
-                    );
+                    ) {
+                        return Ok(true);
+                    }
                 }
                 MpReachNlri::Ipv6Unicast {
                     prefixes,
@@ -209,7 +230,7 @@ fn process_nbr_update(
                 } => {
                     attrs.base.nexthop = Some(nexthop.into());
                     attrs.base.ll_nexthop = ll_nexthop;
-                    process_nbr_reach_prefixes::<Ipv6Unicast>(
+                    if process_nbr_reach_prefixes::<Ipv6Unicast>(
                         nbr,
                         rib,
                         prefixes,
@@ -217,7 +238,61 @@ fn process_nbr_update(
                         instance.config.asn,
                         instance.shared,
                         &instance.state.policy_apply_tasks,
-                    );
+                    ) {
+                        return Ok(true);
+                    }
+                }
+                MpReachNlri::L3vpnIpv4Unicast { prefixes, nexthop } => {
+                    attrs.base.nexthop = Some(nexthop.into());
+                    let prefixes = prefixes
+                        .into_iter()
+                        .map(|nlri| {
+                            (
+                                Vpnv4Prefix {
+                                    rd: nlri.rd,
+                                    prefix: nlri.prefix,
+                                },
+                                Label::new(nlri.label),
+                            )
+                        })
+                        .collect();
+                    if process_nbr_reach_prefixes_pre_policy::<Vpnv4Unicast>(
+                        nbr, rib, prefixes, attrs, ibus_tx,
+                    ) {
+                        return Ok(true);
+                    }
+                }
+                MpReachNlri::L3vpnIpv6Unicast { prefixes, nexthop } => {
+                    attrs.base.nexthop = Some(nexthop.into());
+                    let prefixes = prefixes
+                        .into_iter()
+                        .map(|nlri| {
+                            (
+                                Vpnv6Prefix {
+                                    rd: nlri.rd,
+                                    prefix: nlri.prefix,
+                                },
+                                Label::new(nlri.label),
+                            )
+                        })
+                        .collect();
+                    if process_nbr_reach_prefixes_pre_policy::<Vpnv6Unicast>(
+                        nbr, rib, prefixes, attrs, ibus_tx,
+                    ) {
+                        return Ok(true);
+                    }
+                }
+                MpReachNlri::L2vpnEvpn { routes, nexthop } => {
+                    attrs.base.nexthop = Some(nexthop);
+                    let routes = routes
+                        .into_iter()
+                        .map(|route| (route, Label::new(0)))
+                        .collect();
+                    if process_nbr_reach_prefixes_pre_policy::<L2vpnEvpn>(
+                        nbr, rib, routes, attrs, ibus_tx,
+                    ) {
+                        return Ok(true);
+                    }
                 }
             }
         } else {
@@ -231,6 +306,35 @@ fn process_nbr_update(
                 MpReachNlri::Ipv6Unicast { prefixes, .. } => {
                     process_nbr_unreach_prefixes::<Ipv6Unicast>(
                         nbr, rib, prefixes, ibus_tx,
+                    );
+                }
+                MpReachNlri::L3vpnIpv4Unicast { prefixes, .. } => {
+                    let prefixes = prefixes
+                        .into_iter()
+                        .map(|nlri| Vpnv4Prefix {
+                            rd: nlri.rd,
+                            prefix: nlri.prefix,
+                        })
+                        .collect();
+                    process_nbr_unreach_prefixes::<Vpnv4Unicast>(
+                        nbr, rib, prefixes, ibus_tx,
+                    );
+                }
+                MpReachNlri::L3vpnIpv6Unicast { prefixes, .. } => {
+                    let prefixes = prefixes
+                        .into_iter()
+                        .map(|nlri| Vpnv6Prefix {
+                            rd: nlri.rd,
+                            prefix: nlri.prefix,
+                        })
+                        .collect();
+                    process_nbr_unreach_prefixes::<Vpnv6Unicast>(
+                        nbr, rib, prefixes, ibus_tx,
+                    );
+                }
+                MpReachNlri::L2vpnEvpn { routes, .. } => {
+                    process_nbr_unreach_prefixes::<L2vpnEvpn>(
+                        nbr, rib, routes, ibus_tx,
                     );
                 }
             }
@@ -260,29 +364,64 @@ fn process_nbr_update(
                     nbr, rib, prefixes, ibus_tx,
                 );
             }
+            MpUnreachNlri::L3vpnIpv4Unicast { prefixes } => {
+                let prefixes = prefixes
+                    .into_iter()
+                    .map(|nlri| Vpnv4Prefix {
+                        rd: nlri.rd,
+                        prefix: nlri.prefix,
+                    })
+                    .collect();
+                process_nbr_unreach_prefixes::<Vpnv4Unicast>(
+                    nbr, rib, prefixes, ibus_tx,
+                );
+            }
+            MpUnreachNlri::L3vpnIpv6Unicast { prefixes } => {
+                let prefixes = prefixes
+                    .into_iter()
+                    .map(|nlri| Vpnv6Prefix {
+                        rd: nlri.rd,
+                        prefix: nlri.prefix,
+                    })
+                    .collect();
+                process_nbr_unreach_prefixes::<Vpnv6Unicast>(
+                    nbr, rib, prefixes, ibus_tx,
+                );
+            }
+            MpUnreachNlri::L2vpnEvpn { routes } => {
+                process_nbr_unreach_prefixes::<L2vpnEvpn>(
+                    nbr, rib, routes, ibus_tx,
+                );
+            }
         }
     }
 
     // Schedule the BGP Decision Process.
     instance.state.schedule_decision_process(instance.tx);
 
-    Ok(())
+    Ok(false)
 }
 
 fn process_nbr_reach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
-    nlri_prefixes: Vec<A::IpNetwork>,
+    nlri_prefixes: Vec<A::Prefix>,
     mut attrs: Attrs,
     local_asn: u32,
     shared: &InstanceShared,
     policy_apply_tasks: &PolicyApplyTasks,
-) where
+) -> bool
+where
     A: AddressFamily,
 {
     // Check if the address-family is enabled for this session.
     if !nbr.is_af_enabled(A::AFI, A::SAFI) {
-        return;
+        return false;
+    }
+
+    let table = A::table(&mut rib.tables);
+    if prefix_limit_exceeded(nbr, table, nlri_prefixes.iter()) {
+        return true;
     }
 
     // Initialize route origin and type.
@@ -302,7 +441,6 @@ fn process_nbr_reach_prefixes<A>(
     }
 
     // Update pre-policy Adj-RIB-In routes.
-    let table = A::table(&mut rib.tables);
     let route_attrs = rib.attr_sets.get_route_attr_sets(&attrs);
     for prefix in &nlri_prefixes {
         let dest = table.prefixes.entry(*prefix).or_default();
@@ -327,7 +465,7 @@ fn process_nbr_reach_prefixes<A>(
         afi_safi: A::AFI_SAFI,
         routes: nlri_prefixes
             .into_iter()
-            .map(|prefix| (prefix.into(), rpinfo.clone()))
+            .map(|prefix| (A::prefix_to_ip_network(prefix), rpinfo.clone()))
             .collect(),
         policies: apply_policy_cfg
             .import_policy
@@ -338,12 +476,123 @@ fn process_nbr_reach_prefixes<A>(
         default_policy: apply_policy_cfg.default_import_policy,
     };
     policy_apply_tasks.enqueue(msg);
+
+    false
+}
+
+fn process_nbr_reach_prefixes_pre_policy<A>(
+    nbr: &Neighbor,
+    rib: &mut Rib,
+    nlri_prefixes: Vec<(A::Prefix, Label)>,
+    attrs: Attrs,
+    ibus_tx: &IbusChannelsTx,
+) -> bool
+where
+    A: AddressFamily,
+{
+    // Check if the address-family is enabled for this session.
+    if !nbr.is_af_enabled(A::AFI, A::SAFI) {
+        return false;
+    }
+
+    let table = A::table(&mut rib.tables);
+    if prefix_limit_exceeded(
+        nbr,
+        table,
+        nlri_prefixes.iter().map(|(prefix, _)| prefix),
+    ) {
+        return true;
+    }
+
+    // Initialize route origin and type.
+    let origin = RouteOrigin::Neighbor {
+        identifier: nbr.identifier.unwrap(),
+        remote_addr: nbr.remote_addr,
+    };
+    let route_type = match nbr.peer_type {
+        PeerType::Internal => RouteType::Internal,
+        PeerType::External => RouteType::External,
+    };
+
+    // Keep VPN routes in Adj-RIB-In and accept them into post-policy until the
+    // import policy path can carry RD-qualified keys instead of plain IP
+    // networks.
+    let route_attrs = rib.attr_sets.get_route_attr_sets(&attrs);
+    for (prefix, label) in nlri_prefixes {
+        let dest = table.prefixes.entry(prefix).or_default();
+        let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
+        let mut route = Route::new(origin, route_attrs.clone(), route_type);
+        route.vpn_label = Some(label);
+
+        if let Some(old_route) = adj_rib.in_post() {
+            rib::nexthop_untrack(&mut table.nht, &prefix, old_route, ibus_tx);
+        }
+        rib::nexthop_track(&mut table.nht, prefix, &route, ibus_tx);
+
+        adj_rib.update_in_pre(Box::new(route.clone()), &mut rib.attr_sets);
+        adj_rib.update_in_post(Box::new(route), &mut rib.attr_sets);
+
+        // Enqueue the prefix so later decision-process wiring sees all VPN
+        // changes that arrived before full import/export support.
+        table.queued_prefixes.insert(prefix);
+    }
+
+    false
+}
+
+fn prefix_limit_exceeded<'a, A, I>(
+    nbr: &Neighbor,
+    table: &RoutingTable<A>,
+    prefixes: I,
+) -> bool
+where
+    A: AddressFamily,
+    I: IntoIterator<Item = &'a A::Prefix>,
+    A::Prefix: 'a,
+{
+    let limit = nbr
+        .config
+        .afi_safi
+        .get(&A::AFI_SAFI)
+        .map(|afi_safi| &afi_safi.prefix_limit)
+        .filter(|limit| limit.max_prefixes.is_some())
+        .unwrap_or(&nbr.config.prefix_limit);
+
+    let Some(max_prefixes) = limit.max_prefixes else {
+        return false;
+    };
+
+    if !limit.teardown {
+        return false;
+    }
+
+    let current = table
+        .prefixes
+        .values()
+        .filter_map(|dest| dest.adj_rib.get(&nbr.remote_addr))
+        .filter(|adj_rib| adj_rib.in_pre().is_some())
+        .count();
+
+    let new = prefixes
+        .into_iter()
+        .filter(|prefix| {
+            !table
+                .prefixes
+                .get(prefix)
+                .and_then(|dest| dest.adj_rib.get(&nbr.remote_addr))
+                .is_some_and(|adj_rib| adj_rib.in_pre().is_some())
+        })
+        .copied()
+        .collect::<BTreeSet<_>>()
+        .len();
+
+    current + new > max_prefixes as usize
 }
 
 fn process_nbr_unreach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
-    nlri_prefixes: Vec<A::IpNetwork>,
+    nlri_prefixes: Vec<A::Prefix>,
     ibus_tx: &IbusChannelsTx,
 ) where
     A: AddressFamily,
@@ -461,7 +710,7 @@ where
     let table = A::table(&mut rib.tables);
     for (prefix, result) in prefixes {
         // Get RIB destination.
-        let prefix = A::IpNetwork::get(prefix).unwrap();
+        let prefix = A::prefix_from_ip_network(prefix).unwrap();
         let dest = table.prefixes.entry(prefix).or_default();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
 
@@ -538,7 +787,7 @@ where
     let table = A::table(&mut rib.tables);
     for (prefix, result) in prefixes {
         // Get RIB destination.
-        let prefix = A::IpNetwork::get(prefix).unwrap();
+        let prefix = A::prefix_from_ip_network(prefix).unwrap();
         let dest = table.prefixes.entry(prefix).or_default();
         let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
 
@@ -607,7 +856,7 @@ where
 {
     let rib = &mut instance.state.rib;
     let table = A::table(&mut rib.tables);
-    let prefix = A::IpNetwork::get(prefix).unwrap();
+    let prefix = A::prefix_from_ip_network(prefix).unwrap();
 
     match result {
         PolicyResult::Accept(rpinfo) => {
@@ -693,6 +942,7 @@ where
             mpath_cfg,
             &instance.config.distance,
             &instance.config.trace_opts,
+            instance.shared,
             &instance.tx.ibus,
         );
 
@@ -703,54 +953,58 @@ where
         }
     }
 
-    // Phase 3: Route Dissemination.
-    for nbr in neighbors
-        .values_mut()
-        .filter(|nbr| nbr.state == fsm::State::Established)
-    {
-        // Skip neighbors that haven't this address-family enabled.
-        if !nbr.is_af_enabled(A::AFI, A::SAFI) {
-            continue;
-        }
+    if A::DISSEMINATE {
+        // Phase 3: Route Dissemination.
+        for nbr in neighbors
+            .values_mut()
+            .filter(|nbr| nbr.state == fsm::State::Established)
+        {
+            // Skip neighbors that haven't this address-family enabled.
+            if !nbr.is_af_enabled(A::AFI, A::SAFI) {
+                continue;
+            }
 
-        // Evaluate routes eligible for distribution to this neighbor.
-        //
-        // Any routes that fail to meet the distribution criteria are marked
-        // as unreachable to ensure previous advertisements are withdrawn.
-        let mut nbr_unreach = unreach.clone();
-        let mut nbr_reach = reach.clone();
-        nbr_unreach.extend(
-            nbr_reach
-                .extract_if(.., |(_, route)| !nbr.distribute_filter(route))
-                .map(|(prefix, _)| prefix),
-        );
-
-        // Withdraw unfeasible routes immediately.
-        if !nbr_unreach.is_empty() {
-            withdraw_routes::<A>(
-                nbr,
-                table,
-                &nbr_unreach,
-                &mut instance.state.rib.attr_sets,
+            // Evaluate routes eligible for distribution to this neighbor.
+            //
+            // Any routes that fail to meet the distribution criteria are
+            // marked as unreachable to ensure previous advertisements are
+            // withdrawn.
+            let mut nbr_unreach = unreach.clone();
+            let mut nbr_reach = reach.clone();
+            nbr_unreach.extend(
+                nbr_reach
+                    .extract_if(.., |(_, route)| !nbr.distribute_filter(route))
+                    .map(|(prefix, _)| prefix),
             );
-        }
 
-        // Advertise best routes.
-        if !nbr_reach.is_empty() {
-            advertise_routes::<A>(
-                nbr,
-                table,
-                nbr_reach,
-                instance.shared,
-                &mut instance.state.rib.attr_sets,
-                &instance.state.policy_apply_tasks,
-            );
+            // Withdraw unfeasible routes immediately.
+            if !nbr_unreach.is_empty() {
+                withdraw_routes::<A>(
+                    nbr,
+                    table,
+                    &nbr_unreach,
+                    &mut instance.state.rib.attr_sets,
+                );
+            }
+
+            // Advertise best routes.
+            if !nbr_reach.is_empty() {
+                advertise_routes::<A>(
+                    nbr,
+                    table,
+                    nbr_reach,
+                    instance.config.asn,
+                    instance.shared,
+                    &mut instance.state.rib.attr_sets,
+                    &instance.state.policy_apply_tasks,
+                );
+            }
         }
     }
 
     // Remove routing table entries that no longer hold any data.
     for prefix in queued_prefixes {
-        if let prefix_trie::map::Entry::Occupied(entry) =
+        if let std::collections::btree_map::Entry::Occupied(entry) =
             table.prefixes.entry(prefix)
         {
             let dest = entry.get();
@@ -773,7 +1027,7 @@ where
 fn withdraw_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
-    routes: &[A::IpNetwork],
+    routes: &[A::Prefix],
     attr_sets: &mut AttrSetsCxt,
 ) where
     A: AddressFamily,
@@ -786,6 +1040,12 @@ fn withdraw_routes<A>(
         };
 
         adj_rib.remove_out_pre(attr_sets);
+        if let Some(route) = adj_rib.out_post()
+            && let Some(label) = route.vpn_label
+        {
+            let update_queue = A::update_queue(&mut nbr.update_queues);
+            update_queue.labels.insert(*prefix, label);
+        }
         if adj_rib.remove_out_post(attr_sets).is_some() {
             let update_queue = A::update_queue(&mut nbr.update_queues);
             update_queue.unreach.insert(*prefix);
@@ -802,7 +1062,8 @@ fn withdraw_routes<A>(
 pub(crate) fn advertise_routes<A>(
     nbr: &mut Neighbor,
     table: &mut RoutingTable<A>,
-    routes: Vec<(A::IpNetwork, Box<Route>)>,
+    routes: Vec<(A::Prefix, Box<Route>)>,
+    local_asn: u32,
     shared: &InstanceShared,
     attr_sets: &mut AttrSetsCxt,
     policy_apply_tasks: &PolicyApplyTasks,
@@ -816,6 +1077,34 @@ pub(crate) fn advertise_routes<A>(
         adj_rib.update_out_pre(route.clone(), attr_sets);
     }
 
+    if !A::POLICY_DISSEMINATE {
+        for (prefix, route) in routes {
+            let mut attrs = route.policy_info().attrs;
+            rib::attrs_tx_update::<A>(
+                &mut attrs,
+                nbr,
+                local_asn,
+                route.origin.is_local(),
+            );
+
+            let dest = table.prefixes.get_mut(&prefix).unwrap();
+            let adj_rib = dest.adj_rib.entry(nbr.remote_addr).or_default();
+            adj_rib.update_out_post(route.clone(), attr_sets);
+
+            let update_queue = A::update_queue(&mut nbr.update_queues);
+            if let Some(label) = route.vpn_label {
+                update_queue.labels.insert(prefix, label);
+            }
+            update_queue.reach.entry(attrs).or_default().insert(prefix);
+        }
+
+        let msg_list = nbr.update_queues.build_updates();
+        if !msg_list.is_empty() {
+            nbr.message_list_send(msg_list);
+        }
+        return;
+    }
+
     // Get policy configuration for the address family.
     let apply_policy_cfg = &nbr
         .config
@@ -827,7 +1116,9 @@ pub(crate) fn advertise_routes<A>(
     // Enqueue export policy application.
     let routes = routes
         .into_iter()
-        .map(|(prefix, route)| (prefix.into(), route.policy_info()))
+        .map(|(prefix, route)| {
+            (A::prefix_to_ip_network(prefix), route.policy_info())
+        })
         .collect::<Vec<_>>();
     if !routes.is_empty() {
         let msg = PolicyApplyMsg::Neighbor {

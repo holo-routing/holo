@@ -16,8 +16,10 @@ use holo_utils::southbound::{
     AddressFlags, Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs,
 };
 use ipnetwork::IpNetwork;
+use tracing::warn;
 
-use crate::rib::{NhtEntry, RedistributeSub, Route, RouteFlags};
+use crate::northbound::configuration;
+use crate::rib::{NhtEntry, RedistributeSub, Route, RouteFlags, RouteKey};
 use crate::{InstanceId, Master};
 
 // ===== global functions =====
@@ -114,11 +116,31 @@ pub(crate) fn process_msg(
             // Remove the local copy of the policy definition.
             master.shared.policies.remove(&policy_name);
         }
-        IbusMsg::RouteIpAdd(msg) => {
+        IbusMsg::RouteIpAdd(mut msg) => {
+            if msg.table_id.is_none()
+                && !route_table_id(master, &client, &mut msg.table_id)
+            {
+                warn!(
+                    protocol = %msg.protocol,
+                    prefix = %msg.prefix,
+                    "route deferred: VRF table id is not resolved"
+                );
+                return;
+            }
             // Add route to the RIB.
             master.rib.ip_route_add(msg, client.id);
         }
-        IbusMsg::RouteIpDel(msg) => {
+        IbusMsg::RouteIpDel(mut msg) => {
+            if msg.table_id.is_none()
+                && !route_table_id(master, &client, &mut msg.table_id)
+            {
+                warn!(
+                    protocol = %msg.protocol,
+                    prefix = %msg.prefix,
+                    "route uninstall deferred: VRF table id is not resolved"
+                );
+                return;
+            }
             // Remove route from the RIB.
             master.rib.ip_route_del(msg);
         }
@@ -155,7 +177,7 @@ pub(crate) fn process_msg(
 
             // Redistribute active routes of the requested protocol type.
             let redistribute_prefix =
-                |prefix, routes: &BTreeMap<u32, Route>| {
+                |prefix, routes: &BTreeMap<RouteKey, Route>| {
                     if let Some(best_route) = routes
                         .values()
                         .find(|route| route.protocol == protocol)
@@ -203,7 +225,32 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
-            master.interfaces.update(msg.ifname, msg.ifindex, msg.flags);
+            master.interfaces.update(
+                msg.ifname.clone(),
+                msg.ifindex,
+                msg.flags,
+                msg.master_ifindex,
+                msg.vrf_table_id,
+            );
+            // If this is a VRF device, resolve the table id of a matching
+            // network instance (VRF definitions reference the device by name).
+            if let Some(table_id) = msg.vrf_table_id
+                && let Some(ni) = master.network_instances.get_mut(&msg.ifname)
+            {
+                ni.table_id = Some(table_id);
+                configuration::vpn_imports_update(master);
+                let route_keys = master
+                    .static_routes
+                    .keys()
+                    .filter(|key| {
+                        key.instance_id.network_instance == msg.ifname
+                    })
+                    .cloned()
+                    .collect::<Vec<_>>();
+                for route_key in route_keys {
+                    configuration::static_route_install(master, route_key);
+                }
+            }
         }
         // Interface delete notification.
         IbusMsg::InterfaceDel(ifname) => {
@@ -211,20 +258,26 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
         }
         // Interface address addition notification.
         IbusMsg::InterfaceAddressAdd(msg) => {
-            let Some(iface) = master.interfaces.get_mut_by_name(&msg.ifname)
-            else {
-                return;
-            };
+            let (ifindex, master_ifindex) = {
+                let Some(iface) =
+                    master.interfaces.get_mut_by_name(&msg.ifname)
+                else {
+                    return;
+                };
 
-            // Add address to interface.
-            iface.addresses.insert(msg.addr, msg.flags);
-            let ifindex = iface.ifindex;
+                // Add address to interface.
+                iface.addresses.insert(msg.addr, msg.flags);
+                (iface.ifindex, iface.master_ifindex)
+            };
+            let table_id =
+                master.interfaces.vrf_table_id_by_ifindex(master_ifindex);
 
             // Add connected route to the RIB.
             if !msg.flags.contains(AddressFlags::UNNUMBERED) {
                 master.ibus_tx.route_ip_add(RouteMsg {
                     protocol: Protocol::DIRECT,
                     kind: RouteKind::Unicast,
+                    table_id,
                     prefix: msg.addr.apply_mask(),
                     distance: 0,
                     metric: 0,
@@ -236,18 +289,25 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
         }
         // Interface address delete notification.
         IbusMsg::InterfaceAddressDel(msg) => {
-            let Some(iface) = master.interfaces.get_mut_by_name(&msg.ifname)
-            else {
-                return;
-            };
+            let master_ifindex = {
+                let Some(iface) =
+                    master.interfaces.get_mut_by_name(&msg.ifname)
+                else {
+                    return;
+                };
 
-            // Remove address from interface.
-            iface.addresses.remove(&msg.addr);
+                // Remove address from interface.
+                iface.addresses.remove(&msg.addr);
+                iface.master_ifindex
+            };
+            let table_id =
+                master.interfaces.vrf_table_id_by_ifindex(master_ifindex);
 
             // Remove connected route from the RIB.
             if !msg.flags.contains(AddressFlags::UNNUMBERED) {
                 master.ibus_tx.route_ip_del(RouteKeyMsg {
                     protocol: Protocol::DIRECT,
+                    table_id,
                     prefix: msg.addr.apply_mask(),
                 });
             }
@@ -287,6 +347,7 @@ pub(crate) fn notify_redistribute_add(
     let msg = RouteMsg {
         protocol: route.protocol,
         kind: route.kind,
+        table_id: route.table_id,
         prefix,
         distance: route.distance,
         metric: route.metric,
@@ -303,12 +364,17 @@ pub(crate) fn notify_redistribute_del(
     sub: &RedistributeSub,
     prefix: IpNetwork,
     protocol: Protocol,
+    table_id: Option<u32>,
 ) {
     if !sub.protocols.contains(&(prefix.address_family(), protocol)) {
         return;
     }
 
-    let msg = RouteKeyMsg { protocol, prefix };
+    let msg = RouteKeyMsg {
+        protocol,
+        table_id,
+        prefix,
+    };
     let msg = IbusMsg::RouteRedistributeDel(msg);
     send(&sub.tx, msg.clone());
 }
@@ -328,4 +394,33 @@ pub(crate) fn notify_nht_update(addr: IpAddr, nhte: &NhtEntry) {
 
 fn send(ibus_tx: &IbusSender, msg: IbusMsg) {
     let _ = ibus_tx.send(msg);
+}
+
+fn route_table_id(
+    master: &Master,
+    client: &IbusClient,
+    table_id: &mut Option<u32>,
+) -> bool {
+    let Some(instance_id) = master
+        .instances
+        .iter()
+        .find(|(_, instance)| instance.ibus_tx.same_channel(&client.tx))
+        .map(|(instance_id, _)| instance_id)
+    else {
+        return true;
+    };
+
+    if instance_id.network_instance == InstanceId::DEFAULT_NETWORK_INSTANCE {
+        return true;
+    }
+
+    let Some(resolved_table_id) = master
+        .network_instances
+        .get(&instance_id.network_instance)
+        .and_then(|ni| ni.table_id)
+    else {
+        return false;
+    };
+    *table_id = Some(resolved_table_id);
+    true
 }

@@ -29,11 +29,15 @@ const BGP_PORT: u16 = 179;
 
 pub(crate) fn listen_socket(
     af: AddressFamily,
+    vrf_device: Option<&str>,
 ) -> Result<TcpListener, std::io::Error> {
     #[cfg(not(feature = "testing"))]
     {
         // Create TCP socket.
         let socket = socket(af)?;
+        if let Some(vrf_device) = vrf_device {
+            socket.set_bindtodevice(vrf_device)?;
+        }
 
         // Bind socket.
         let sockaddr = SocketAddr::from((IpAddr::unspecified(af), BGP_PORT));
@@ -137,6 +141,7 @@ pub(crate) fn accepted_stream_init(
 pub(crate) async fn connect(
     remote_addr: IpAddr,
     local_addr: Option<IpAddr>,
+    vrf_device: Option<&str>,
     ttl: u8,
     ttl_security: Option<u8>,
     tcp_mss: Option<u16>,
@@ -146,6 +151,11 @@ pub(crate) async fn connect(
 
     // Create TCP socket.
     let socket = socket(af).map_err(IoError::TcpSocketError)?;
+    if let Some(vrf_device) = vrf_device {
+        socket
+            .set_bindtodevice(vrf_device)
+            .map_err(IoError::TcpSocketError)?;
+    }
 
     // Bind socket.
     if let Some(local_addr) = local_addr {

@@ -14,10 +14,13 @@ use holo_bgp::packet::attribute::{
 };
 use holo_bgp::packet::iana::Origin;
 use holo_bgp::packet::message::{
-    DecodeCxt, Message, MpReachNlri, MpUnreachNlri, NegotiatedCapability,
-    ReachNlri, UnreachNlri, UpdateMsg,
+    DecodeCxt, EncodeCxt, EvpnInclusiveMulticastEthernetTag, EvpnIpPrefix,
+    EvpnMacIpAdvertisement, EvpnRoute, Message, MpReachNlri, MpUnreachNlri,
+    NegotiatedCapability, ReachNlri, UnreachNlri, UpdateMsg,
 };
-use holo_utils::bgp::{Comm, ExtComm, Extv6Comm, LargeComm};
+use holo_utils::bgp::{
+    Comm, ExtComm, Extv6Comm, LargeComm, RouteDistinguisher,
+};
 
 use super::{test_decode_msg, test_encode_msg};
 
@@ -153,6 +156,144 @@ fn test_encode_update2() {
 fn test_decode_update2() {
     let (ref bytes, ref msg) = *UPDATE2;
     test_decode_msg(bytes, msg);
+}
+
+#[test]
+fn test_roundtrip_evpn_update() {
+    let msg = Message::Update(UpdateMsg {
+        reach: None,
+        unreach: None,
+        mp_reach: Some(MpReachNlri::L2vpnEvpn {
+            routes: vec![
+                EvpnRoute::MacIpAdvertisement(EvpnMacIpAdvertisement {
+                    rd: RouteDistinguisher::As2Administrator {
+                        asn: 65000,
+                        number: 1,
+                    },
+                    esi: [0; 10],
+                    ethernet_tag_id: 100,
+                    mac: [0, 17, 34, 51, 68, 85],
+                    ip: Some(ip4!("192.0.2.10").into()),
+                    label: 16000,
+                }),
+                EvpnRoute::InclusiveMulticastEthernetTag(
+                    EvpnInclusiveMulticastEthernetTag {
+                        rd: RouteDistinguisher::As2Administrator {
+                            asn: 65000,
+                            number: 1,
+                        },
+                        ethernet_tag_id: 100,
+                        originator_ip: ip4!("192.0.2.2").into(),
+                    },
+                ),
+                EvpnRoute::IpPrefix(EvpnIpPrefix {
+                    rd: RouteDistinguisher::As2Administrator {
+                        asn: 65000,
+                        number: 1,
+                    },
+                    esi: [0; 10],
+                    ethernet_tag_id: 100,
+                    prefix: net4!("198.51.100.0/24").into(),
+                    gateway_ip: Some(ip4!("192.0.2.254").into()),
+                    label: 16001,
+                }),
+                EvpnRoute::MacIpAdvertisement(EvpnMacIpAdvertisement {
+                    rd: RouteDistinguisher::As2Administrator {
+                        asn: 65000,
+                        number: 2,
+                    },
+                    esi: [0; 10],
+                    ethernet_tag_id: 200,
+                    mac: [0, 170, 187, 204, 221, 238],
+                    ip: Some(ip6!("2001:db8:100::10").into()),
+                    label: 16002,
+                }),
+                EvpnRoute::InclusiveMulticastEthernetTag(
+                    EvpnInclusiveMulticastEthernetTag {
+                        rd: RouteDistinguisher::As2Administrator {
+                            asn: 65000,
+                            number: 2,
+                        },
+                        ethernet_tag_id: 200,
+                        originator_ip: ip6!("2001:db8:100::2").into(),
+                    },
+                ),
+                EvpnRoute::IpPrefix(EvpnIpPrefix {
+                    rd: RouteDistinguisher::As2Administrator {
+                        asn: 65000,
+                        number: 2,
+                    },
+                    esi: [0; 10],
+                    ethernet_tag_id: 200,
+                    prefix: net6!("2001:db8:200::/64").into(),
+                    gateway_ip: Some(ip6!("2001:db8:100::fe").into()),
+                    label: 16003,
+                }),
+            ],
+            nexthop: ip6!("2001:db8:100::2").into(),
+        }),
+        mp_unreach: Some(MpUnreachNlri::L2vpnEvpn {
+            routes: vec![
+                EvpnRoute::InclusiveMulticastEthernetTag(
+                    EvpnInclusiveMulticastEthernetTag {
+                        rd: RouteDistinguisher::As2Administrator {
+                            asn: 65000,
+                            number: 1,
+                        },
+                        ethernet_tag_id: 100,
+                        originator_ip: ip4!("192.0.2.2").into(),
+                    },
+                ),
+                EvpnRoute::InclusiveMulticastEthernetTag(
+                    EvpnInclusiveMulticastEthernetTag {
+                        rd: RouteDistinguisher::As2Administrator {
+                            asn: 65000,
+                            number: 2,
+                        },
+                        ethernet_tag_id: 200,
+                        originator_ip: ip6!("2001:db8:100::2").into(),
+                    },
+                ),
+            ],
+        }),
+        attrs: Some(Attrs {
+            base: BaseAttrs {
+                origin: Origin::Igp,
+                as_path: Default::default(),
+                as4_path: None,
+                nexthop: None,
+                ll_nexthop: None,
+                med: None,
+                local_pref: Some(100),
+                aggregator: None,
+                as4_aggregator: None,
+                atomic_aggregate: None,
+                originator_id: None,
+                cluster_list: None,
+            },
+            comm: None,
+            ext_comm: Some(CommList(
+                [ExtComm([0, 2, 0xfd, 0xe8, 0, 0, 0, 100])].into(),
+            )),
+            extv6_comm: None,
+            large_comm: None,
+            unknown: None,
+        }),
+    });
+
+    let encode_cxt = EncodeCxt {
+        capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
+    };
+    let decode_cxt = DecodeCxt {
+        peer_type: PeerType::Internal,
+        peer_as: 65000,
+        reject_as_sets: true,
+        capabilities: [NegotiatedCapability::FourOctetAsNumber].into(),
+    };
+    let bytes = msg.encode(&encode_cxt);
+    let msg_size = Message::get_message_len(&bytes).unwrap();
+    let decoded = Message::decode(&bytes[0..msg_size], &decode_cxt).unwrap();
+    assert_eq!(msg, decoded);
 }
 
 #[test]

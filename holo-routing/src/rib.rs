@@ -29,7 +29,7 @@ use crate::{ibus, netlink};
 
 #[derive(Debug)]
 pub struct Rib {
-    pub ip: JointPrefixMap<IpNetwork, BTreeMap<u32, Route>>,
+    pub ip: JointPrefixMap<IpNetwork, BTreeMap<RouteKey, Route>>,
     pub mpls: BTreeMap<Label, Route>,
     pub nht: HashMap<IpAddr, NhtEntry>,
     pub ip_update_queue: BTreeSet<IpNetwork>,
@@ -43,6 +43,7 @@ pub struct Route {
     pub protocol: Protocol,
     pub owner: IbusClientId,
     pub kind: RouteKind,
+    pub table_id: Option<u32>,
     pub distance: u32,
     pub metric: u32,
     pub tag: Option<u32>,
@@ -50,6 +51,12 @@ pub struct Route {
     pub nexthops: BTreeSet<Nexthop>,
     pub last_updated: DateTime<Utc>,
     pub flags: RouteFlags,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct RouteKey {
+    pub table_id: Option<u32>,
+    pub distance: u32,
 }
 
 bitflags! {
@@ -96,13 +103,18 @@ impl Rib {
     ) {
         msg.nexthops = self.resolve_nexthops(msg.nexthops);
         let rib_prefix = self.prefix_entry(msg.prefix);
-        match rib_prefix.entry(msg.distance) {
+        let route_key = RouteKey {
+            table_id: msg.table_id,
+            distance: msg.distance,
+        };
+        match rib_prefix.entry(route_key) {
             btree_map::Entry::Vacant(v) => {
                 // If the IP route does not exist, create a new entry.
                 v.insert(Route::new(
                     msg.protocol,
                     owner,
                     msg.kind,
+                    msg.table_id,
                     msg.distance,
                     msg.metric,
                     msg.tag,
@@ -118,6 +130,7 @@ impl Rib {
                 // Update the existing IP route with the new information.
                 route.owner = owner;
                 route.kind = msg.kind;
+                route.table_id = msg.table_id;
                 route.distance = msg.distance;
                 route.metric = msg.metric;
                 route.tag = msg.tag;
@@ -137,10 +150,9 @@ impl Rib {
         let rib_prefix = self.prefix_entry(msg.prefix);
 
         // Find IP route entry from the same advertising protocol.
-        if let Some(route) = rib_prefix
-            .values_mut()
-            .find(|route| route.protocol == msg.protocol)
-        {
+        if let Some(route) = rib_prefix.values_mut().find(|route| {
+            route.protocol == msg.protocol && route.table_id == msg.table_id
+        }) {
             // Mark IP route as removed.
             route.flags.insert(RouteFlags::REMOVED);
 
@@ -163,6 +175,7 @@ impl Rib {
                     msg.protocol,
                     owner,
                     RouteKind::Unicast,
+                    None,
                     0,
                     0,
                     None,
@@ -324,55 +337,84 @@ impl Rib {
         while let Some(prefix) = self.ip_update_queue.pop_first() {
             let rib_prefix = self.ip.entry(prefix).or_default();
 
-            // Find the protocol of the old best route, if one exists.
-            let old_best_protocol = rib_prefix
+            // Find the old best route for each table, if one exists.
+            let old_best_routes: BTreeMap<Option<u32>, Protocol> = rib_prefix
                 .values()
-                .find(|route| route.flags.contains(RouteFlags::ACTIVE))
-                .map(|route| route.protocol);
+                .filter(|route| route.flags.contains(RouteFlags::ACTIVE))
+                .map(|route| (route.table_id, route.protocol))
+                .collect();
+            let table_ids: BTreeSet<Option<u32>> = rib_prefix
+                .values()
+                .map(|route| route.table_id)
+                .chain(old_best_routes.keys().copied())
+                .collect();
 
             // Remove routes marked with the REMOVED flag.
             rib_prefix
                 .retain(|_, route| !route.flags.contains(RouteFlags::REMOVED));
 
-            // Select and (re)install the best route for this prefix.
-            for (idx, route) in rib_prefix.values_mut().enumerate() {
-                if idx == 0 {
-                    // Mark the route as the preferred one.
-                    route.flags.insert(RouteFlags::ACTIVE);
+            // Select and (re)install the best route per table for this prefix.
+            let mut active_tables = BTreeSet::new();
+            for table_id in table_ids {
+                let mut route_keys = rib_prefix
+                    .keys()
+                    .filter(|key| key.table_id == table_id)
+                    .copied();
+                let Some(best_key) = route_keys.next() else {
+                    continue;
+                };
+                active_tables.insert(table_id);
 
-                    // Install the route using the netlink handle.
-                    if route.protocol != Protocol::DIRECT {
-                        netlink::ip_route_install(
-                            netlink_tx, &prefix, route, interfaces,
-                        );
-                    }
+                for key in rib_prefix
+                    .keys()
+                    .filter(|key| key.table_id == table_id)
+                    .copied()
+                    .collect::<Vec<_>>()
+                {
+                    let route = rib_prefix.get_mut(&key).unwrap();
+                    if key == best_key {
+                        // Mark the route as the preferred one.
+                        route.flags.insert(RouteFlags::ACTIVE);
 
-                    // Notify protocol instances about the updated route.
-                    for sub in self.subscriptions.values() {
-                        ibus::notify_redistribute_add(sub, prefix, route);
+                        // Install the route using the netlink handle.
+                        if route.protocol != Protocol::DIRECT {
+                            netlink::ip_route_install(
+                                netlink_tx, &prefix, route, interfaces,
+                            );
+                        }
+
+                        // Notify protocol instances about the updated route.
+                        for sub in self.subscriptions.values() {
+                            ibus::notify_redistribute_add(sub, prefix, route);
+                        }
+                    } else {
+                        // Remove the preferred flag for other routes.
+                        route.flags.remove(RouteFlags::ACTIVE);
                     }
-                } else {
-                    // Remove the preferred flag for other routes.
-                    route.flags.remove(RouteFlags::ACTIVE);
                 }
             }
 
-            // Check if there are no routes left for this prefix.
-            if rib_prefix.is_empty() {
-                if let Some(protocol) = old_best_protocol {
+            // Check if any table lost its route for this prefix.
+            for (table_id, protocol) in old_best_routes {
+                if !active_tables.contains(&table_id) {
                     // Uninstall the old best route using the netlink handle.
                     if protocol != Protocol::DIRECT {
                         netlink::ip_route_uninstall(
-                            netlink_tx, &prefix, protocol,
+                            netlink_tx, &prefix, protocol, table_id,
                         );
                     }
 
                     // Notify protocol instances about the deleted route.
                     for sub in self.subscriptions.values() {
-                        ibus::notify_redistribute_del(sub, prefix, protocol);
+                        ibus::notify_redistribute_del(
+                            sub, prefix, protocol, table_id,
+                        );
                     }
                 }
+            }
 
+            // Check if there are no routes left for this prefix.
+            if rib_prefix.is_empty() {
                 // Remove prefix entry from the RIB.
                 self.ip.remove(&prefix);
             }
@@ -419,7 +461,10 @@ impl Rib {
     }
 
     // Returns RIB entry associated to the given IP prefix.
-    fn prefix_entry(&mut self, prefix: IpNetwork) -> &mut BTreeMap<u32, Route> {
+    fn prefix_entry(
+        &mut self,
+        prefix: IpNetwork,
+    ) -> &mut BTreeMap<RouteKey, Route> {
         self.ip.entry(prefix).or_default()
     }
 
@@ -521,6 +566,7 @@ impl Rib {
                     netlink_tx,
                     &prefix,
                     route.protocol,
+                    route.table_id,
                 );
             }
         }

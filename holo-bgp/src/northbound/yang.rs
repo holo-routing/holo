@@ -233,6 +233,7 @@ impl ToYang for RouteRejectReason {
 impl TryFromYang for PrivateAsRemove {
     fn try_from_yang(value: &str) -> Option<PrivateAsRemove> {
         match value {
+            "holo-bgp:private-as-remove-leading" => Some(PrivateAsRemove::RemoveLeading),
             "iana-bgp-types:private-as-remove-all" => Some(PrivateAsRemove::RemoveAll),
             "iana-bgp-types:private-as-replace-all" => Some(PrivateAsRemove::ReplaceAll),
             _ => None,

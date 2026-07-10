@@ -19,9 +19,10 @@ use serde::{Deserialize, Serialize};
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
 use crate::ibus;
-use crate::neighbor::{Neighbor, PeerType};
+use crate::neighbor::{Neighbor, Neighbors, PeerType};
 use crate::northbound::configuration::{
-    DistanceCfg, InstanceTraceOptions, MultipathCfg, RouteSelectionCfg,
+    DistanceCfg, InstanceTraceOptions, MultipathCfg, PrivateAsRemove,
+    RouteSelectionCfg,
 };
 use crate::packet::attribute::{
     Attrs, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr,
@@ -709,6 +710,7 @@ where
 pub(crate) fn best_path<A>(
     dest: &mut Destination,
     local_asn: u32,
+    neighbors: &Neighbors,
     nht: &HashMap<IpAddr, NhtEntry<A>>,
     selection_cfg: &RouteSelectionCfg,
 ) -> Option<Box<Route>>
@@ -730,7 +732,7 @@ where
         route.ineligible_reason = None;
 
         // First, check if the route is eligible.
-        if route.attrs.base.value.as_path.contains(local_asn) {
+        if is_as_loop(route, local_asn, neighbors) {
             route.ineligible_reason = Some(RouteIneligibleReason::AsLoop);
             continue;
         }
@@ -771,6 +773,23 @@ where
 
     // Return a cloned copy of the best route found, if any.
     best_route.cloned()
+}
+
+fn is_as_loop(route: &Route, local_asn: u32, neighbors: &Neighbors) -> bool {
+    let count = route.attrs.base.value.as_path.count(local_asn);
+    if count == 0 {
+        return false;
+    }
+
+    let allowed = match &route.origin {
+        RouteOrigin::Neighbor { remote_addr, .. } => neighbors
+            .get(remote_addr)
+            .map(|nbr| nbr.config.as_path_options.allow_own_as)
+            .unwrap_or_default(),
+        _ => 0,
+    };
+
+    count > allowed
 }
 
 pub(crate) fn loc_rib_update<A>(
@@ -863,8 +882,42 @@ pub(crate) fn attrs_tx_update<A>(
             }
         }
         PeerType::External => {
-            // Prepend local AS number.
-            attrs.base.as_path.prepend(local_asn);
+            // Egress AS-path knobs are intentionally applied to this
+            // per-advertisement copy, after export policy and before encoding.
+            // Transform the original route path before local prepends so
+            // leading-private removal sees the received path, not our ASN.
+            match nbr.config.private_as_remove {
+                Some(PrivateAsRemove::RemoveLeading) => {
+                    attrs.base.as_path.remove_private_leading();
+                }
+                Some(PrivateAsRemove::RemoveAll) => {
+                    attrs.base.as_path.remove_private_all();
+                }
+                Some(PrivateAsRemove::ReplaceAll) => {
+                    attrs.base.as_path.replace_private(local_asn);
+                }
+                None => {}
+            }
+
+            if nbr.config.as_path_options.replace_peer_as {
+                attrs.base.as_path.replace(nbr.config.peer_as, local_asn);
+            }
+
+            if let Some(local_as) = nbr.config.local_as
+                && !nbr.config.local_as_options.no_prepend
+                && !nbr.config.local_as_options.replace_as
+            {
+                attrs.base.as_path.prepend(local_as);
+            }
+
+            // Prepend local AS number. With local-as replace-as, present the
+            // configured local-as in place of the global ASN.
+            let prepend_asn = if nbr.config.local_as_options.replace_as {
+                nbr.config.local_as.unwrap_or(local_asn)
+            } else {
+                local_asn
+            };
+            attrs.base.as_path.prepend(prepend_asn);
 
             // Do not propagate the MULTI_EXIT_DISC attribute.
             attrs.base.med = None;
@@ -928,8 +981,16 @@ pub(crate) fn nexthop_untrack<A>(
 
 #[cfg(test)]
 mod tests {
+    use std::collections::VecDeque;
+
+    use holo_utils::socket::TcpConnInfo;
+
     use super::*;
-    use crate::packet::attribute::BaseAttrs;
+    use crate::af::Ipv4Unicast;
+    use crate::northbound::configuration::LocalAsOptionsCfg;
+    use crate::packet::attribute::{
+        AsPath, AsPathSegment, AsPathSegmentType, BaseAttrs,
+    };
 
     fn make_route(
         origin: RouteOrigin,
@@ -968,6 +1029,50 @@ mod tests {
 
     fn local_origin() -> RouteOrigin {
         RouteOrigin::Protocol(Protocol::STATIC)
+    }
+
+    fn as_path(asns: impl IntoIterator<Item = u32>) -> AsPath {
+        AsPath {
+            segments: VecDeque::from([AsPathSegment {
+                seg_type: AsPathSegmentType::Sequence,
+                members: asns.into_iter().collect(),
+            }]),
+        }
+    }
+
+    fn as_path_members(as_path: &AsPath) -> Vec<u32> {
+        as_path
+            .segments
+            .iter()
+            .flat_map(|segment| segment.members.iter().copied())
+            .collect()
+    }
+
+    fn external_neighbor(peer_as: u32) -> Neighbor {
+        let mut nbr = Neighbor::new(
+            IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2)),
+            PeerType::External,
+        );
+        nbr.config.peer_as = peer_as;
+        nbr.conn_info = Some(TcpConnInfo {
+            local_addr: IpAddr::V4(Ipv4Addr::new(192, 0, 2, 1)),
+            local_port: 179,
+            remote_addr: nbr.remote_addr,
+            remote_port: 179,
+        });
+        nbr
+    }
+
+    fn attrs_tx_path(nbr: &Neighbor, path: &[u32]) -> Vec<u32> {
+        let mut attrs = Attrs {
+            base: BaseAttrs {
+                as_path: as_path(path.iter().copied()),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        attrs_tx_update::<Ipv4Unicast>(&mut attrs, nbr, 64496, false);
+        as_path_members(&attrs.base.as_path)
     }
 
     #[test]
@@ -1064,5 +1169,131 @@ mod tests {
             RouteCompare::Preferred(RouteRejectReason::PreferExternal) => {}
             other => panic!("expected PreferExternal, got {:?}", other),
         }
+    }
+
+    #[test]
+    fn remove_private_as_default_strips_leading_private_asns() {
+        let mut nbr = external_neighbor(64497);
+        nbr.config.private_as_remove = Some(PrivateAsRemove::RemoveLeading);
+
+        assert_eq!(
+            attrs_tx_path(&nbr, &[64512, 4200000000, 64498, 64513]),
+            vec![64496, 64498, 64513]
+        );
+    }
+
+    #[test]
+    fn remove_private_as_all_strips_all_private_asns() {
+        let mut nbr = external_neighbor(64497);
+        nbr.config.private_as_remove = Some(PrivateAsRemove::RemoveAll);
+
+        assert_eq!(
+            attrs_tx_path(&nbr, &[64512, 64498, 4200000000]),
+            vec![64496, 64498]
+        );
+    }
+
+    #[test]
+    fn remove_private_as_replace_all_preserves_path_length() {
+        let mut nbr = external_neighbor(64497);
+        nbr.config.private_as_remove = Some(PrivateAsRemove::ReplaceAll);
+
+        assert_eq!(
+            attrs_tx_path(&nbr, &[64512, 64498, 4200000000]),
+            vec![64496, 64496, 64498, 64496]
+        );
+    }
+
+    #[test]
+    fn allow_own_as_accepts_only_configured_occurrences() {
+        let mut neighbors = Neighbors::default();
+        let mut nbr = external_neighbor(64497);
+        nbr.config.as_path_options.allow_own_as = 1;
+        neighbors.insert(nbr.remote_addr, nbr);
+
+        let origin = RouteOrigin::Neighbor {
+            identifier: Ipv4Addr::new(192, 0, 2, 2),
+            remote_addr: IpAddr::V4(Ipv4Addr::new(192, 0, 2, 2)),
+        };
+        let route = Route {
+            attrs: RouteAttrs {
+                base: Arc::new(AttrSet {
+                    index: 0,
+                    value: BaseAttrs {
+                        as_path: as_path([64496]),
+                        ..Default::default()
+                    },
+                }),
+                comm: None,
+                ext_comm: None,
+                extv6_comm: None,
+                large_comm: None,
+                unknown: None,
+            },
+            ..make_route(origin, RouteType::External, Some(0))
+        };
+        assert!(!is_as_loop(&route, 64496, &neighbors));
+
+        let route = Route {
+            attrs: RouteAttrs {
+                base: Arc::new(AttrSet {
+                    index: 0,
+                    value: BaseAttrs {
+                        as_path: as_path([64496, 64496]),
+                        ..Default::default()
+                    },
+                }),
+                comm: None,
+                ext_comm: None,
+                extv6_comm: None,
+                large_comm: None,
+                unknown: None,
+            },
+            ..route
+        };
+        assert!(is_as_loop(&route, 64496, &neighbors));
+    }
+
+    #[test]
+    fn as_override_replaces_peer_as_on_egress() {
+        let mut nbr = external_neighbor(64497);
+        nbr.config.as_path_options.replace_peer_as = true;
+
+        assert_eq!(
+            attrs_tx_path(&nbr, &[64497, 64498, 64497]),
+            vec![64496, 64496, 64498, 64496]
+        );
+    }
+
+    #[test]
+    fn local_as_prepends_local_as_and_global_as() {
+        let mut nbr = external_neighbor(64497);
+        nbr.config.local_as = Some(64495);
+
+        assert_eq!(attrs_tx_path(&nbr, &[64498]), vec![64496, 64495, 64498]);
+    }
+
+    #[test]
+    fn local_as_no_prepend_skips_local_as_prepend() {
+        let mut nbr = external_neighbor(64497);
+        nbr.config.local_as = Some(64495);
+        nbr.config.local_as_options = LocalAsOptionsCfg {
+            no_prepend: true,
+            replace_as: false,
+        };
+
+        assert_eq!(attrs_tx_path(&nbr, &[64498]), vec![64496, 64498]);
+    }
+
+    #[test]
+    fn local_as_replace_as_uses_local_as_for_egress_prepend() {
+        let mut nbr = external_neighbor(64497);
+        nbr.config.local_as = Some(64495);
+        nbr.config.local_as_options = LocalAsOptionsCfg {
+            no_prepend: false,
+            replace_as: true,
+        };
+
+        assert_eq!(attrs_tx_path(&nbr, &[64498]), vec![64495, 64498]);
     }
 }

@@ -273,7 +273,7 @@ fn process_nbr_reach_prefixes<A>(
     nbr: &Neighbor,
     rib: &mut Rib,
     nlri_prefixes: Vec<A::IpNetwork>,
-    mut attrs: Attrs,
+    attrs: Attrs,
     local_asn: u32,
     shared: &InstanceShared,
     policy_apply_tasks: &PolicyApplyTasks,
@@ -294,12 +294,6 @@ fn process_nbr_reach_prefixes<A>(
         PeerType::Internal => RouteType::Internal,
         PeerType::External => RouteType::External,
     };
-
-    if nbr.config.as_path_options.replace_peer_as {
-        // Replace occurrences of the peer's AS in the AS_PATH with the local
-        // autonomous system number.
-        attrs.base.as_path.replace(nbr.config.peer_as, local_asn);
-    }
 
     // Update pre-policy Adj-RIB-In routes.
     let table = A::table(&mut rib.tables);
@@ -679,6 +673,7 @@ where
         let best_route = rib::best_path::<A>(
             dest,
             instance.config.asn,
+            neighbors,
             &table.nht,
             selection_cfg,
         );

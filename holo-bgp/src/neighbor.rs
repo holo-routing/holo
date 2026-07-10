@@ -669,12 +669,12 @@ impl Neighbor {
 
     // Sends a BGP OPEN message based on the local configuration.
     fn open_send(&mut self, instance_cfg: &InstanceCfg, identifier: Ipv4Addr) {
+        let local_asn = self.config.local_as.unwrap_or(instance_cfg.asn);
+
         // Base capabilities.
         let mut capabilities: BTreeSet<_> = [
             Capability::RouteRefresh,
-            Capability::FourOctetAsNumber {
-                asn: instance_cfg.asn,
-            },
+            Capability::FourOctetAsNumber { asn: local_asn },
         ]
         .into();
 
@@ -702,7 +702,7 @@ impl Neighbor {
         // Fill-in and send message.
         let msg = Message::Open(OpenMsg {
             version: OpenMsg::VERSION,
-            my_as: instance_cfg.asn.try_into().unwrap_or(AS_TRANS),
+            my_as: local_asn.try_into().unwrap_or(AS_TRANS),
             holdtime: self.config.timers.holdtime,
             identifier,
             capabilities,

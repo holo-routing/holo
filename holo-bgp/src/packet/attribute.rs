@@ -743,9 +743,59 @@ impl AsPath {
         }
     }
 
+    pub(crate) fn replace_private(&mut self, to: u32) {
+        for segment in self.segments.iter_mut() {
+            for member in segment.members.iter_mut() {
+                if is_private_asn(*member) {
+                    *member = to;
+                }
+            }
+        }
+    }
+
+    pub(crate) fn remove_private_all(&mut self) {
+        self.segments = std::mem::take(&mut self.segments)
+            .into_iter()
+            .filter_map(|mut segment| {
+                segment.members.retain(|asn| !is_private_asn(*asn));
+                (!segment.members.is_empty()).then_some(segment)
+            })
+            .collect();
+    }
+
+    pub(crate) fn remove_private_leading(&mut self) {
+        while let Some(segment) = self.segments.front_mut() {
+            while segment
+                .members
+                .front()
+                .is_some_and(|asn| is_private_asn(*asn))
+            {
+                segment.members.pop_front();
+            }
+
+            if segment.members.is_empty() {
+                self.segments.pop_front();
+            } else {
+                break;
+            }
+        }
+    }
+
     pub(crate) fn contains(&self, asn: u32) -> bool {
         self.segments.iter().any(|segment| segment.contains(asn))
     }
+
+    pub(crate) fn count(&self, asn: u32) -> u8 {
+        self.segments
+            .iter()
+            .map(|segment| segment.count(asn))
+            .sum::<usize>()
+            .min(u8::MAX as usize) as u8
+    }
+}
+
+pub(crate) fn is_private_asn(asn: u32) -> bool {
+    (64512..=65534).contains(&asn) || (4200000000..=4294967294).contains(&asn)
 }
 
 // ===== impl AsPathSegment =====
@@ -824,6 +874,10 @@ impl AsPathSegment {
 
     fn contains(&self, asn: u32) -> bool {
         self.members.iter().any(|member| asn == *member)
+    }
+
+    fn count(&self, asn: u32) -> usize {
+        self.members.iter().filter(|member| asn == **member).count()
     }
 }
 

@@ -118,7 +118,16 @@ fn load_callbacks() -> Callbacks<Master> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::MatchSetsUpdate);
         })
-        .lookup(|_master, _list_entry, _dnode| ListEntry::None)
+        // Delete callbacks resolve `list_entry` by walking *inclusive*
+        // ancestors, threading the accumulator through each list level's
+        // lookup (create callbacks use exclusive ancestors and never invoke
+        // this one). Returning `ListEntry::None` here clobbers the parent
+        // `PrefixSet` resolved one level up, so `delete_apply` panics on
+        // `into_prefix_set()` whenever a single prefix is removed while its
+        // prefix-set survives. Pass the parent entry through instead,
+        // matching the neighbor-set/tag-set inner lists, which register no
+        // lookup and therefore leave the accumulator untouched.
+        .lookup(|_master, list_entry, _dnode| list_entry)
         .path(routing_policy::defined_sets::neighbor_sets::neighbor_set::PATH)
         .create_apply(|master, args| {
             let name = args.dnode.get_string_relative("./name").unwrap();
@@ -1455,5 +1464,128 @@ fn bgp_as_path_prepend_get_repeat(stmt: &PolicyStmt) -> Option<u8> {
             repeat, ..
         })) => *repeat,
         _ => None,
+    }
+}
+
+// ===== tests =====
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use holo_northbound::configuration::{CommitPhase, changes_from_diff};
+    use holo_northbound::{api, process_northbound_msg};
+    use holo_utils::ibus::ibus_channels;
+    use holo_utils::ip::AddressFamily;
+    use holo_utils::policy::IpPrefixRange;
+    use holo_utils::yang::ContextExt;
+    use holo_yang::{YANG_CTX, implemented_modules, load_modules, new_context};
+    use tokio::sync::mpsc;
+    use yang5::context::Context;
+    use yang5::data::{DataDiffFlags, DataTree};
+
+    use super::Resource;
+    use crate::Master;
+
+    // Returns the process-wide YANG context, loading the policy modules on
+    // first use. The context is shared by the whole test binary, so the
+    // first test to initialize it decides the module set; load a superset
+    // here if a future test needs more than the policy modules.
+    fn yang_ctx() -> &'static Context {
+        YANG_CTX.get_or_init(|| {
+            let mut ctx = new_context();
+            load_modules(&mut ctx, implemented_modules::POLICY);
+            // The northbound callbacks resolve schema paths via each node's
+            // cached "private" pointer, which the daemon primes during startup.
+            ctx.cache_data_paths();
+            Arc::new(ctx)
+        })
+    }
+
+    // Builds a running/candidate config tree holding a single prefix-set with
+    // the given prefix-list ranges.
+    fn prefix_set_tree(ranges: &[(&str, u8, u8)]) -> Arc<DataTree<'static>> {
+        let mut tree = DataTree::new(yang_ctx());
+        for (prefix, lower, upper) in ranges {
+            let path = format!(
+                "/ietf-routing-policy:routing-policy/defined-sets\
+                 /prefix-sets/prefix-set[name='PS'][mode='ipv4']/prefixes\
+                 /prefix-list[ip-prefix='{prefix}']\
+                 [mask-length-lower='{lower}'][mask-length-upper='{upper}']"
+            );
+            tree.new_path(&path, None, false).unwrap();
+        }
+        Arc::new(tree)
+    }
+
+    // Drives a full two-phase commit (Prepare + Apply) of the diff between two
+    // config trees through the real northbound machinery, exactly as the daemon
+    // does. The Prepare phase is required: it sizes the per-change resource
+    // vector that Apply zips against.
+    fn commit(master: &mut Master, resources: &mut Vec<Option<Resource>>, old: &Arc<DataTree<'static>>, new: &Arc<DataTree<'static>>) {
+        let diff = old.diff(new, DataDiffFlags::DEFAULTS).unwrap();
+        let changes = changes_from_diff(&diff);
+        for phase in [CommitPhase::Prepare, CommitPhase::Apply] {
+            let request = api::daemon::Request::Commit(api::daemon::CommitRequest {
+                phase,
+                old_config: old.clone(),
+                new_config: new.clone(),
+                changes: changes.clone(),
+                responder: None,
+            });
+            process_northbound_msg(master, resources, request);
+        }
+    }
+
+    // Regression test for the prefix-list delete panic.
+    //
+    // Deleting an individual prefix-list entry while its parent prefix-set
+    // survives (e.g. a whole-config REPLACE that keeps the set but drops one
+    // prefix) drives `lookup_list_entry` down the inclusive-ancestor chain. The
+    // prefix-list's own lookup runs last; if it returns `ListEntry::None` it
+    // clobbers the `PrefixSet` resolved one level up, and `delete_apply` panics
+    // on `into_prefix_set().unwrap()`.
+    //
+    // With the lookup passing the parent entry through, the delete succeeds and
+    // the prefix is removed from `match_sets.prefixes`.
+    #[test]
+    fn prefix_list_entry_delete_keeps_parent_set() {
+        let key = ("PS".to_owned(), AddressFamily::Ipv4);
+        let kept: IpPrefixRange = IpPrefixRange {
+            prefix: "10.0.0.0/8".parse().unwrap(),
+            masklen_lower: 8,
+            masklen_upper: 8,
+        };
+        let removed: IpPrefixRange = IpPrefixRange {
+            prefix: "192.168.0.0/16".parse().unwrap(),
+            masklen_lower: 16,
+            masklen_upper: 24,
+        };
+
+        // Master with throwaway northbound/ibus channels.
+        let (nb_tx, _nb_rx) = mpsc::unbounded_channel();
+        let (ibus_tx, _ibus_rx) = ibus_channels();
+        let mut master = Master::new(nb_tx, ibus_tx);
+        let mut resources = Vec::new();
+
+        // Apply the initial config: one prefix-set with two prefix-list entries.
+        let empty = Arc::new(DataTree::new(yang_ctx()));
+        let two = prefix_set_tree(&[("10.0.0.0/8", 8, 8), ("192.168.0.0/16", 16, 24)]);
+        commit(&mut master, &mut resources, &empty, &two);
+
+        let set = master.match_sets.prefixes.get(&key).unwrap();
+        assert!(set.prefixes.contains(&kept));
+        assert!(set.prefixes.contains(&removed));
+
+        // REPLACE-style change: same set, one prefix dropped. This is the case
+        // that panicked before the fix.
+        let one = prefix_set_tree(&[("10.0.0.0/8", 8, 8)]);
+        commit(&mut master, &mut resources, &two, &one);
+
+        // The set survives; only the dropped prefix is gone.
+        let set = master.match_sets.prefixes.get(&key).unwrap();
+        assert!(set.prefixes.contains(&kept), "surviving prefix was lost");
+        assert!(!set.prefixes.contains(&removed), "deleted prefix still present");
+        assert_eq!(set.prefixes.len(), 1);
     }
 }

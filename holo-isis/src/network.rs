@@ -132,11 +132,17 @@ pub(crate) async fn write_loop(
 ) {
     while let Some(NetTxPduMsg { mut pdu, dst }) = net_tx_packetc.recv().await {
         // Get authentication key.
+        //
+        // ASH PDUs cannot carry the Authentication TLV, so no key is used.
         let auth_guard = match &pdu {
-            Pdu::Hello(..) => hello_auth.load(),
-            Pdu::Lsp(..) | Pdu::Snp(..) => global_auth.load(),
+            Pdu::Hello(..) => Some(hello_auth.load()),
+            Pdu::Lsp(..) | Pdu::Snp(..) => Some(global_auth.load()),
+            Pdu::Ash(..) => None,
         };
-        let auth = auth_guard.as_ref().as_ref().and_then(|a| a.get_key_send());
+        let auth = auth_guard
+            .as_ref()
+            .and_then(|guard| guard.as_ref().as_ref())
+            .and_then(|a| a.get_key_send());
 
         // Add Hello padding.
         //

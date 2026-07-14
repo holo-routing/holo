@@ -29,11 +29,11 @@ use crate::northbound::configuration::ExtendedSeqNumMode;
 use crate::northbound::notification;
 use crate::packet::error::{DecodeError, DecodeResult};
 use crate::packet::iana::{FloodingAlgo, PduType};
-use crate::packet::pdu::{Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
+use crate::packet::pdu::{Ash, Hello, HelloVariant, Lsp, Pdu, Snp, SnpTlvs};
 use crate::packet::tlv::{ExtendedSeqNum, ExtendedSeqNumTlv, ThreeWayAdjState};
 use crate::packet::{LanId, LevelNumber, LevelType, LspId};
 use crate::spf::SpfType;
-use crate::{adjacency, flooding, spf};
+use crate::{adjacency, ash, flooding, spf};
 
 // ===== Network PDU receipt =====
 
@@ -133,6 +133,18 @@ pub(crate) fn process_pdu(
         PduType::PsnpL2 => {
             iface.state.packet_counters.l2.psnp_in += 1;
         }
+        PduType::CashL1 => {
+            iface.state.packet_counters.l1.cash_in += 1;
+        }
+        PduType::CashL2 => {
+            iface.state.packet_counters.l2.cash_in += 1;
+        }
+        PduType::PashL1 => {
+            iface.state.packet_counters.l1.pash_in += 1;
+        }
+        PduType::PashL2 => {
+            iface.state.packet_counters.l2.pash_in += 1;
+        }
     }
     iface.state.discontinuity_time = Utc::now();
 
@@ -150,6 +162,9 @@ pub(crate) fn process_pdu(
         }
         Pdu::Snp(snp) => {
             process_pdu_snp(instance, arenas, iface_idx, src, bytes, snp)
+        }
+        Pdu::Ash(ash) => {
+            process_pdu_ash(instance, arenas, iface_idx, src, bytes, ash)
         }
     }
     .map_err(|error| {
@@ -327,6 +342,7 @@ fn process_pdu_hello_lan(
     let old_priority = adj.priority;
     adj.priority = Some(priority);
     adj.lan_id = Some(lan_id);
+    adj.ash_support = hello.tlvs.ash_cap.is_some();
     adj.protocols_supported = hello.tlvs.protocols_supported().collect();
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
     adj.topologies = hello.tlvs.topologies();
@@ -529,6 +545,7 @@ fn process_pdu_hello_p2p(
     }
 
     // Update adjacency with received PDU values.
+    adj.ash_support = hello.tlvs.ash_cap.is_some();
     adj.protocols_supported = hello.tlvs.protocols_supported().collect();
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
     adj.topologies = hello_topologies;
@@ -1112,6 +1129,108 @@ fn process_pdu_snp(
     Ok(())
 }
 
+fn process_pdu_ash(
+    instance: &mut InstanceUpView<'_>,
+    arenas: &mut InstanceArenas,
+    iface_idx: InterfaceIndex,
+    src: MacAddr,
+    bytes: Bytes,
+    ash: Ash,
+) -> Result<(), PduInputError> {
+    let iface = &mut arenas.interfaces[iface_idx];
+
+    // Set the level based on the PDU type, and discard the ASH if the level
+    // is incompatible with the interface.
+    let level = if matches!(ash.hdr.pdu_type, PduType::CashL1 | PduType::PashL1)
+    {
+        LevelNumber::L1
+    } else {
+        LevelNumber::L2
+    };
+    if !iface.config.level_type.resolved.intersects(level) {
+        return Ok(());
+    }
+
+    // Validate the "Maximum Area Addresses" field.
+    if level == LevelNumber::L1
+        && ash.hdr.max_area_addrs != 0
+        && ash.hdr.max_area_addrs != 3
+    {
+        iface.state.event_counters.max_area_addr_mismatch += 1;
+        iface.state.discontinuity_time = Utc::now();
+        notification::max_area_addresses_mismatch(
+            instance,
+            iface,
+            ash.hdr.max_area_addrs,
+            &bytes,
+        );
+        return Ok(());
+    }
+
+    // Discard PASH if we're not the DIS for the broadcast interface.
+    if iface.config.interface_type == InterfaceType::Broadcast
+        && ash.summary.is_none()
+        && !iface.is_dis(level)
+    {
+        return Ok(());
+    }
+
+    // Discard the ASH if ASH support wasn't negotiated.
+    if !iface.ash_negotiated(instance, &arenas.adjacencies, level) {
+        return Ok(());
+    }
+
+    // Discard the ASH if it wasn't received from an adjacent node.
+    let adj_exists = match iface.config.interface_type {
+        InterfaceType::Broadcast => iface
+            .state
+            .lan_adjacencies
+            .get(level)
+            .get_by_snpa(&arenas.adjacencies, src)
+            .is_some(),
+        InterfaceType::PointToPoint => iface
+            .state
+            .p2p_adjacency
+            .as_ref()
+            .is_some_and(|adj| adj.level_usage.intersects(level)),
+    };
+    if !adj_exists {
+        return Ok(());
+    }
+
+    // Iterate over all Node Range Hash Entries, collecting the more specific
+    // hashes to be sent back in response to mismatched ranges.
+    let mut pash_entries = vec![];
+    for entry in &ash.entries {
+        pash_entries.extend(ash::process_entry(
+            instance,
+            &arenas.lsp_entries,
+            iface,
+            level,
+            entry,
+        ));
+    }
+
+    // Complete ASH processing.
+    //
+    // Flood LSPs of nodes the CASH doesn't cover, as they are missing from
+    // the peer's database.
+    ash::flood_uncovered_ranges(
+        instance,
+        &arenas.lsp_entries,
+        iface,
+        level,
+        &ash,
+    );
+
+    // Send response PASH(es).
+    if !pash_entries.is_empty() {
+        ash::send_pash(instance, iface, level, pash_entries);
+    }
+
+    Ok(())
+}
+
 fn validate_pdu_ext_seqnum(
     adj: Option<&Adjacency>,
     pdu_type: PduType,
@@ -1374,6 +1493,13 @@ pub(crate) fn process_send_csnp(
     if iface.config.interface_type == InterfaceType::Broadcast
         && !iface.is_dis(level)
     {
+        return Ok(());
+    }
+
+    // Send CASH(es) in place of CSNPs when ASH support was negotiated with
+    // all neighbors on the interface.
+    if iface.ash_negotiated(instance, &arenas.adjacencies, level) {
+        ash::send_cash(instance, &arenas.lsp_entries, iface, level);
         return Ok(());
     }
 

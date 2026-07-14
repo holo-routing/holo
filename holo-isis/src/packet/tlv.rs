@@ -153,6 +153,16 @@ pub struct PaddingTlv {
     pub length: u8,
 }
 
+// Zero-length TLV included in IIH PDUs. Its presence indicates that the
+// advertising node is capable of receiving and processing ASH packets
+// (draft-prz-lsr-ash-packets).
+//
+// NOTE: this isn't a unit struct because unit structs serialize to JSON
+// null, which doesn't round-trip when nested inside an `Option`.
+#[derive(Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct AshCapTlv {}
+
 #[derive(Clone, Debug, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct ThreeWayAdjTlv {
@@ -697,6 +707,33 @@ impl PaddingTlv {
         let start_pos = tlv_encode_start(buf, TlvType::Padding);
         buf.put_slice(&Self::PADDING[0..self.length as usize]);
         tlv_encode_end(buf, start_pos);
+    }
+}
+
+// ===== impl AshCapTlv =====
+
+impl AshCapTlv {
+    pub(crate) fn decode(
+        tlv_len: u8,
+        _buf: &mut Bytes,
+    ) -> TlvDecodeResult<Self> {
+        // Validate the TLV length.
+        if tlv_len != 0 {
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
+        }
+
+        Ok(AshCapTlv {})
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::AshCapability);
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+impl Tlv for AshCapTlv {
+    fn len(&self) -> usize {
+        TLV_HDR_SIZE
     }
 }
 

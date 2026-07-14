@@ -9,6 +9,7 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::BTreeSet;
+use std::hash::Hasher;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::time::Instant;
 
@@ -21,7 +22,8 @@ use holo_utils::mac_addr::MacAddr;
 use holo_yang::ToYang;
 use num_traits::FromPrimitive;
 use serde::{Deserialize, Serialize};
-use tracing::{Span, warn_span};
+use siphasher::sip::SipHasher13;
+use tracing::{Span, warn, warn_span};
 
 use crate::packet::auth::AuthMethod;
 use crate::packet::error::{DecodeError, DecodeResult};
@@ -30,9 +32,9 @@ use crate::packet::subtlvs::capability::{
     FloodingAlgoStlv, SrAlgoStlv, SrCapabilitiesStlv,
 };
 use crate::packet::tlv::{
-    AreaAddressesTlv, AuthenticationTlv, DynamicHostnameTlv, ExtendedSeqNum,
-    ExtendedSeqNumTlv, Ipv4AddressesTlv, Ipv4Reach, Ipv4ReachTlv,
-    Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
+    AreaAddressesTlv, AshCapTlv, AuthenticationTlv, DynamicHostnameTlv,
+    ExtendedSeqNum, ExtendedSeqNumTlv, Ipv4AddressesTlv, Ipv4Reach,
+    Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
     Ipv6RouterIdTlv, IsReach, IsReachTlv, LegacyIpv4Reach, LegacyIpv4ReachTlv,
     LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry,
     MtCapabilityTlv, MtFlags, MultiTopologyEntry, MultiTopologyTlv,
@@ -51,6 +53,7 @@ pub enum Pdu {
     Hello(Hello),
     Lsp(Lsp),
     Snp(Snp),
+    Ash(Ash),
 }
 
 // IS-IS PDU common header.
@@ -95,6 +98,7 @@ pub struct HelloTlvs {
     pub ipv4_addrs: Vec<Ipv4AddressesTlv>,
     pub ipv6_addrs: Vec<Ipv6AddressesTlv>,
     pub ext_seqnum: Option<ExtendedSeqNumTlv>,
+    pub ash_cap: Option<AshCapTlv>,
     pub padding: Vec<PaddingTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -194,6 +198,39 @@ pub struct SnpTlvs {
     pub unknown: Vec<UnknownTlv>,
 }
 
+// IS-IS Aggregated SNP Hash PDU (draft-prz-lsr-ash-packets).
+//
+// Comes in two flavors, analogous to CSNPs and PSNPs: Complete ASH (CASH)
+// PDUs carry the Start and End System IDs of the described range in their
+// header, while Partial ASH (PASH) PDUs do not.
+//
+// NOTE: the draft defines no TLV space in ASH PDUs, so the Authentication
+// TLV cannot be carried. For that reason, ASH is only used when no global
+// authentication is configured.
+#[derive(Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct Ash {
+    pub hdr: Header,
+    pub source: LanId,
+    pub summary: Option<(SystemId, SystemId)>,
+    pub entries: Vec<AshEntry>,
+}
+
+// IS-IS ASH Node Range Hash Entry.
+//
+// Describes the aggregated hash of all fragments (including pseudonode
+// fragments) of the systems in the [start, end] range (both inclusive).
+//
+// A zero hash indicates that the range is not covered by ASH compression
+// and must be resolved through SNP exchanges or flooding.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Serialize)]
+pub struct AshEntry {
+    pub start: SystemId,
+    pub end: SystemId,
+    pub hash: u64,
+}
+
 // ===== impl Pdu =====
 
 impl Pdu {
@@ -226,6 +263,12 @@ impl Pdu {
             | PduType::PsnpL2 => {
                 Pdu::Snp(Snp::decode(hdr, &mut buf, buf_orig, global_auth)?)
             }
+            PduType::CashL1
+            | PduType::CashL2
+            | PduType::PashL1
+            | PduType::PashL2 => {
+                Pdu::Ash(Ash::decode(hdr, &mut buf, buf_orig)?)
+            }
         };
 
         Ok(pdu)
@@ -237,6 +280,7 @@ impl Pdu {
             Pdu::Hello(pdu) => pdu.encode(auth),
             Pdu::Lsp(pdu) => pdu.raw.clone(),
             Pdu::Snp(pdu) => pdu.encode(auth),
+            Pdu::Ash(pdu) => pdu.encode(),
         }
     }
 
@@ -246,6 +290,7 @@ impl Pdu {
             Pdu::Hello(pdu) => pdu.hdr.pdu_type,
             Pdu::Lsp(pdu) => pdu.hdr.pdu_type,
             Pdu::Snp(pdu) => pdu.hdr.pdu_type,
+            Pdu::Ash(pdu) => pdu.hdr.pdu_type,
         }
     }
 
@@ -553,6 +598,8 @@ impl Header {
             PduType::LspL1 | PduType::LspL2 => Lsp::HEADER_LEN,
             PduType::CsnpL1 | PduType::CsnpL2 => Snp::CSNP_HEADER_LEN,
             PduType::PsnpL1 | PduType::PsnpL2 => Snp::PSNP_HEADER_LEN,
+            PduType::CashL1 | PduType::CashL2 => Ash::CASH_HEADER_LEN,
+            PduType::PashL1 | PduType::PashL2 => Ash::PASH_HEADER_LEN,
         }
     }
 }
@@ -714,6 +761,15 @@ impl Hello {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::AshCapability) => {
+                    if tlvs.ash_cap.is_some() {
+                        continue;
+                    }
+                    match AshCapTlv::decode(tlv_len, &mut buf_tlv) {
+                        Ok(tlv) => tlvs.ash_cap = Some(tlv),
+                        Err(error) => error.log(),
+                    }
+                }
                 Some(TlvType::ProtocolsSupported) => {
                     if tlvs.protocols_supported.is_some() {
                         continue;
@@ -818,6 +874,9 @@ impl Hello {
             if let Some(tlv) = &self.tlvs.ext_seqnum {
                 tlv.encode(&mut buf);
             }
+            if let Some(tlv) = &self.tlvs.ash_cap {
+                tlv.encode(&mut buf);
+            }
             for tlv in &self.tlvs.padding {
                 tlv.encode(&mut buf);
             }
@@ -853,6 +912,9 @@ impl Hello {
         if let Some(tlv) = &self.tlvs.ext_seqnum {
             total_tlv_len += tlv.len();
         }
+        if let Some(tlv) = &self.tlvs.ash_cap {
+            total_tlv_len += tlv.len();
+        }
 
         // Calculate the total padding required.
         let mut rem_padding = max_size as usize
@@ -881,6 +943,7 @@ impl HelloTlvs {
         ipv4_addrs: impl IntoIterator<Item = Ipv4Addr>,
         ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
         ext_seqnum: Option<ExtendedSeqNum>,
+        ash_cap: bool,
     ) -> Self {
         HelloTlvs {
             protocols_supported: Some(ProtocolsSupportedTlv::from(
@@ -893,6 +956,7 @@ impl HelloTlvs {
             ipv4_addrs: tlv_entries_split(ipv4_addrs),
             ipv6_addrs: tlv_entries_split(ipv6_addrs),
             ext_seqnum: ext_seqnum.map(ExtendedSeqNumTlv::new),
+            ash_cap: ash_cap.then_some(AshCapTlv {}),
             padding: Default::default(),
             unknown: Default::default(),
         }
@@ -1374,6 +1438,16 @@ impl Lsp {
 
         // Skip everything before (and including) the Remaining Lifetime field.
         fletcher::calc_fletcher16(&self.raw[12..]) == 0
+    }
+
+    // Returns the ASH fragment hash for this LSP.
+    pub(crate) fn ash_fragment_hash(&self) -> u64 {
+        ash_fragment_hash(
+            &self.lsp_id,
+            self.seqno,
+            self.cksum,
+            self.raw.len() as u16,
+        )
     }
 
     // Returns the per-LSP contribution to the LSDB fingerprint.
@@ -2064,7 +2138,200 @@ impl SnpTlvs {
     }
 }
 
+// ===== impl Ash =====
+
+impl Ash {
+    pub const CASH_HEADER_LEN: u8 = 29;
+    pub const PASH_HEADER_LEN: u8 = 17;
+    pub const ENTRY_SIZE: usize = 20;
+
+    pub fn new(
+        level: LevelNumber,
+        source: LanId,
+        summary: Option<(SystemId, SystemId)>,
+        entries: Vec<AshEntry>,
+    ) -> Self {
+        let pdu_type = match (summary.is_some(), level) {
+            (false, LevelNumber::L1) => PduType::PashL1,
+            (false, LevelNumber::L2) => PduType::PashL2,
+            (true, LevelNumber::L1) => PduType::CashL1,
+            (true, LevelNumber::L2) => PduType::CashL2,
+        };
+        Ash {
+            hdr: Header::new(pdu_type),
+            source,
+            summary,
+            entries,
+        }
+    }
+
+    fn decode(
+        hdr: Header,
+        buf: &mut Bytes,
+        buf_orig: &mut Bytes,
+    ) -> DecodeResult<Self> {
+        // Parse PDU length.
+        let _pdu_len = decode_pdu_length(&hdr, buf, buf_orig)?;
+
+        // Parse source ID.
+        let source = LanId::decode(buf)?;
+
+        // Parse start and end System IDs.
+        let mut summary = None;
+        let is_cash = matches!(hdr.pdu_type, PduType::CashL1 | PduType::CashL2);
+        if is_cash {
+            let start_system_id = SystemId::decode(buf)?;
+            let end_system_id = SystemId::decode(buf)?;
+            summary = Some((start_system_id, end_system_id));
+        }
+
+        // Parse Node Range Hash Entries.
+        //
+        // NOTE: ASH PDUs carry no TLVs, so the Authentication TLV cannot be
+        // present and no authentication validation takes place.
+        let span = warn_span!("ASH", source = %source.to_yang());
+        let _span_guard = span.enter();
+        let mut entries = vec![];
+        while buf.remaining() >= Self::ENTRY_SIZE {
+            let start = SystemId::decode(buf)?;
+            let end = SystemId::decode(buf)?;
+            let hash = buf.try_get_u64()?;
+
+            // Discard ranges whose end is smaller than their start.
+            //
+            // NOTE: the draft says ranges whose end is *equal to* or smaller
+            // than their start must be discarded, but that would make it
+            // impossible to describe a single system ID, which the refinement
+            // rules require. Ranges where both endpoints are equal are
+            // accepted here.
+            if end < start {
+                warn!(start = %start.to_yang(), end = %end.to_yang(),
+                    "discarding invalid ASH range");
+                continue;
+            }
+
+            entries.push(AshEntry { start, end, hash });
+        }
+
+        // Apply the CASH receiver normalization rules.
+        if let Some((start, end)) = &summary {
+            Self::normalize_cash_entries(&mut entries, start, end);
+        }
+
+        Ok(Ash {
+            hdr,
+            source,
+            summary,
+            entries,
+        })
+    }
+
+    // Normalizes the entries of a received CASH.
+    //
+    // Ranges exceeding the CASH header bounds are clamped to fit within the
+    // CASH range and treated as a zero hash. Overlapping ranges are unified
+    // into a single range with a zero hash.
+    fn normalize_cash_entries(
+        entries: &mut Vec<AshEntry>,
+        start: &SystemId,
+        end: &SystemId,
+    ) {
+        // Clamp ranges exceeding the CASH header bounds.
+        entries.retain_mut(|entry| {
+            if entry.start >= *start && entry.end <= *end {
+                return true;
+            }
+
+            warn!(start = %entry.start.to_yang(), end = %entry.end.to_yang(),
+                "clamping out-of-bounds ASH range");
+            entry.start = std::cmp::max(entry.start, *start);
+            entry.end = std::cmp::min(entry.end, *end);
+            entry.hash = 0;
+            entry.start <= entry.end
+        });
+
+        // Unify overlapping ranges, using a zero hash for the unions.
+        entries.sort_by_key(|entry| entry.start);
+        let mut idx = 1;
+        while idx < entries.len() {
+            let prev = entries[idx - 1];
+            let curr = entries[idx];
+            if curr.start <= prev.end {
+                warn!(start = %curr.start.to_yang(), end = %curr.end.to_yang(),
+                    "unifying overlapping ASH ranges");
+                entries[idx - 1].end = std::cmp::max(prev.end, curr.end);
+                entries[idx - 1].hash = 0;
+                entries.remove(idx);
+            } else {
+                idx += 1;
+            }
+        }
+    }
+
+    fn encode(&self) -> Bytes {
+        TLS_BUF.with(|buf| {
+            let mut buf = pdu_encode_start(buf, &self.hdr);
+
+            // The PDU length will be initialized later.
+            let len_pos = buf.len();
+            buf.put_u16(0);
+            self.source.encode(&mut buf);
+
+            if let Some((start_system_id, end_system_id)) = &self.summary {
+                start_system_id.encode(&mut buf);
+                end_system_id.encode(&mut buf);
+            }
+
+            // Encode Node Range Hash Entries.
+            for entry in &self.entries {
+                entry.start.encode(&mut buf);
+                entry.end.encode(&mut buf);
+                buf.put_u64(entry.hash);
+            }
+
+            pdu_encode_end(buf, len_pos, None, None)
+        })
+    }
+
+    // Calculates the maximum number of Node Range Hash Entries that can fit
+    // within the given size.
+    pub(crate) const fn max_entries(size: usize) -> usize {
+        size / Self::ENTRY_SIZE
+    }
+}
+
 // ===== helper functions =====
+
+// Computes the ASH fragment hash (draft-prz-lsr-ash-packets, Section 4.1).
+//
+// The hash is a 64-bit siphash-1-3 with a fixed salt key, computed over the
+// fragment's SNP description (LSP ID, sequence number and checksum) plus the
+// fragment's PDU length. If the hash computes to zero, it is replaced with
+// the constant 1.
+pub fn ash_fragment_hash(
+    lsp_id: &LspId,
+    seqno: u32,
+    cksum: u16,
+    pdu_len: u16,
+) -> u64 {
+    const KEY: [u8; 16] =
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+
+    let mut data = [0u8; 16];
+    data[0..6].copy_from_slice(lsp_id.system_id.as_ref());
+    data[6..8].copy_from_slice(&cksum.to_be_bytes());
+    data[8..12].copy_from_slice(&seqno.to_be_bytes());
+    data[12] = lsp_id.fragment;
+    data[13..15].copy_from_slice(&pdu_len.to_be_bytes());
+    data[15] = lsp_id.pseudonode;
+
+    let mut hasher = SipHasher13::new_with_key(&KEY);
+    hasher.write(&data);
+    match hasher.finish() {
+        0 => 1,
+        hash => hash,
+    }
+}
 
 fn lsp_base_time() -> Option<Instant> {
     #[cfg(not(feature = "testing"))]

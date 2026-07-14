@@ -118,6 +118,10 @@ pub struct InterfacePacketCounters {
     pub psnp_out: u32,
     pub csnp_in: u32,
     pub csnp_out: u32,
+    pub pash_in: u32,
+    pub pash_out: u32,
+    pub cash_in: u32,
+    pub cash_out: u32,
     pub unknown_in: u32,
 }
 
@@ -616,6 +620,9 @@ impl Interface {
             protocols_supported.push(Nlpid::Spb as u8);
         }
 
+        // Set the ASH capability.
+        let ash_cap = self.ash_enabled(instance);
+
         // Generate Hello PDU.
         let ext_seqnum = self.ext_seqnum_next(level);
         Hello::new(
@@ -633,8 +640,59 @@ impl Interface {
                 ipv4_addrs,
                 ipv6_addrs,
                 ext_seqnum,
+                ash_cap,
             ),
         )
+    }
+
+    // Checks whether ASH packets (draft-prz-lsr-ash-packets) can be used on
+    // this interface.
+    //
+    // Since ASH PDUs cannot carry the Authentication TLV, ASH is disabled
+    // whenever global authentication is configured.
+    pub(crate) fn ash_enabled(&self, instance: &InstanceUpView<'_>) -> bool {
+        self.config.ash_enable
+            && instance
+                .config
+                .auth
+                .all
+                .method(&instance.shared.keychains)
+                .is_none()
+    }
+
+    // Checks whether ASH support was negotiated for the given level.
+    //
+    // ASH packets can only be used when all adjacencencies on the interface
+    // at the given level advertised the ASH Capability TLV in their IIHs.
+    pub(crate) fn ash_negotiated(
+        &self,
+        instance: &InstanceUpView<'_>,
+        adjacencies: &Arena<Adjacency>,
+        level: LevelNumber,
+    ) -> bool {
+        if !self.ash_enabled(instance) {
+            return false;
+        }
+
+        match self.config.interface_type {
+            InterfaceType::Broadcast => {
+                let mut adjs = self
+                    .state
+                    .lan_adjacencies
+                    .get(level)
+                    .iter(adjacencies)
+                    .filter(|adj| adj.state == AdjacencyState::Up)
+                    .peekable();
+                adjs.peek().is_some() && adjs.all(|adj| adj.ash_support)
+            }
+            InterfaceType::PointToPoint => self
+                .state
+                .p2p_adjacency
+                .as_ref()
+                .filter(|adj| adj.state == AdjacencyState::Up)
+                .filter(|adj| adj.level_usage.intersects(level))
+                .is_some_and(|adj| adj.ash_support),
+        }
     }
 
     pub(crate) fn hello_interval_start(
@@ -821,6 +879,18 @@ impl Interface {
             }
             PduType::PsnpL2 => {
                 self.state.packet_counters.l2.psnp_out += 1;
+            }
+            PduType::CashL1 => {
+                self.state.packet_counters.l1.cash_out += 1;
+            }
+            PduType::CashL2 => {
+                self.state.packet_counters.l2.cash_out += 1;
+            }
+            PduType::PashL1 => {
+                self.state.packet_counters.l1.pash_out += 1;
+            }
+            PduType::PashL2 => {
+                self.state.packet_counters.l2.pash_out += 1;
             }
         }
         self.state.discontinuity_time = Utc::now();

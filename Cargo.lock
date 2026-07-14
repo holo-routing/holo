@@ -1261,6 +1261,7 @@ dependencies = [
  "serde_with",
  "sha1",
  "sha2",
+ "siphasher",
  "smallvec",
  "socket2 0.6.4",
  "tokio",

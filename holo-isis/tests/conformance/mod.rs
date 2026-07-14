@@ -32,6 +32,43 @@ async fn lsp_refresh1() {
     run_test::<Instance>("lsp-refresh1", "topo2-2", "rt4").await;
 }
 
+// A multi-step test exercising the ASH negotiation and synchronization
+// procedures (draft-prz-lsr-ash-packets).
+//
+// Step 1 (Input):
+//  * Northbound: enable ASH on eth-rt4
+// Step 2 (Input):
+//  * Protocol: received an L2 Hello on eth-rt4 carrying the ASH Capability
+//    TLV
+// Step 3:
+//  * Input - Protocol: the interval for sending L2 CSNP PDUs has expired on
+//    eth-rt4
+//  * Output - Protocol: send an L2 CASH with a Node Range Hash Entry for
+//    each node in the database, in place of a CSNP
+// Step 4:
+//  * Input - Protocol: received an L2 CASH with zero entries on eth-rt4
+//  * Output - Protocol: send all L2 LSPs from the database on eth-rt4, as
+//    the nodes not covered by the CASH are missing from the peer's database
+// Step 5:
+//  * Input - Protocol: received an L2 CASH with a single full-range entry
+//    containing a mismatched hash
+//  * Output - Protocol: send an L2 PASH refining the mismatched range into
+//    more specific single-node hashes
+// Step 6:
+//  * Input - Protocol: received an L2 CASH whose entries match the local
+//    database (same entries sent in step 3)
+//  * Output - Northbound: LSPs pending acknowledgment are removed from the
+//    SRM list of eth-rt4
+// Step 7:
+//  * Input - Protocol: received an L2 PASH with a zero hash for the range
+//    containing only node 0000.0000.0001
+//  * Output - Protocol: send LSP 0000.0000.0001.00-00 on eth-rt4, resolving
+//    the range through flooding
+#[tokio::test]
+async fn pdu_cash1() {
+    run_test::<Instance>("pdu-cash1", "topo2-1", "rt6").await;
+}
+
 // Input:
 //  * Protocol: received an L2 CSNP with zero LSP entries on eth-rt4
 // Output:

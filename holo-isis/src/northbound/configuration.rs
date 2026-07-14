@@ -76,6 +76,7 @@ pub enum Event {
     InterfacePriorityChange(InterfaceIndex, LevelNumber),
     InterfaceUpdateHelloInterval(InterfaceIndex, LevelNumber),
     InterfaceUpdateCsnpInterval(InterfaceIndex),
+    InterfaceUpdateAshEnable(InterfaceIndex),
     InterfaceBfdChange(InterfaceIndex),
     InterfaceUpdateTraceOptions(InterfaceIndex),
     InterfaceIbusSub(InterfaceIndex),
@@ -268,6 +269,7 @@ pub struct InterfaceCfg {
     pub passive: bool,
     pub csnp_interval: u16,
     pub csnp_disable: bool,
+    pub ash_enable: bool,
     pub hello_padding: bool,
     pub interface_type: InterfaceType,
     pub node_flag: bool,
@@ -2109,6 +2111,17 @@ fn load_callbacks() -> Callbacks<Instance> {
         .delete_apply(|_instance, _args| {
             // Nothing to do.
         })
+        .path(isis::interfaces::interface::ash_enable::PATH)
+        .modify_apply(|instance, args| {
+            let iface_idx = args.list_entry.into_interface().unwrap();
+            let iface = &mut instance.arenas.interfaces[iface_idx];
+
+            let ash_enable = args.dnode.get_bool();
+            iface.config.ash_enable = ash_enable;
+
+            let event_queue = args.event_queue;
+            event_queue.insert(Event::InterfaceUpdateAshEnable(iface_idx));
+        })
         .path(isis::interfaces::interface::trace_options::flag::PATH)
         .create_apply(|instance, args| {
             let iface_idx = args.list_entry.into_interface().unwrap();
@@ -2435,6 +2448,17 @@ impl Provider for Instance {
                     iface.csnp_interval_start(&instance);
                 }
             }
+            Event::InterfaceUpdateAshEnable(iface_idx) => {
+                let Some((instance, arenas)) = self.as_up() else {
+                    return;
+                };
+                // Restart the Hello Tx task(s) so the presence of the ASH
+                // Capability TLV reflects the new configuration.
+                let iface = &mut arenas.interfaces[iface_idx];
+                if iface.state.active && !iface.is_passive() {
+                    iface.hello_interval_start(&instance, LevelType::All);
+                }
+            }
             Event::InterfaceBfdChange(iface_idx) => {
                 let Some((instance, arenas)) = self.as_up() else {
                     return;
@@ -2748,8 +2772,8 @@ impl TraceOptionPacketResolved {
         match pdu_type {
             PduType::HelloP2P | PduType::HelloLanL1 | PduType::HelloLanL2 => self.hello.tx,
             PduType::LspL1 | PduType::LspL2 => self.lsp.tx,
-            PduType::CsnpL1 | PduType::CsnpL2 => self.csnp.tx,
-            PduType::PsnpL1 | PduType::PsnpL2 => self.psnp.tx,
+            PduType::CsnpL1 | PduType::CsnpL2 | PduType::CashL1 | PduType::CashL2 => self.csnp.tx,
+            PduType::PsnpL1 | PduType::PsnpL2 | PduType::PashL1 | PduType::PashL2 => self.psnp.tx,
         }
     }
 
@@ -2757,8 +2781,8 @@ impl TraceOptionPacketResolved {
         match pdu_type {
             PduType::HelloP2P | PduType::HelloLanL1 | PduType::HelloLanL2 => self.hello.rx,
             PduType::LspL1 | PduType::LspL2 => self.lsp.rx,
-            PduType::CsnpL1 | PduType::CsnpL2 => self.csnp.rx,
-            PduType::PsnpL1 | PduType::PsnpL2 => self.psnp.rx,
+            PduType::CsnpL1 | PduType::CsnpL2 | PduType::CashL1 | PduType::CashL2 => self.csnp.rx,
+            PduType::PsnpL1 | PduType::PsnpL2 | PduType::PashL1 | PduType::PashL2 => self.psnp.rx,
         }
     }
 }
@@ -2933,6 +2957,7 @@ impl Default for InterfaceCfg {
         let passive = isis::interfaces::interface::passive::DFLT;
         let csnp_interval = isis::interfaces::interface::csnp_interval::DFLT;
         let csnp_disable = isis::interfaces::interface::csnp_disable::DFLT;
+        let ash_enable = isis::interfaces::interface::ash_enable::DFLT;
         let hello_padding = isis::interfaces::interface::hello_padding::enabled::DFLT;
         let interface_type = isis::interfaces::interface::interface_type::DFLT;
         let interface_type = InterfaceType::try_from_yang(interface_type).unwrap();
@@ -2970,6 +2995,7 @@ impl Default for InterfaceCfg {
             passive,
             csnp_interval,
             csnp_disable,
+            ash_enable,
             hello_padding,
             interface_type,
             node_flag,

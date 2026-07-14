@@ -7,6 +7,7 @@
 // See: https://nlnet.nl/NGI0
 //
 
+mod ash;
 mod hello;
 mod lsp;
 mod snp;

@@ -28,6 +28,11 @@ pub enum PduType {
     CsnpL2 = 25,
     PsnpL1 = 26,
     PsnpL2 = 27,
+    // FIXME: TBD in https://datatracker.ietf.org/doc/html/draft-prz-lsr-ash-packets-00
+    CashL1 = 28,
+    CashL2 = 29,
+    PashL1 = 30,
+    PashL2 = 31,
 }
 
 // IS-IS top-level TLV types.
@@ -45,6 +50,8 @@ pub enum TlvType {
     LspEntries = 9,
     Authentication = 10,
     ExtendedSeqNum = 11,
+    // FIXME: TBD in https://datatracker.ietf.org/doc/html/draft-prz-lsr-ash-packets-00
+    AshCapability = 45,
     PurgeOriginatorId = 13,
     LspBufferSize = 14,
     ExtIsReach = 22,

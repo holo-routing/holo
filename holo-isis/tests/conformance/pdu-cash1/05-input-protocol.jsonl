@@ -1,0 +1,1 @@
+{"NetRxPdu":{"iface_key":{"Value":"eth-rt4"},"src":[26,196,248,9,50,128],"pdu":{"Ok":{"Ash":{"hdr":{"pdu_type":"CashL2","max_area_addrs":0},"source":{"system_id":[0,0,0,0,0,4],"pseudonode":0},"summary":[[0,0,0,0,0,0],[255,255,255,255,255,255]],"entries":[{"start":[0,0,0,0,0,0],"end":[255,255,255,255,255,255],"hash":1}]}}}}}

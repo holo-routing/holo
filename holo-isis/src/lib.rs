@@ -13,6 +13,7 @@
 )]
 
 pub mod adjacency;
+pub mod ash;
 pub mod collections;
 pub mod debug;
 pub mod error;

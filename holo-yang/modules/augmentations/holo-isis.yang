@@ -337,6 +337,26 @@ module holo-isis {
          This leaf is only applicable to point-to-point interfaces.";
     }
 
+    leaf ash-enable {
+      type boolean;
+      default "false";
+      description
+        "If set to true, the ASH capability is advertised on this
+         interface, and Aggregated SNP Hash (ASH) packets are used in
+         place of CSNPs once support is negotiated with all neighbors
+         on the interface.
+
+         ASH packets compress SNP exchanges into a dynamic Merkle
+         tree-like structure, speeding up synchronization of large
+         databases while reducing the load from regular CSNP exchanges.
+
+         Since ASH packets cannot carry the Authentication TLV, this
+         setting is ignored while global authentication is configured.";
+      reference
+        "draft-prz-lsr-ash-packets-00:
+         IS-IS Aggregated SNP Hash Packets";
+    }
+
     container trace-options {
       description "Interface level trace options for IS-IS.";
 
@@ -393,6 +413,49 @@ module holo-isis {
       type isis:extended-circuit-id;
       description
         "Extended circuit ID of the interface.";
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/"
+        + "isis:interfaces/isis:interface/"
+        + "isis:packet-counters/isis:level" {
+    description
+      "IS-IS interface packet counter augmentations";
+
+    container cash {
+      leaf in {
+        type uint32;
+        description
+          "Received Complete Aggregated SNP Hash (CASH) PDUs.";
+      }
+      leaf out {
+        type uint32;
+        description
+          "Sent CASH PDUs.";
+      }
+      description
+        "Number of CASH PDUs received/sent.";
+      reference
+        "draft-prz-lsr-ash-packets-00:
+         IS-IS Aggregated SNP Hash Packets";
+    }
+    container pash {
+      leaf in {
+        type uint32;
+        description
+          "Received Partial Aggregated SNP Hash (PASH) PDUs.";
+      }
+      leaf out {
+        type uint32;
+        description
+          "Sent PASH PDUs.";
+      }
+      description
+        "Number of PASH PDUs received/sent.";
+      reference
+        "draft-prz-lsr-ash-packets-00:
+         IS-IS Aggregated SNP Hash Packets";
     }
   }
 

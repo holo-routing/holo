@@ -2324,6 +2324,30 @@ impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_cou
     }
 }
 
+impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_counters::level::cash::Cash {
+    type ParentListEntry = (&'a Interface, LevelNumber);
+
+    fn new(_instance: &'a Instance, (iface, level): &Self::ParentListEntry) -> Option<Self> {
+        let packet_counters = iface.state.packet_counters.get(*level);
+        Some(Self {
+            r#in: Some(packet_counters.cash_in),
+            out: Some(packet_counters.cash_out),
+        })
+    }
+}
+
+impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_counters::level::pash::Pash {
+    type ParentListEntry = (&'a Interface, LevelNumber);
+
+    fn new(_instance: &'a Instance, (iface, level): &Self::ParentListEntry) -> Option<Self> {
+        let packet_counters = iface.state.packet_counters.get(*level);
+        Some(Self {
+            r#in: Some(packet_counters.pash_in),
+            out: Some(packet_counters.pash_out),
+        })
+    }
+}
+
 impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_counters::level::unknown::Unknown {
     type ParentListEntry = (&'a Interface, LevelNumber);
 

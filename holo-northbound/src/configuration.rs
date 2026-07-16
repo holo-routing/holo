@@ -67,8 +67,20 @@ pub struct CallbacksNode<P: Provider> {
     pub apply: Option<CallbackPhaseTwo<P>>,
 }
 
-pub struct CallbacksBuilder<P: Provider> {
-    path: Option<YangPath>,
+/// Marker traits, implemented by generated per-node `Caps` marker types
+/// (see `holo_northbound::yang_codegen`), that record which CRUD operations
+/// are structurally valid for a given YANG node. `CallbacksBuilder`'s
+/// `create_*`/`modify_*`/`delete_*`/`lookup` methods are only available when
+/// the path's `Caps` type implements the corresponding trait, turning an
+/// invalid callback registration (e.g. `.delete_apply()` on a node that
+/// can't be deleted) into a compile error instead of a runtime one.
+pub trait SupportsCreate {}
+pub trait SupportsModify {}
+pub trait SupportsDelete {}
+pub trait SupportsLookup {}
+
+pub struct CallbacksBuilder<P: Provider, Caps = ()> {
+    path: Option<YangPath<Caps>>,
     callbacks: Callbacks<P>,
 }
 
@@ -91,7 +103,7 @@ pub struct ValidationCallbacks(pub HashMap<String, ValidationCallback>);
 
 #[derive(Default)]
 pub struct ValidationCallbacksBuilder {
-    path: Option<YangPath>,
+    path: Option<String>,
     callbacks: ValidationCallbacks,
 }
 
@@ -298,21 +310,19 @@ where
 
 // ===== impl CallbacksBuilder =====
 
-impl<P> CallbacksBuilder<P>
+impl<P, Caps> CallbacksBuilder<P, Caps>
 where
     P: Provider,
 {
-    pub fn new(callbacks: Callbacks<P>) -> Self {
-        CallbacksBuilder {
-            path: None,
-            callbacks,
-        }
-    }
-
     #[must_use]
-    pub fn path(mut self, path: YangPath) -> Self {
-        self.path = Some(path);
-        self
+    pub fn path<NewCaps>(
+        self,
+        path: YangPath<NewCaps>,
+    ) -> CallbacksBuilder<P, NewCaps> {
+        CallbacksBuilder {
+            path: Some(path),
+            callbacks: self.callbacks,
+        }
     }
 
     #[must_use]
@@ -352,13 +362,40 @@ where
     }
 
     #[must_use]
-    pub fn lookup(mut self, cb: CallbackLookup<P>) -> Self {
-        let path = self.path.unwrap().to_string();
-        let key = CallbackKey::new(path, CallbackOp::Lookup);
-        self.callbacks.0.entry(key).or_default().lookup = Some(cb);
-        self
+    pub fn build(self) -> Callbacks<P> {
+        self.callbacks
     }
+}
 
+impl<P> CallbacksBuilder<P, ()>
+where
+    P: Provider,
+{
+    pub fn new(callbacks: Callbacks<P>) -> Self {
+        CallbacksBuilder {
+            path: None,
+            callbacks,
+        }
+    }
+}
+
+impl<P> Default for CallbacksBuilder<P, ()>
+where
+    P: Provider,
+{
+    fn default() -> Self {
+        CallbacksBuilder {
+            path: None,
+            callbacks: Callbacks::default(),
+        }
+    }
+}
+
+impl<P, Caps> CallbacksBuilder<P, Caps>
+where
+    P: Provider,
+    Caps: SupportsCreate,
+{
     #[must_use]
     pub fn create_prepare(self, cb: CallbackPhaseOne<P>) -> Self {
         self.load_prepare(CallbackOp::Create, cb)
@@ -373,22 +410,13 @@ where
     pub fn create_apply(self, cb: CallbackPhaseTwo<P>) -> Self {
         self.load_apply(CallbackOp::Create, cb)
     }
+}
 
-    #[must_use]
-    pub fn delete_prepare(self, cb: CallbackPhaseOne<P>) -> Self {
-        self.load_prepare(CallbackOp::Delete, cb)
-    }
-
-    #[must_use]
-    pub fn delete_abort(self, cb: CallbackPhaseTwo<P>) -> Self {
-        self.load_abort(CallbackOp::Delete, cb)
-    }
-
-    #[must_use]
-    pub fn delete_apply(self, cb: CallbackPhaseTwo<P>) -> Self {
-        self.load_apply(CallbackOp::Delete, cb)
-    }
-
+impl<P, Caps> CallbacksBuilder<P, Caps>
+where
+    P: Provider,
+    Caps: SupportsModify,
+{
     #[must_use]
     pub fn modify_prepare(self, cb: CallbackPhaseOne<P>) -> Self {
         self.load_prepare(CallbackOp::Modify, cb)
@@ -403,29 +431,47 @@ where
     pub fn modify_apply(self, cb: CallbackPhaseTwo<P>) -> Self {
         self.load_apply(CallbackOp::Modify, cb)
     }
+}
+
+impl<P, Caps> CallbacksBuilder<P, Caps>
+where
+    P: Provider,
+    Caps: SupportsDelete,
+{
+    #[must_use]
+    pub fn delete_prepare(self, cb: CallbackPhaseOne<P>) -> Self {
+        self.load_prepare(CallbackOp::Delete, cb)
+    }
 
     #[must_use]
-    pub fn build(self) -> Callbacks<P> {
-        self.callbacks
+    pub fn delete_abort(self, cb: CallbackPhaseTwo<P>) -> Self {
+        self.load_abort(CallbackOp::Delete, cb)
+    }
+
+    #[must_use]
+    pub fn delete_apply(self, cb: CallbackPhaseTwo<P>) -> Self {
+        self.load_apply(CallbackOp::Delete, cb)
     }
 }
 
-impl<P> Default for CallbacksBuilder<P>
+impl<P, Caps> CallbacksBuilder<P, Caps>
 where
     P: Provider,
+    Caps: SupportsLookup,
 {
-    fn default() -> Self {
-        CallbacksBuilder {
-            path: None,
-            callbacks: Callbacks::default(),
-        }
+    #[must_use]
+    pub fn lookup(mut self, cb: CallbackLookup<P>) -> Self {
+        let path = self.path.unwrap().to_string();
+        let key = CallbackKey::new(path, CallbackOp::Lookup);
+        self.callbacks.0.entry(key).or_default().lookup = Some(cb);
+        self
     }
 }
 
 // ===== impl ValidationCallbacks =====
 
 impl ValidationCallbacks {
-    pub fn load(&mut self, path: YangPath, cb: ValidationCallback) {
+    pub fn load<Caps>(&mut self, path: YangPath<Caps>, cb: ValidationCallback) {
         let path = path.to_string();
         self.0.insert(path, cb);
     }
@@ -446,14 +492,14 @@ impl ValidationCallbacksBuilder {
     }
 
     #[must_use]
-    pub fn path(mut self, path: YangPath) -> Self {
-        self.path = Some(path);
+    pub fn path<Caps>(mut self, path: YangPath<Caps>) -> Self {
+        self.path = Some(path.to_string());
         self
     }
 
     #[must_use]
     pub fn validate(mut self, cb: ValidationCallback) -> Self {
-        let path = self.path.unwrap().to_string();
+        let path = self.path.take().unwrap();
         self.callbacks.0.insert(path, cb);
         self
     }

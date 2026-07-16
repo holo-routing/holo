@@ -65,8 +65,15 @@ impl<T: YangObject> YangObjectDyn for T {
 // Instances of this structure are created automatically at build-time, and
 // their use should be preferred over regular strings for extra type safety.
 //
-#[derive(Clone, Copy, Debug)]
-pub struct YangPath(&'static str);
+// The `Caps` type parameter is a zero-sized marker, generated alongside each
+// path constant, that records which CRUD operations are structurally valid
+// for the corresponding YANG node (see `configuration::Supports*` traits).
+// It lets `CallbacksBuilder` reject invalid callback registrations (e.g.
+// `.delete_apply()` on a node that doesn't support delete) at compile time.
+pub struct YangPath<Caps = ()>(
+    &'static str,
+    std::marker::PhantomData<fn() -> Caps>,
+);
 
 // A YANG data path, represented as a sequence of elements.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -96,19 +103,36 @@ pub type NbProviderReceiver = UnboundedReceiver<api::provider::Notification>;
 
 // ===== impl YangPath =====
 
-impl YangPath {
-    pub const fn new(path: &'static str) -> YangPath {
-        YangPath(path)
+impl<Caps> YangPath<Caps> {
+    pub const fn new(path: &'static str) -> YangPath<Caps> {
+        YangPath(path, std::marker::PhantomData)
     }
 }
 
-impl std::fmt::Display for YangPath {
+// Hand-written instead of derived: a `#[derive(..)]` would add a spurious
+// `Caps: Clone/Copy/Debug` bound, even though `Caps` only ever appears
+// inside `PhantomData`.
+impl<Caps> Clone for YangPath<Caps> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<Caps> Copy for YangPath<Caps> {}
+
+impl<Caps> std::fmt::Debug for YangPath<Caps> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("YangPath").field(&self.0).finish()
+    }
+}
+
+impl<Caps> std::fmt::Display for YangPath<Caps> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl AsRef<str> for YangPath {
+impl<Caps> AsRef<str> for YangPath<Caps> {
     fn as_ref(&self) -> &str {
         self.0
     }

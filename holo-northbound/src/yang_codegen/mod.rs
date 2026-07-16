@@ -231,11 +231,32 @@ fn generate_paths(
     w: &mut CodeWriter,
     snode: &SchemaNode<'_>,
 ) -> std::fmt::Result {
+    // Zero-sized marker type recording which CRUD operations this node
+    // structurally supports, computed with the same rules enforced at
+    // runtime by `CallbackOp::is_valid`. This lets `CallbacksBuilder` reject
+    // invalid callback registrations (e.g. `.delete_apply()` on a node that
+    // doesn't support delete) at compile time.
+    emit!(w, 1, "pub struct Caps;")?;
+    for (op, trait_name) in [
+        (crate::configuration::CallbackOp::Create, "SupportsCreate"),
+        (crate::configuration::CallbackOp::Modify, "SupportsModify"),
+        (crate::configuration::CallbackOp::Delete, "SupportsDelete"),
+        (crate::configuration::CallbackOp::Lookup, "SupportsLookup"),
+    ] {
+        if op.is_valid(snode) {
+            emit!(
+                w,
+                1,
+                "impl holo_northbound::configuration::{trait_name} for Caps {{}}"
+            )?;
+        }
+    }
+
     let path = snode.path(SchemaPathFormat::DATA);
     emit!(
         w,
         1,
-        "pub const PATH: YangPath = YangPath::new(\"{path}\");"
+        "pub const PATH: YangPath<Caps> = YangPath::new(\"{path}\");"
     )?;
 
     // For notifications, also generate data path relative to the nearest

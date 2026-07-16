@@ -801,7 +801,7 @@ async fn load_callbacks(
         // Receive response.
         let provider_response = responder_rx.await.unwrap();
 
-        // Validate and store callback key.
+        // Store and Validate callback key.
         for cb_key in provider_response.callbacks {
             validate_callback(&cb_key);
             callbacks.insert(cb_key, provider_tx.downgrade());

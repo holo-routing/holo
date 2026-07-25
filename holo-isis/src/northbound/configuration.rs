@@ -740,6 +740,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+            event_queue.insert(Event::RerunSpf);
         })
         .delete_apply(|instance, args| {
             let af = args.list_entry.into_address_family().unwrap();
@@ -748,6 +749,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+            event_queue.insert(Event::RerunSpf);
         })
         .lookup(|_instance, _list_entry, dnode| {
             let af = dnode.get_string_relative("address-family").unwrap();
@@ -765,6 +767,7 @@ fn load_callbacks() -> Callbacks<Instance> {
             let event_queue = args.event_queue;
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L1));
             event_queue.insert(Event::ReoriginateLsps(LevelNumber::L2));
+            event_queue.insert(Event::RerunSpf);
         })
         .path(isis::address_families::address_family_list::redistribution::PATH)
         .create_apply(|instance, args| {
@@ -2472,8 +2475,12 @@ impl Provider for Instance {
                 }
             }
             Event::RerunSpf => {
-                if let Some((instance, _)) = self.as_up() {
+                if let Some((mut instance, _)) = self.as_up() {
                     for level in instance.config.levels() {
+                        // Request a full SPF: configuration changes (e.g.
+                        // address-family enable/disable) can alter SPT
+                        // vertex eligibility, not just route computation.
+                        instance.state.spf_sched.get_mut(level).spf_type = spf::SpfType::Full;
                         instance.tx.protocol_input.spf_delay_event(level, spf::fsm::Event::ConfigChange);
                     }
                 }

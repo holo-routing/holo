@@ -720,7 +720,7 @@ fn data_tree_get(
     let encoding = proto::Encoding::try_from(data_tree.encoding)
         .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
     let data_format = DataFormat::from(encoding);
-    let parser_flags = DataParserFlags::empty();
+    let parser_flags = DataParserFlags::STRICT;
     let validation_flags = DataValidationFlags::NO_STATE;
     let data = data_tree
         .data
@@ -752,7 +752,7 @@ fn data_diff_get(
     let encoding = proto::Encoding::try_from(data_tree.encoding)
         .map_err(|_| Status::invalid_argument("Invalid data encoding"))?;
     let data_format = DataFormat::from(encoding);
-    let parser_flags = DataParserFlags::NO_VALIDATION;
+    let parser_flags = DataParserFlags::NO_VALIDATION | DataParserFlags::STRICT;
     let validation_flags =
         DataValidationFlags::NO_STATE | DataValidationFlags::PRESENT;
     let data = data_tree
@@ -792,14 +792,14 @@ fn rpc_get(data_tree: &proto::DataTree) -> Result<DataTree<'static>, Status> {
             yang_ctx,
             data,
             data_format,
-            DataParserFlags::empty(),
+            DataParserFlags::STRICT,
             DataOperation::RpcYang,
         ),
         proto::data_tree::Data::DataBytes(data) => DataTree::parse_op_string(
             yang_ctx,
             data,
             data_format,
-            DataParserFlags::empty(),
+            DataParserFlags::STRICT,
             DataOperation::RpcYang,
         ),
     }

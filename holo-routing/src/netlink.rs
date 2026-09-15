@@ -16,7 +16,8 @@ use ipnetwork::IpNetwork;
 use netlink_packet_core::ErrorMessage;
 use netlink_packet_route::AddressFamily;
 use netlink_packet_route::route::{
-    MplsLabel, RouteMessage, RouteNextHop, RouteProtocol, RouteType,
+    MplsLabel, RouteAttribute, RouteMessage, RouteNextHop, RouteProtocol,
+    RouteType,
 };
 use rtnetlink::{
     Error, Handle, RouteMessageBuilder, RouteNextHopBuilder, new_connection,
@@ -127,16 +128,33 @@ pub(crate) fn mpls_route_install(
         ttl: 0,
     };
     let protocol = netlink_protocol(route.protocol);
-    let nexthops = netlink_nexthops(
+    let mut nexthops = netlink_nexthops(
         AddressFamily::Mpls,
         route.nexthops.iter(),
         interfaces,
     );
-    let msg = RouteMessageBuilder::<MplsLabel>::new()
-        .label(label)
-        .protocol(protocol)
-        .multipath(nexthops)
-        .build();
+    let msg = match nexthops.len() {
+        // Use top-level nexthop attributes for the single-nexthop case:
+        // the kernel does not accept the RTA_MULTIPATH encoding produced
+        // for AF_MPLS routes (they get installed with no nexthops and are
+        // flagged dead/linkdown). See examples/mpls_repro.rs.
+        1 => {
+            let nexthop = nexthops.remove(0);
+            let mut msg = RouteMessageBuilder::<MplsLabel>::new()
+                .label(label)
+                .protocol(protocol)
+                .build();
+            msg.attributes
+                .push(RouteAttribute::Oif(nexthop.interface_index));
+            msg.attributes.extend(nexthop.attributes);
+            msg
+        }
+        _ => RouteMessageBuilder::<MplsLabel>::new()
+            .label(label)
+            .protocol(protocol)
+            .multipath(nexthops)
+            .build(),
+    };
 
     // Enqueue netlink request.
     netlink_tx.send(NetlinkRequest::RouteAdd(msg)).unwrap();

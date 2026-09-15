@@ -387,6 +387,72 @@ pub fn spawn_protocol_task<P>(
     ibus_instance_tx: IbusSender,
     ibus_instance_rx: IbusReceiver,
     agg_channels: InstanceAggChannels<P>,
+    shared: InstanceShared,
+) -> NbDaemonSender
+where
+    P: ProtocolInstance,
+{
+    #[cfg(feature = "testing")]
+    {
+        let (_test_tx, test_rx) = mpsc::channel(4);
+        spawn_protocol_task_with_test(
+            name,
+            nb_provider_tx,
+            ibus_tx,
+            ibus_instance_tx,
+            ibus_instance_rx,
+            agg_channels,
+            test_rx,
+            shared,
+        )
+    }
+    #[cfg(not(feature = "testing"))]
+    {
+        spawn_protocol_task_inner(
+            name,
+            nb_provider_tx,
+            ibus_tx,
+            ibus_instance_tx,
+            ibus_instance_rx,
+            agg_channels,
+            shared,
+        )
+    }
+}
+
+#[cfg(feature = "testing")]
+pub fn spawn_protocol_task_with_test<P>(
+    name: String,
+    nb_provider_tx: &NbProviderSender,
+    ibus_tx: &IbusChannelsTx,
+    ibus_instance_tx: IbusSender,
+    ibus_instance_rx: IbusReceiver,
+    agg_channels: InstanceAggChannels<P>,
+    test_rx: Receiver<TestMsg<P::ProtocolOutputMsg>>,
+    shared: InstanceShared,
+) -> NbDaemonSender
+where
+    P: ProtocolInstance,
+{
+    spawn_protocol_task_inner(
+        name,
+        nb_provider_tx,
+        ibus_tx,
+        ibus_instance_tx,
+        ibus_instance_rx,
+        agg_channels,
+        test_rx,
+        shared,
+    )
+}
+
+fn spawn_protocol_task_inner<P>(
+    name: String,
+    nb_provider_tx: &NbProviderSender,
+    ibus_tx: &IbusChannelsTx,
+    ibus_instance_tx: IbusSender,
+    ibus_instance_rx: IbusReceiver,
+    agg_channels: InstanceAggChannels<P>,
     #[cfg(feature = "testing")] test_rx: Receiver<
         TestMsg<P::ProtocolOutputMsg>,
     >,

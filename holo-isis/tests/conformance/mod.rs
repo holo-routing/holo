@@ -774,6 +774,19 @@ async fn nb_config_iface_bfd3() {
 }
 
 // Input:
+//  * Northbound: enable BFD on the eth-rt4 interface
+// Output:
+//  * Ibus: register IPv4 and IPv6 BFD sessions on eth-rt4
+//
+// Input:
+//  * Ibus: an unknown BFD session on eth-rt4 is down
+// Output: no changes
+#[tokio::test]
+async fn nb_config_iface_bfd4() {
+    run_test::<Instance>("nb-config-iface-bfd4", "topo2-1", "rt6").await;
+}
+
+// Input:
 //  * Northbound: delete the eth-rt5 interface
 // Output:
 //  * Protocol: send an updated local LSP to the 0000.0000.0004 adjacency

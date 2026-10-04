@@ -23,7 +23,7 @@ pub static YANG_CTX: OnceLock<Arc<Context>> = OnceLock::new();
 //
 // All implemented or imported modules need to be specified here. Holo by
 // default doesn't support loading YANG modules from the filesystem.
-static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
+pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
     hashmap! {
         // IEEE modules
         EmbeddedModuleKey::new("ieee802-dot1q-types", Some("2022-01-19"), None, None) =>

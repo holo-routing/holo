@@ -104,41 +104,67 @@ module holo-ietf-isis-deviations {
     }
   }
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-mtu" {
+    deviate replace {
+      type "uint16" {
+        range "512..16000";
+      }
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-lifetime" {
+    deviate replace {
+      type "uint16" {
+        range "350..65535";
+      }
+    }
+  }
+
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-refresh" {
     deviate replace {
       type "uint16" {
-        range "120..65535";
+        range "1..65235";
       }
     }
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:initial-delay" {
     deviate replace {
-      type "uint32";
+      type "uint32" {
+        range "0..600000";
+      }
     }
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:short-delay" {
     deviate replace {
-      type "uint32";
+      type "uint32" {
+        range "0..600000";
+      }
     }
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:long-delay" {
     deviate replace {
-      type "uint32";
+      type "uint32" {
+        range "0..600000";
+      }
     }
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:hold-down" {
     deviate replace {
-      type "uint32";
+      type "uint32" {
+        range "0..600000";
+      }
     }
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:time-to-learn" {
     deviate replace {
-      type "uint32";
+      type "uint32" {
+        range "0..600000";
+      }
     }
   }
 
@@ -152,37 +178,101 @@ module holo-ietf-isis-deviations {
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:lsp-pacing-interval" {
     deviate replace {
-      type "uint32";
+      type "uint32" {
+        range "1..65535";
+      }
     }
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:lsp-retransmit-interval" {
     deviate replace {
-      type "uint16";
+      type "uint16" {
+        range "1..300";
+      }
     }
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:csnp-interval" {
     deviate replace {
-      type "uint16";
+      type "uint16" {
+        range "1..600";
+      }
     }
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:value" {
     deviate replace {
-      type "uint16";
+      type "uint16" {
+        range "1..600";
+      }
     }
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:level-1/isis:value" {
     deviate replace {
-      type "uint16";
+      type "uint16" {
+        range "1..600";
+      }
     }
   }
 
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-interval/isis:level-2/isis:value" {
     deviate replace {
-      type "uint16";
+      type "uint16" {
+        range "1..600";
+      }
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-multiplier/isis:value" {
+    deviate replace {
+      type "uint16" {
+        range "2..100";
+      }
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-multiplier/isis:level-1/isis:value" {
+    deviate replace {
+      type "uint16" {
+        range "2..100";
+      }
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:interfaces/isis:interface/isis:hello-multiplier/isis:level-2/isis:value" {
+    deviate replace {
+      type "uint16" {
+        range "2..100";
+      }
+    }
+  }
+
+  /*
+   * Added constraints
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:area-address" {
+    deviate add {
+      max-elements 3;
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:lsp-refresh" {
+    deviate add {
+      must '. <= ../isis:lsp-lifetime - 300' {
+        error-message
+          "LSP refresh must be at least 300 seconds below LSP lifetime.";
+      }
+    }
+  }
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:spf-control/isis:ietf-spf-delay/isis:hold-down" {
+    deviate add {
+      must '. > ../isis:time-to-learn' {
+        error-message
+          "The hold-down interval must be longer than time-to-learn.";
+      }
     }
   }
 

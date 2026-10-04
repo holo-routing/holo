@@ -92,12 +92,18 @@ impl Rib {
     pub(crate) fn ip_route_add(&mut self, msg: RouteMsg, owner: IbusClientId) {
         let nexthops = self.resolve_nexthops(msg.nexthops);
         let rib_prefix = self.prefix_entry(msg.prefix);
-        match rib_prefix
-            .binary_search_by_key(&msg.distance, |route| route.distance)
+
+        // A protocol has one route to a prefix, which is looked up by the
+        // protocol rather than by its distance: the distance can change, as
+        // when the best BGP path moves from an external peer to an internal
+        // one, and another protocol can share it.
+        let (idx, route) = match rib_prefix
+            .iter()
+            .position(|route| route.protocol == msg.protocol)
         {
-            Ok(idx) => {
+            Some(idx) => {
                 // Update the existing IP route with the new information.
-                let route = &mut rib_prefix[idx];
+                let mut route = rib_prefix.remove(idx);
                 route.owner = owner;
                 route.kind = msg.kind;
                 route.distance = msg.distance;
@@ -107,27 +113,31 @@ impl Rib {
                 route.nexthops = nexthops;
                 route.last_updated = Utc::now();
                 route.flags.remove(RouteFlags::REMOVED);
+                (idx, route)
             }
-            Err(idx) => {
-                // If the IP route does not exist, create a new entry,
-                // keeping the list sorted by distance.
-                rib_prefix.insert(
-                    idx,
-                    Route::new(
-                        msg.protocol,
-                        owner,
-                        msg.kind,
-                        msg.distance,
-                        msg.metric,
-                        msg.tag,
-                        msg.opaque_attrs,
-                        nexthops,
-                        Utc::now(),
-                        RouteFlags::empty(),
-                    ),
-                );
-            }
-        }
+            None => (
+                rib_prefix.len(),
+                Route::new(
+                    msg.protocol,
+                    owner,
+                    msg.kind,
+                    msg.distance,
+                    msg.metric,
+                    msg.tag,
+                    msg.opaque_attrs,
+                    nexthops,
+                    Utc::now(),
+                    RouteFlags::empty(),
+                ),
+            ),
+        };
+
+        // Put the route back where it was, or at the end if it's new, then
+        // sort the list by distance. The sort keeps routes with the same
+        // distance in their order, so when routes tie the one ahead stays
+        // ahead, and updating a route doesn't change that.
+        rib_prefix.insert(idx, route);
+        rib_prefix.sort_by_key(|route| route.distance);
 
         // Add IP route to the update queue.
         self.ip_update_queue_add(msg.prefix);

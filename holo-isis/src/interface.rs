@@ -261,7 +261,7 @@ impl Interface {
                 if !self.is_dis(level) {
                     continue;
                 }
-                self.dis_stop(instance);
+                self.dis_stop(instance, level);
                 *self.state.dis.get_mut(level) = None;
             }
         }
@@ -292,7 +292,7 @@ impl Interface {
         self.hello_interval_stop();
         self.dis_initial_election_stop();
         self.psnp_interval_stop();
-        self.csnp_interval_stop();
+        self.csnp_interval_stop(LevelType::All);
 
         // Schedule LSP reorigination.
         instance.schedule_lsp_origination(self.config.level_type.resolved);
@@ -492,12 +492,20 @@ impl Interface {
         self.state.dis.get(level).is_some_and(|dis| dis.myself)
     }
 
-    pub(crate) fn dis_start(&mut self, instance: &mut InstanceUpView<'_>) {
-        self.csnp_interval_start(instance);
+    pub(crate) fn dis_start(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+        level: LevelNumber,
+    ) {
+        self.csnp_interval_start(instance, level);
     }
 
-    pub(crate) fn dis_stop(&mut self, _instance: &mut InstanceUpView<'_>) {
-        self.csnp_interval_stop();
+    pub(crate) fn dis_stop(
+        &mut self,
+        _instance: &mut InstanceUpView<'_>,
+        level: LevelNumber,
+    ) {
+        self.csnp_interval_stop(level);
     }
 
     pub(crate) fn ext_seqnum_next(
@@ -699,15 +707,26 @@ impl Interface {
     pub(crate) fn csnp_interval_start(
         &mut self,
         instance: &InstanceUpView<'_>,
+        level_filter: impl Into<LevelType>,
     ) {
-        for level in self.config.levels() {
+        let level_filter = level_filter.into();
+        for level in self
+            .config
+            .levels()
+            .filter(|level| level_filter.intersects(level))
+        {
             let task = tasks::csnp_interval(self, level, instance);
             *self.state.tasks.csnp_interval.get_mut(level) = Some(task);
         }
     }
 
-    pub(crate) fn csnp_interval_stop(&mut self) {
-        self.state.tasks.csnp_interval = Default::default();
+    pub(crate) fn csnp_interval_stop(
+        &mut self,
+        level_filter: impl Into<LevelType>,
+    ) {
+        for level in level_filter.into() {
+            *self.state.tasks.csnp_interval.get_mut(level) = None;
+        }
     }
 
     pub(crate) fn csnp_send_single(&mut self, instance: &InstanceUpView<'_>) {

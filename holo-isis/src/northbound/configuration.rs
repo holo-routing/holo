@@ -1303,9 +1303,9 @@ fn process_event(instance: &mut Instance, event: Event) {
             };
             let iface = &mut arenas.interfaces[iface_idx];
             if iface.config.csnp_disable {
-                iface.csnp_interval_stop();
+                iface.csnp_interval_stop(LevelType::All);
             } else {
-                iface.csnp_interval_start(&instance);
+                iface.csnp_interval_start(&instance, LevelType::All);
             }
         }
         Event::InterfaceBfdChange(iface_idx) => {

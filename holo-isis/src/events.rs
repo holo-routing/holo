@@ -1287,11 +1287,11 @@ pub(crate) fn process_dis_election(
     match (old_dis, dis) {
         (Some(old), _) if old.myself => {
             // We're no longer the DIS.
-            iface.dis_stop(instance);
+            iface.dis_stop(instance, level);
         }
         (_, Some(new)) if new.myself => {
             // We're the new DIS.
-            iface.dis_start(instance);
+            iface.dis_start(instance, level);
         }
         _ => {}
     }

@@ -164,7 +164,7 @@ impl Adjacency {
                 if iface.config.csnp_disable {
                     iface.csnp_send_single(instance);
                 } else {
-                    iface.csnp_interval_start(instance);
+                    iface.csnp_interval_start(instance, LevelType::All);
                 }
 
                 // Add all LSPs to the interface RXMT list.
@@ -173,7 +173,7 @@ impl Adjacency {
                 };
                 let _ = instance.tx.protocol_input.adj_init_lsdb_sync.send(msg);
             } else if self.state == AdjacencyState::Up {
-                iface.csnp_interval_stop();
+                iface.csnp_interval_stop(LevelType::All);
             }
         }
 

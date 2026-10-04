@@ -10,7 +10,7 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, HashSet, btree_map};
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use bitflags::bitflags;
 use derive_new::new;
@@ -80,7 +80,7 @@ pub struct LspEntry {
     pub data: Lsp,
     // Timer triggered when the LSP's remaining lifetime reaches zero.
     pub expiry_timer: Option<TimeoutTask>,
-    // Timer triggered when the LSP's ZeroAge timeout expires.
+    // Timer triggered when the purged LSP is deleted from the database.
     pub delete_timer: Option<TimeoutTask>,
     // Timer for the periodic LSP refresh interval.
     pub refresh_timer: Option<TimeoutTask>,
@@ -1757,6 +1757,17 @@ pub(crate) fn lsp_purge(
 
     // Stop the LSP's refresh timer.
     lse.refresh_timer = None;
+
+    // ISO 10589 - Section 7.3.16.4: "When a purge of an LSP with non-zero
+    // Remaining Lifetime is initiated, the header shall be retained for
+    // MaxAge". LSPs whose Remaining Lifetime reached zero on their own keep
+    // the ZeroAgeLifetime timeout set when the LSP was installed.
+    if reason != LspPurgeReason::Expired
+        && let Some(delete_timer) = &mut lse.delete_timer
+    {
+        let timeout = Duration::from_secs(instance.config.lsp_lifetime.into());
+        delete_timer.reset(Some(timeout));
+    }
 
     // Send purged LSP to all interfaces.
     for iface in arenas.interfaces.iter_mut() {

@@ -69,6 +69,42 @@ jobs:
       - name: Run tests
         run: cargo test --all-features -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-utils -p holo-vrrp 
 
+  tests_wasm:
+    name: Tests (Wasm)
+    runs-on: ubuntu-latest
+    env:
+      WASI_SDK_VERSION: "25"
+      WASMTIME_VERSION: "29.0.1"
+      PCRE2_VERSION: "10.44"
+      # Toolchain directory, kept next to the checkout.
+      WASI_DIR: ${{ github.workspace }}/../wasi
+      WASI_SDK_PATH: ${{ github.workspace }}/../wasi/sdk
+      PCRE2_INCLUDE_DIR: ${{ github.workspace }}/../wasi/include
+      PCRE2_LIBRARY: ${{ github.workspace }}/../wasi/lib/libpcre2-8.a
+      # The test fixtures are reached by absolute path, so the repository is preopened under its host path.
+      CARGO_TARGET_WASM32_WASIP1_RUNNER: ${{ github.workspace }}/../wasi/wasmtime run --dir ${{ github.workspace }}::${{ github.workspace }}
+      CARGO_TARGET_WASM32_WASIP1_LINKER: ${{ github.workspace }}/../wasi/sdk/bin/clang
+      RUSTFLAGS: "-Dwarnings -Clink-self-contained=no"
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.91
+        with:
+          targets: wasm32-wasip1
+      - uses: Swatinem/rust-cache@v2
+      - name: Install WASI toolchain
+        run: |
+          set -euo pipefail
+          mkdir -p "$WASI_DIR" && cd "$WASI_DIR"
+          # Later SDKs no longer ship the emulated pthread library libyang links against.
+          curl -sSfL "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_SDK_VERSION}/wasi-sdk-${WASI_SDK_VERSION}.0-x86_64-linux.tar.gz" | tar xz && mv "wasi-sdk-${WASI_SDK_VERSION}.0-x86_64-linux" sdk
+          curl -sSfL "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz" | tar xJ && mv "wasmtime-v${WASMTIME_VERSION}-x86_64-linux/wasmtime" wasmtime
+          # libyang is built from source and needs a PCRE2 for the same target; its JIT has no wasm backend.
+          curl -sSfL "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz" | tar xz
+          cmake -S "pcre2-${PCRE2_VERSION}" -B pcre2-build -DCMAKE_TOOLCHAIN_FILE="$WASI_SDK_PATH/share/cmake/wasi-sdk-p1.cmake" -DWASI_SDK_PREFIX="$WASI_SDK_PATH" -DCMAKE_INSTALL_PREFIX="$WASI_DIR" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DPCRE2_BUILD_PCRE2GREP=OFF -DPCRE2_BUILD_TESTS=OFF -DPCRE2_SUPPORT_JIT=OFF
+          cmake --build pcre2-build --target install -j"$(nproc)"
+      - name: Run tests
+        run: cargo test --target wasm32-wasip1 -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-utils -p holo-vrrp
+
   fuzz-build-check:
     name: Fuzz Targets Build Check
     runs-on: ubuntu-latest

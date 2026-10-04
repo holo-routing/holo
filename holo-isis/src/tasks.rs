@@ -28,6 +28,10 @@ use crate::packet::pdu::{Hello, Lsp, Pdu};
 use crate::packet::{LevelNumber, LevelType, Levels};
 use crate::{lsdb, network, spf};
 
+// Jitter applied to periodic PDU transmission timers, as a percentage
+// (ISO 10589 - Section 10.1).
+const JITTER: u8 = 25;
+
 //
 // IS-IS tasks diagram:
 //                                     +--------------+
@@ -319,8 +323,9 @@ pub(crate) fn hello_interval(
         };
         let ext_seqnum_next = iface.state.ext_seqnum.1.clone();
         let net_tx_pdup = iface.state.net.as_ref().unwrap().net_tx_pdup.clone();
-        IntervalTask::new(
+        IntervalTask::with_jitter(
             Duration::from_secs(interval.into()),
+            JITTER,
             true,
             move || {
                 let mut hello = hello.clone();
@@ -430,17 +435,22 @@ pub(crate) fn psnp_interval(
 
         let iface_id = iface.id;
         let send_psnpp = instance.tx.protocol_input.send_psnp.clone();
-        IntervalTask::new(Duration::from_secs(PSNP_INTERVAL), true, move || {
-            let send_psnpp = send_psnpp.clone();
+        IntervalTask::with_jitter(
+            Duration::from_secs(PSNP_INTERVAL),
+            JITTER,
+            true,
+            move || {
+                let send_psnpp = send_psnpp.clone();
 
-            async move {
-                let msg = messages::input::SendPsnpMsg {
-                    iface_key: iface_id.into(),
-                    level,
-                };
-                let _ = send_psnpp.send(msg);
-            }
-        })
+                async move {
+                    let msg = messages::input::SendPsnpMsg {
+                        iface_key: iface_id.into(),
+                        level,
+                    };
+                    let _ = send_psnpp.send(msg);
+                }
+            },
+        )
     }
     #[cfg(feature = "testing")]
     {
@@ -459,8 +469,9 @@ pub(crate) fn csnp_interval(
         let interval = iface.config.csnp_interval;
         let iface_id = iface.id;
         let send_csnpp = instance.tx.protocol_input.send_csnp.clone();
-        IntervalTask::new(
+        IntervalTask::with_jitter(
             Duration::from_secs(interval.into()),
+            JITTER,
             true,
             move || {
                 let send_csnpp = send_csnpp.clone();

@@ -4,7 +4,8 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::net::Ipv4Addr;
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
 use holo_protocol::{
@@ -17,6 +18,7 @@ use holo_utils::policy::PolicyType;
 use holo_utils::protocol::Protocol;
 use holo_utils::socket::TcpListener;
 use holo_utils::task::{Task, TimeoutTask, protocol_select};
+use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender, UnboundedReceiver, UnboundedSender};
 
@@ -57,6 +59,17 @@ pub struct Instance {
 pub struct InstanceSys {
     // System Router ID.
     pub router_id: Option<Ipv4Addr>,
+    // System interfaces, by name.
+    pub interfaces: BTreeMap<String, InterfaceSys>,
+}
+
+// What the system reports of an interface.
+#[derive(Debug, Default)]
+pub struct InterfaceSys {
+    // Whether the interface is operational.
+    pub operative: bool,
+    // Addresses configured on the interface.
+    pub addresses: BTreeSet<IpNetwork>,
 }
 
 #[derive(Debug)]
@@ -125,6 +138,20 @@ pub struct InstanceUpView<'a> {
     pub state: &'a mut InstanceState,
     pub tx: &'a InstanceChannelsTx<Instance>,
     pub shared: &'a InstanceShared,
+}
+
+// ===== impl InstanceSys =====
+
+impl InstanceSys {
+    // Returns whether the given address is on the subnet of an operational
+    // interface.
+    pub(crate) fn is_connected(&self, addr: IpAddr) -> bool {
+        self.interfaces
+            .values()
+            .filter(|iface| iface.operative)
+            .flat_map(|iface| iface.addresses.iter())
+            .any(|subnet| subnet.contains(addr))
+    }
 }
 
 // ===== impl Instance =====
@@ -272,6 +299,9 @@ impl ProtocolInstance for Instance {
     fn init(&mut self) {
         // Request information about the system Router ID.
         ibus::tx::router_id_sub(&self.tx.ibus);
+
+        // Request information about the system interfaces.
+        ibus::tx::interface_sub(&self.tx.ibus);
     }
 
     fn shutdown(mut self) {
@@ -473,6 +503,22 @@ fn process_ibus_msg(
         IbusMsg::RouterIdUpdate(router_id) => {
             // Router ID update notification.
             ibus::rx::process_router_id_update(instance, router_id);
+        }
+        IbusMsg::InterfaceUpd(msg) => {
+            // Interface update notification.
+            ibus::rx::process_iface_update(instance, msg);
+        }
+        IbusMsg::InterfaceDel(ifname) => {
+            // Interface delete notification.
+            ibus::rx::process_iface_del(instance, ifname);
+        }
+        IbusMsg::InterfaceAddressAdd(msg) => {
+            // Interface address addition notification.
+            ibus::rx::process_addr_add(instance, msg);
+        }
+        IbusMsg::InterfaceAddressDel(msg) => {
+            // Interface address delete notification.
+            ibus::rx::process_addr_del(instance, msg);
         }
         IbusMsg::PolicyMatchSetsUpd(match_sets) => {
             // Update the local copy of the policy match sets.

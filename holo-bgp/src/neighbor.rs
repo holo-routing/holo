@@ -880,6 +880,20 @@ impl Neighbor {
         Ok(())
     }
 
+    // Returns whether the neighbor is an external peer expected to be on a
+    // subnet the local router is directly connected to: neither eBGP
+    // multi-hop nor a TTL security check of more than one hop lets it be any
+    // further away.
+    pub(crate) fn is_directly_connected_external(&self) -> bool {
+        self.peer_type == PeerType::External
+            && !self.config.transport.ebgp_multihop_enabled
+            && self
+                .config
+                .transport
+                .ttl_security
+                .is_none_or(|hops| hops == 1)
+    }
+
     // Returns the neighbor's Tx-TTL value based on the peer type and
     // configuration.
     pub(crate) fn tx_ttl(&self) -> u8 {

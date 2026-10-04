@@ -9,12 +9,15 @@ use std::net::{IpAddr, Ipv4Addr};
 use holo_utils::bgp::RouteType;
 use holo_utils::ip::IpNetworkExt;
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::{RouteKeyMsg, RouteMsg};
+use holo_utils::southbound::{
+    AddressMsg, InterfaceFlags, InterfaceUpdateMsg, RouteKeyMsg, RouteMsg,
+};
 use ipnetwork::IpNetwork;
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
 use crate::instance::{Instance, InstanceUpView};
+use crate::neighbor::fsm;
 use crate::policy::RoutePolicyInfo;
 use crate::rib::RouteOrigin;
 use crate::tasks::messages::output::PolicyApplyMsg;
@@ -44,6 +47,43 @@ pub(crate) fn process_nht_update(
 
     process_nht_update_af::<Ipv4Unicast>(&mut instance, addr, metric);
     process_nht_update_af::<Ipv6Unicast>(&mut instance, addr, metric);
+}
+
+pub(crate) fn process_iface_update(
+    instance: &mut Instance,
+    msg: InterfaceUpdateMsg,
+) {
+    let operative = msg.flags.contains(InterfaceFlags::OPERATIVE);
+    let iface = instance.system.interfaces.entry(msg.ifname).or_default();
+    let was_operative = std::mem::replace(&mut iface.operative, operative);
+    if was_operative && !operative {
+        let subnets = iface.addresses.iter().copied().collect::<Vec<_>>();
+        fast_external_failover(instance, &subnets);
+    }
+}
+
+pub(crate) fn process_iface_del(instance: &mut Instance, ifname: String) {
+    if let Some(iface) = instance.system.interfaces.remove(&ifname)
+        && iface.operative
+    {
+        let subnets = iface.addresses.into_iter().collect::<Vec<_>>();
+        fast_external_failover(instance, &subnets);
+    }
+}
+
+pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
+    if let Some(iface) = instance.system.interfaces.get_mut(&msg.ifname) {
+        iface.addresses.insert(msg.addr);
+    }
+}
+
+pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
+    if let Some(iface) = instance.system.interfaces.get_mut(&msg.ifname)
+        && iface.addresses.remove(&msg.addr)
+        && iface.operative
+    {
+        fast_external_failover(instance, &[msg.addr]);
+    }
 }
 
 pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
@@ -86,6 +126,38 @@ pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
 }
 
 // ===== helper functions =====
+
+// Brings down the sessions of the directly connected external neighbors that
+// the given subnets reached, now that they are gone, and that no other
+// operational interface reaches either. Their sessions would otherwise stay
+// up until the hold timer expired, with nothing getting through.
+fn fast_external_failover(instance: &mut Instance, subnets: &[IpNetwork]) {
+    let Some((mut instance, neighbors)) = instance.as_up() else {
+        return;
+    };
+
+    for nbr in neighbors
+        .values_mut()
+        .filter(|nbr| nbr.is_directly_connected_external())
+        .filter(|nbr| {
+            matches!(
+                nbr.state,
+                fsm::State::OpenSent
+                    | fsm::State::OpenConfirm
+                    | fsm::State::Established
+            )
+        })
+        .filter(|nbr| {
+            subnets
+                .iter()
+                .any(|subnet| subnet.contains(nbr.remote_addr))
+        })
+        .filter(|nbr| !instance.system.is_connected(nbr.remote_addr))
+    {
+        Debug::NbrFastExternalFailover(&nbr.remote_addr).log();
+        nbr.fsm_event(&mut instance, fsm::Event::ConnFail);
+    }
+}
 
 fn process_nht_update_af<A>(
     instance: &mut InstanceUpView<'_>,

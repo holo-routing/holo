@@ -1,4 +1,5 @@
 {"RouterIdSub":{}}
+{"InterfaceSub":{"ifname":null,"af":null}}
 {"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}
 {"NexthopTrack":{"addr":"10.0.2.1"}}
 {"RouteIpAdd":{"protocol":"bgp","prefix":"1.1.1.1/32","distance":20,"metric":0,"tag":null,"nexthops":[{"Recursive":{"addr":"10.0.2.1","labels":[],"resolved":[]}}]}}

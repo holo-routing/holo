@@ -25,6 +25,7 @@ pub enum Debug<'a> {
     InstanceStop(InstanceInactiveReason),
     NbrFsmEvent(&'a IpAddr, &'a fsm::Event),
     NbrFsmTransition(&'a IpAddr, &'a fsm::State, &'a fsm::State),
+    NbrFastExternalFailover(&'a IpAddr),
     NbrMsgRx(&'a IpAddr, &'a Message),
     NbrMsgTx(&'a IpAddr, &'a Message),
     NbrAttrError(AttrType, AttrError),
@@ -71,6 +72,12 @@ impl Debug<'_> {
                     debug_span!("fsm").in_scope(|| {
                         debug!(?old_state, ?new_state, "{}", self);
                     })
+                });
+            }
+            Debug::NbrFastExternalFailover(addr) => {
+                // Parent span(s): bgp-instance
+                debug_span!("neighbor", %addr).in_scope(|| {
+                    debug!("{}", self);
                 });
             }
             Debug::NbrMsgRx(addr, msg) => {
@@ -144,6 +151,12 @@ impl std::fmt::Display for Debug<'_> {
             }
             Debug::NbrFsmTransition(..) => {
                 write!(f, "state transition")
+            }
+            Debug::NbrFastExternalFailover(..) => {
+                write!(
+                    f,
+                    "directly connected subnet lost, bringing session down"
+                )
             }
             Debug::NbrMsgRx(..) | Debug::NbrMsgTx(..) => {
                 write!(f, "message")

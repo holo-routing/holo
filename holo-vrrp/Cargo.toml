@@ -33,9 +33,6 @@ socket2.workspace = true
 yang5 = { workspace = true, features = ["bundled"] }
 
 holo-vrrp = { path = ".", features = ["testing", "deterministic"] }
-holo-northbound = { path = "../holo-northbound", features = ["testing"] }
-holo-protocol = { path = "../holo-protocol", features = ["testing"] }
-holo-utils = { path = "../holo-utils", features = ["testing"] }
 
 [build-dependencies]
 yang5 = { workspace = true, features = ["bundled"] }
@@ -47,5 +44,9 @@ workspace = true
 
 [features]
 default = []
-testing = []
+testing = [
+  "holo-northbound/testing",
+  "holo-protocol/testing",
+  "holo-utils/testing",
+]
 deterministic = []

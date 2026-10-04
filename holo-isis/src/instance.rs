@@ -584,6 +584,9 @@ impl InstanceUpView<'_> {
         let mt_id = mt_id.into();
         interfaces
             .iter()
+            .filter(|iface| {
+                iface.config.topologies::<u16>(self.config).contains(&mt_id)
+            })
             .flat_map(|iface| iface.adjacencies(adjacencies))
             .filter(|adj| adj.topologies.contains(&mt_id))
             .filter(|adj| adj.state == AdjacencyState::Up)

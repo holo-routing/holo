@@ -923,6 +923,31 @@ async fn nb_config_iface_passive1() {
 }
 
 // Input:
+//  * Northbound: disable the standard topology on eth-rt5-1
+// Output:
+//  * Protocol: send an updated local LSP to all adjacencies
+//  * Northbound:
+//    - remove the eth-rt5-1 IPv4 address, the eth-rt5-1 IPv4 reachability and
+//      the MT #0 IS reachability to 0000.0000.0005 over eth-rt5-1 from the
+//      local LSP
+//    - add the local LSP to the SRM list of all adjacencies
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+//
+// Input:
+//  * Protocol: SPF_TIMER expiration for L2
+// Output:
+//  * Northbound:
+//    - remove eth-rt5-1 from the IPv4 routes in the local RIB
+//    - add a route to 10.0.4.0/24 through eth-rt5-2
+//  * Ibus: reinstall the IPv4 routes through 0000.0000.0005 using eth-rt5-2
+//    alone
+#[tokio::test]
+async fn nb_config_iface_topology1() {
+    run_test::<Instance>("nb-config-iface-topology1", "topo2-4", "rt3").await;
+}
+
+// Input:
 //  * Northbound: change the metric type from old-only to wide-only
 // Output:
 //  * Protocol: send an updated local LSP to all adjacencies

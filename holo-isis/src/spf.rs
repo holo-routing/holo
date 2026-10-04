@@ -986,10 +986,10 @@ fn resolve_nexthop(
         InterfaceType::PointToPoint
     };
 
-    let mt_id = mt_id as u16;
     if let Some((iface, adj)) = interfaces
         .iter()
         .filter(|iface| iface.config.interface_type == interface_type)
+        .filter(|iface| iface.config.is_topology_enabled(mt_id))
         .filter_map(|iface| {
             let adj = match iface.config.interface_type {
                 InterfaceType::Broadcast => iface
@@ -998,7 +998,7 @@ fn resolve_nexthop(
                     .get(level)
                     .get_by_system_id(adjacencies, &link.id.lan_id.system_id)
                     .map(|(_, adj)| adj)
-                    .filter(|adj| adj.topologies.contains(&mt_id))
+                    .filter(|adj| adj.topologies.contains(&(mt_id as u16)))
                     .filter(|adj| adj.state == AdjacencyState::Up),
                 InterfaceType::PointToPoint => {
                     if iface.config.metric.get(level) != link.cost {
@@ -1008,7 +1008,7 @@ fn resolve_nexthop(
                         .state
                         .p2p_adjacency
                         .as_ref()
-                        .filter(|adj| adj.topologies.contains(&mt_id))
+                        .filter(|adj| adj.topologies.contains(&(mt_id as u16)))
                         .filter(|adj| adj.level_usage.intersects(level))
                         .filter(|adj| adj.system_id == link.id.lan_id.system_id)
                         .filter(|adj| adj.state == AdjacencyState::Up)

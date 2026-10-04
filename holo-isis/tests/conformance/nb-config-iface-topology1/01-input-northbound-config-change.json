@@ -1,0 +1,35 @@
+{
+  "ietf-routing:routing": {
+    "@": {
+      "yang:operation": "none"
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-isis:isis",
+          "name": "test",
+          "ietf-isis:isis": {
+            "interfaces": {
+              "interface": [
+                {
+                  "name": "eth-rt5-1",
+                  "topologies": {
+                    "topology": [
+                      {
+                        "@": {
+                          "yang:operation": "create"
+                        },
+                        "name": "holo-isis:mt-topology-standard",
+                        "holo-isis:enabled": false
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

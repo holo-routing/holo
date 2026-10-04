@@ -276,7 +276,7 @@ where
     let (ibus_instance_tx, ibus_instance_rx) = mpsc::unbounded_channel();
     let channels = InstanceAggChannels::default();
     let instance_tx = channels.tx.clone();
-    let (test_tx, test_rx) = mpsc::channel(4);
+    let test_tx = channels.test_tx.clone();
     let nb_daemon_tx = spawn_protocol_task::<P>(
         name.to_owned(),
         &nb_provider_tx,
@@ -284,7 +284,6 @@ where
         ibus_instance_tx,
         ibus_instance_rx,
         channels,
-        test_rx,
         InstanceShared::default(),
     );
 

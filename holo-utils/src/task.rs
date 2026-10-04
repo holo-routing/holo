@@ -253,6 +253,17 @@ impl TimeoutTask {
         }
     }
 
+    /// Timeouts never expire in a test build, where time is driven by the
+    /// test itself. Returns an inert handle.
+    #[cfg(feature = "testing")]
+    pub fn new<F, Fut>(_timeout: Duration, _cb: F) -> TimeoutTask
+    where
+        F: FnOnce() -> Fut + Send + 'static,
+        Fut: Future<Output = ()> + Send,
+    {
+        TimeoutTask {}
+    }
+
     /// Resets the timeout, regardless if it has already expired or not.
     ///
     /// If a new timeout value isn't specified, the last value will be reused.

@@ -145,6 +145,12 @@ pub struct InstanceChannelsRx<P: ProtocolInstance> {
 pub struct InstanceAggChannels<P: ProtocolInstance> {
     pub tx: Sender<InstanceMsg<P>>,
     pub rx: Receiver<InstanceMsg<P>>,
+    // Sends messages from the test harness to the instance.
+    #[cfg(feature = "testing")]
+    pub test_tx: Sender<TestMsg<P::ProtocolOutputMsg>>,
+    // Receives messages from the test harness.
+    #[cfg(feature = "testing")]
+    pub test_rx: Receiver<TestMsg<P::ProtocolOutputMsg>>,
 }
 
 pub trait MessageReceiver<T: Send>
@@ -177,7 +183,16 @@ where
 {
     fn default() -> Self {
         let (tx, rx) = mpsc::channel(4);
-        InstanceAggChannels { tx, rx }
+        #[cfg(feature = "testing")]
+        let (test_tx, test_rx) = mpsc::channel(4);
+        InstanceAggChannels {
+            tx,
+            rx,
+            #[cfg(feature = "testing")]
+            test_tx,
+            #[cfg(feature = "testing")]
+            test_rx,
+        }
     }
 }
 
@@ -244,7 +259,8 @@ where
 async fn event_loop<P>(
     instance: &mut P,
     instance_channels_rx: InstanceChannelsRx<P>,
-    mut agg_channels: InstanceAggChannels<P>,
+    agg_tx: Sender<InstanceMsg<P>>,
+    mut agg_rx: Receiver<InstanceMsg<P>>,
     #[cfg(feature = "testing")] mut output_channels_rx: Option<
         OutputChannelsRx<P::ProtocolOutputMsg>,
     >,
@@ -255,13 +271,12 @@ async fn event_loop<P>(
     let mut pending_changes = vec![];
 
     // Spawn event aggregator task.
-    let _event_aggregator =
-        event_aggregator(instance_channels_rx, agg_channels.tx);
+    let _event_aggregator = event_aggregator(instance_channels_rx, agg_tx);
 
     // Main event loop.
     loop {
         // Receive event message.
-        let msg = agg_channels.rx.recv().await.unwrap();
+        let msg = agg_rx.recv().await.unwrap();
 
         // Record event message.
         if let Some(event_recorder) = &mut event_recorder {
@@ -299,9 +314,6 @@ async fn run<P>(
     ibus_tx: IbusChannelsTx,
     ibus_instance_rx: IbusReceiver,
     agg_channels: InstanceAggChannels<P>,
-    #[cfg(feature = "testing")] test_rx: Receiver<
-        TestMsg<P::ProtocolOutputMsg>,
-    >,
     shared: InstanceShared,
 ) where
     P: ProtocolInstance,
@@ -328,7 +340,7 @@ async fn run<P>(
         ibus_instance_rx,
         proto_input_rx,
         #[cfg(feature = "testing")]
-        test_rx,
+        agg_channels.test_rx,
     );
 
     // Get event recorder.
@@ -351,7 +363,8 @@ async fn run<P>(
     let fut = event_loop(
         &mut instance,
         instance_channels_rx,
-        agg_channels,
+        agg_channels.tx,
+        agg_channels.rx,
         #[cfg(feature = "testing")]
         Some(output_channels_rx),
         event_record,
@@ -387,9 +400,6 @@ pub fn spawn_protocol_task<P>(
     ibus_instance_tx: IbusSender,
     ibus_instance_rx: IbusReceiver,
     agg_channels: InstanceAggChannels<P>,
-    #[cfg(feature = "testing")] test_rx: Receiver<
-        TestMsg<P::ProtocolOutputMsg>,
-    >,
     shared: InstanceShared,
 ) -> NbDaemonSender
 where
@@ -407,8 +417,6 @@ where
             ibus_tx,
             ibus_instance_rx,
             agg_channels,
-            #[cfg(feature = "testing")]
-            test_rx,
             shared,
         )
         .instrument(span)

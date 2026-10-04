@@ -32,7 +32,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
-use tracing::{Span, debug_span, error};
+use tracing::{Instrument, Span, debug_span, error};
 
 use crate::event_recorder::EventRecorder;
 #[cfg(feature = "testing")]
@@ -400,7 +400,6 @@ where
     let ibus_tx = IbusChannelsTx::with_client(ibus_tx, ibus_instance_tx);
     let fut = async move {
         let span = P::debug_span(&name);
-        let _span_guard = span.enter();
         run::<P>(
             name,
             nb_provider_tx,
@@ -412,6 +411,7 @@ where
             test_rx,
             shared,
         )
+        .instrument(span)
         .await;
     };
 

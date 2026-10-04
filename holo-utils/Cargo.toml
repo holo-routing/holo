@@ -40,6 +40,9 @@ nix.workspace = true
 socket2.workspace = true
 tokio = { workspace = true, features = ["net"] }
 
+[build-dependencies]
+holo-platform = { path = "../holo-platform" }
+
 [dev-dependencies]
 const-addrs.workspace = true
 

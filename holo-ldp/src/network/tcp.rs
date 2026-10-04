@@ -34,7 +34,7 @@ use crate::tasks::messages::output::NbrTxPduMsg;
 pub(crate) fn listen_socket(
     addr: IpAddr,
 ) -> Result<TcpListener, std::io::Error> {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         use tokio::{runtime, task};
 
@@ -52,7 +52,7 @@ pub(crate) fn listen_socket(
 
         Ok(socket)
     }
-    #[cfg(feature = "testing")]
+    #[cfg(network_backend = "null")]
     {
         Ok(TcpListener {})
     }
@@ -63,7 +63,7 @@ pub(crate) fn listen_socket_md5sig_update(
     nbr_addr: &IpAddr,
     password: Option<&str>,
 ) {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         if let Err(error) = socket.set_md5sig(nbr_addr, password) {
             IoError::TcpAuthError(error).log();
@@ -71,33 +71,209 @@ pub(crate) fn listen_socket_md5sig_update(
     }
 }
 
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn listen_loop(
     listener: Arc<TcpListener>,
     tcp_acceptp: Sender<TcpAcceptMsg>,
 ) -> Result<(), SendError<TcpAcceptMsg>> {
-    loop {
-        match listener.accept().await {
-            Ok((stream, _)) => match stream.conn_info() {
-                Ok(conn_info) => {
-                    let msg = TcpAcceptMsg {
-                        stream: Some(stream),
-                        conn_info,
-                    };
-                    tcp_acceptp.send(msg).await?;
-                }
+    #[cfg(network_backend = "linux")]
+    {
+        loop {
+            match listener.accept().await {
+                Ok((stream, _)) => match stream.conn_info() {
+                    Ok(conn_info) => {
+                        let msg = TcpAcceptMsg {
+                            stream: Some(stream),
+                            conn_info,
+                        };
+                        tcp_acceptp.send(msg).await?;
+                    }
+                    Err(error) => {
+                        IoError::TcpInfoError(error).log();
+                    }
+                },
                 Err(error) => {
-                    IoError::TcpInfoError(error).log();
+                    IoError::TcpAcceptError(error).log();
                 }
-            },
-            Err(error) => {
-                IoError::TcpAcceptError(error).log();
             }
         }
     }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
 }
 
-#[cfg(not(feature = "testing"))]
+pub(crate) async fn connect(
+    local_addr: IpAddr,
+    remote_addr: IpAddr,
+    gtsm: bool,
+    password: &Option<String>,
+) -> Result<(TcpStream, TcpConnInfo), Error> {
+    #[cfg(network_backend = "linux")]
+    {
+        // Create TCP socket.
+        let socket = connect_socket(local_addr, gtsm)
+            .map_err(IoError::TcpSocketError)?;
+
+        // Set the TCP MD5 password.
+        if let Some(password) = password {
+            socket
+                .set_md5sig(&remote_addr, Some(password))
+                .map_err(IoError::TcpAuthError)?;
+        }
+
+        // Connect to remote address on the LDP port.
+        let sockaddr = SocketAddr::from((remote_addr, network::LDP_PORT));
+        let stream = socket
+            .connect(sockaddr)
+            .await
+            .map_err(IoError::TcpConnectError)?;
+
+        // Obtain TCP connection address/port information.
+        let conn_info = stream.conn_info().map_err(IoError::TcpInfoError)?;
+
+        Ok((stream, conn_info))
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
+}
+
+pub(crate) async fn nbr_write_loop(
+    stream: OwnedWriteHalf,
+    local_lsr_id: Ipv4Addr,
+    max_pdu_len: u16,
+    mut pdu_txc: UnboundedReceiver<NbrTxPduMsg>,
+) {
+    #[cfg(network_backend = "linux")]
+    {
+        let stream_mtx = Arc::new(Mutex::new(stream));
+        let messages_mtx = Arc::new(Mutex::new(VecDeque::new()));
+        let mut _timeout;
+
+        while let Some(NbrTxPduMsg { msg, flush, .. }) = pdu_txc.recv().await {
+            let stream_mtx = stream_mtx.clone();
+            let messages_mtx = messages_mtx.clone();
+
+            // Enqueue message.
+            messages_mtx.lock().await.push_back(msg);
+
+            // When the `flush` variable is set, send all enqueued messages
+            // right away.
+            if flush {
+                let mut stream = stream_mtx.lock().await;
+                let mut messages = messages_mtx.lock().await;
+                nbr_send_messages(
+                    &mut stream,
+                    local_lsr_id,
+                    max_pdu_len,
+                    &mut messages,
+                )
+                .await;
+                continue;
+            }
+
+            // Schedule the transmission as an attempt to group more messages
+            // into the same PDU.
+            _timeout = TimeoutTask::new(
+                Duration::from_millis(100),
+                move || async move {
+                    let stream_mtx = stream_mtx.clone();
+                    let messages_mtx = messages_mtx.clone();
+                    let mut stream = stream_mtx.lock().await;
+                    let mut messages = messages_mtx.lock().await;
+
+                    nbr_send_messages(
+                        &mut stream,
+                        local_lsr_id,
+                        max_pdu_len,
+                        &mut messages,
+                    )
+                    .await;
+                },
+            );
+        }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        while pdu_txc.recv().await.is_some() {}
+    }
+}
+
+pub(crate) async fn nbr_read_loop(
+    stream: OwnedReadHalf,
+    nbr_id: NeighborId,
+    nbr_lsr_id: Ipv4Addr,
+    nbr_raddr: IpAddr,
+    nbr_pdu_rxp: Sender<NbrRxPduMsg>,
+) -> Result<(), SendError<NbrRxPduMsg>> {
+    #[cfg(network_backend = "linux")]
+    {
+        let mut stream = stream;
+        let mut data = BytesMut::with_capacity(Pdu::MAX_SIZE);
+
+        // PDU header validation closure.
+        let validate_pdu_hdr = move |lsr_id, label_space| {
+            if lsr_id != nbr_lsr_id || label_space != 0 {
+                return Err(DecodeError::InvalidLsrId(lsr_id));
+            }
+            Ok(())
+        };
+
+        // Decode context.
+        let cxt = DecodeCxt {
+            pkt_info: PacketInfo {
+                src_addr: nbr_raddr,
+                multicast: None,
+            },
+            pdu_max_len: Pdu::DFLT_MAX_LEN,
+            validate_pdu_hdr: Some(Box::new(validate_pdu_hdr)),
+            validate_msg_hdr: None,
+        };
+
+        loop {
+            // Read data from the network.
+            match data.read_from(&mut stream).await {
+                Ok(0) => {
+                    // Notify that the connection was closed by the remote end.
+                    let msg = NbrRxPduMsg {
+                        nbr_id,
+                        pdu: Err(Error::TcpConnClosed(nbr_lsr_id)),
+                    };
+                    nbr_pdu_rxp.send(msg).await?;
+                    return Ok(());
+                }
+                Ok(_) => {}
+                Err(error) => {
+                    IoError::TcpRecvError(error).log();
+                    continue;
+                }
+            };
+
+            // Decode PDU(s).
+            while let Ok(pdu_size) = Pdu::get_pdu_size(&data, &cxt) {
+                let pdu =
+                    Pdu::decode(&data[0..pdu_size], &cxt).map_err(|error| {
+                        Error::NbrPduDecodeError(nbr_lsr_id, error)
+                    });
+                data.try_advance(pdu_size).unwrap();
+
+                // Notify that the LDP message was received.
+                let msg = NbrRxPduMsg { nbr_id, pdu };
+                nbr_pdu_rxp.send(msg).await?;
+            }
+        }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
+}
+
+// ===== helper functions =====
+
+#[cfg(network_backend = "linux")]
 fn connect_socket(
     local_addr: IpAddr,
     gtsm: bool,
@@ -115,38 +291,7 @@ fn connect_socket(
     Ok(socket)
 }
 
-#[cfg(not(feature = "testing"))]
-pub(crate) async fn connect(
-    local_addr: IpAddr,
-    remote_addr: IpAddr,
-    gtsm: bool,
-    password: &Option<String>,
-) -> Result<(TcpStream, TcpConnInfo), Error> {
-    // Create TCP socket.
-    let socket =
-        connect_socket(local_addr, gtsm).map_err(IoError::TcpSocketError)?;
-
-    // Set the TCP MD5 password.
-    if let Some(password) = password {
-        socket
-            .set_md5sig(&remote_addr, Some(password))
-            .map_err(IoError::TcpAuthError)?;
-    }
-
-    // Connect to remote address on the LDP port.
-    let sockaddr = SocketAddr::from((remote_addr, network::LDP_PORT));
-    let stream = socket
-        .connect(sockaddr)
-        .await
-        .map_err(IoError::TcpConnectError)?;
-
-    // Obtain TCP connection address/port information.
-    let conn_info = stream.conn_info().map_err(IoError::TcpInfoError)?;
-
-    Ok((stream, conn_info))
-}
-
-#[cfg(not(feature = "testing"))]
+#[cfg(network_backend = "linux")]
 async fn nbr_send_messages(
     stream: &mut OwnedWriteHalf,
     local_lsr_id: Ipv4Addr,
@@ -158,119 +303,5 @@ async fn nbr_send_messages(
     let buf = pdu.encode(max_pdu_len);
     if let Err(error) = stream.write_all(&buf).await {
         IoError::TcpSendError(error).log();
-    }
-}
-
-#[cfg(not(feature = "testing"))]
-pub(crate) async fn nbr_write_loop(
-    stream: OwnedWriteHalf,
-    local_lsr_id: Ipv4Addr,
-    max_pdu_len: u16,
-    mut pdu_txc: UnboundedReceiver<NbrTxPduMsg>,
-) {
-    let stream_mtx = Arc::new(Mutex::new(stream));
-    let messages_mtx = Arc::new(Mutex::new(VecDeque::new()));
-    let mut _timeout;
-
-    while let Some(NbrTxPduMsg { msg, flush, .. }) = pdu_txc.recv().await {
-        let stream_mtx = stream_mtx.clone();
-        let messages_mtx = messages_mtx.clone();
-
-        // Enqueue message.
-        messages_mtx.lock().await.push_back(msg);
-
-        // When the `flush` variable is set, send all enqueued messages right
-        // away.
-        if flush {
-            let mut stream = stream_mtx.lock().await;
-            let mut messages = messages_mtx.lock().await;
-            nbr_send_messages(
-                &mut stream,
-                local_lsr_id,
-                max_pdu_len,
-                &mut messages,
-            )
-            .await;
-            continue;
-        }
-
-        // Schedule the transmission as an attempt to group more messages into
-        // the same PDU.
-        _timeout =
-            TimeoutTask::new(Duration::from_millis(100), move || async move {
-                let stream_mtx = stream_mtx.clone();
-                let messages_mtx = messages_mtx.clone();
-                let mut stream = stream_mtx.lock().await;
-                let mut messages = messages_mtx.lock().await;
-
-                nbr_send_messages(
-                    &mut stream,
-                    local_lsr_id,
-                    max_pdu_len,
-                    &mut messages,
-                )
-                .await;
-            });
-    }
-}
-
-#[cfg(not(feature = "testing"))]
-pub(crate) async fn nbr_read_loop(
-    mut stream: OwnedReadHalf,
-    nbr_id: NeighborId,
-    nbr_lsr_id: Ipv4Addr,
-    nbr_raddr: IpAddr,
-    nbr_pdu_rxp: Sender<NbrRxPduMsg>,
-) -> Result<(), SendError<NbrRxPduMsg>> {
-    let mut data = BytesMut::with_capacity(Pdu::MAX_SIZE);
-
-    // PDU header validation closure.
-    let validate_pdu_hdr = move |lsr_id, label_space| {
-        if lsr_id != nbr_lsr_id || label_space != 0 {
-            return Err(DecodeError::InvalidLsrId(lsr_id));
-        }
-        Ok(())
-    };
-
-    // Decode context.
-    let cxt = DecodeCxt {
-        pkt_info: PacketInfo {
-            src_addr: nbr_raddr,
-            multicast: None,
-        },
-        pdu_max_len: Pdu::DFLT_MAX_LEN,
-        validate_pdu_hdr: Some(Box::new(validate_pdu_hdr)),
-        validate_msg_hdr: None,
-    };
-
-    loop {
-        // Read data from the network.
-        match data.read_from(&mut stream).await {
-            Ok(0) => {
-                // Notify that the connection was closed by the remote end.
-                let msg = NbrRxPduMsg {
-                    nbr_id,
-                    pdu: Err(Error::TcpConnClosed(nbr_lsr_id)),
-                };
-                nbr_pdu_rxp.send(msg).await?;
-                return Ok(());
-            }
-            Ok(_) => {}
-            Err(error) => {
-                IoError::TcpRecvError(error).log();
-                continue;
-            }
-        };
-
-        // Decode PDU(s).
-        while let Ok(pdu_size) = Pdu::get_pdu_size(&data, &cxt) {
-            let pdu = Pdu::decode(&data[0..pdu_size], &cxt)
-                .map_err(|error| Error::NbrPduDecodeError(nbr_lsr_id, error));
-            data.try_advance(pdu_size).unwrap();
-
-            // Notify that the LDP message was received.
-            let msg = NbrRxPduMsg { nbr_id, pdu };
-            nbr_pdu_rxp.send(msg).await?;
-        }
     }
 }

@@ -370,7 +370,7 @@ pub(crate) fn process_tcp_accept(
     }
 
     // Enable GTSM in single-hop peering sessions.
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         if nbr.flags.contains(NeighborFlags::GTSM)
             && let Err(error) = stream.set_ipv4_minttl(TTL_MAX)

@@ -15,15 +15,14 @@ use std::sync::Arc;
 use arc_swap::ArcSwap;
 use holo_utils::bytes::Bytes;
 use holo_utils::capabilities;
-use holo_utils::keychain::Key;
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::socket::{AsyncFd, LinkAddrExt, Socket};
-#[cfg(target_os = "linux")]
+#[cfg(network_backend = "linux")]
 use nix::sys::socket;
-#[cfg(target_os = "linux")]
+#[cfg(network_backend = "linux")]
 use nix::sys::socket::LinkAddr;
 use serde::Serialize;
-#[cfg(target_os = "linux")]
+#[cfg(network_backend = "linux")]
 use socket2::SockFilter;
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
@@ -54,7 +53,7 @@ pub enum MulticastAddr {
 
 // BPF filter that accepts IS-IS over LLC and IS-IS over ethertype 0x00FE
 // (e.g. GRE tunnels). Shamelessly copied from FRR!
-#[cfg(target_os = "linux")]
+#[cfg(network_backend = "linux")]
 const ISIS_BPF_FILTER: [SockFilter; 10] = [
     // l0: ldh [0]
     SockFilter::new(0x28, 0, 0, 0x00000000),
@@ -93,7 +92,7 @@ impl MulticastAddr {
 // ===== global functions =====
 
 pub(crate) fn socket(ifindex: u32) -> Result<Socket, std::io::Error> {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         use socket2::{Domain, Protocol, Type};
 
@@ -116,7 +115,7 @@ pub(crate) fn socket(ifindex: u32) -> Result<Socket, std::io::Error> {
 
         Ok(socket)
     }
-    #[cfg(feature = "testing")]
+    #[cfg(network_backend = "null")]
     {
         Ok(Socket {})
     }
@@ -157,25 +156,23 @@ pub(crate) async fn write_loop(
             hello.add_padding(max_size);
         }
 
+        // Log PDU being sent.
+        if trace_opts.load().tx(pdu.pdu_type()) {
+            Debug::PduTx(&ifname, dst, &pdu).log();
+        }
+
+        // Encode PDU.
+        let buf = pdu.encode(auth);
+
         // Send PDU out the interface.
-        if let Err(error) = send_pdu(
-            &socket,
-            broadcast,
-            &ifname,
-            ifindex,
-            dst,
-            &pdu,
-            auth,
-            &trace_opts,
-        )
-        .await
+        if let Err(error) =
+            send_to(&socket, broadcast, ifindex, dst, &buf).await
         {
             error.log();
         }
     }
 }
 
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop(
     socket: Arc<AsyncFd<Socket>>,
     broadcast: bool,
@@ -184,125 +181,130 @@ pub(crate) async fn read_loop(
     global_auth: Arc<ArcSwap<Option<AuthMethod>>>,
     net_packet_rxp: Sender<NetRxPduMsg>,
 ) -> Result<(), SendError<NetRxPduMsg>> {
-    let mut buf = [0; 16384];
-    let mut iov = [IoSliceMut::new(&mut buf)];
+    #[cfg(network_backend = "linux")]
+    {
+        let mut buf = [0; 16384];
+        let mut iov = [IoSliceMut::new(&mut buf)];
 
-    loop {
-        // Receive data packet.
-        match socket
-            .async_io(tokio::io::Interest::READABLE, |socket| {
-                match socket::recvmsg::<LinkAddr>(
-                    socket.as_raw_fd(),
-                    &mut iov,
-                    None,
-                    socket::MsgFlags::empty(),
-                ) {
-                    Ok(msg) => Ok((msg.address.unwrap(), msg.bytes)),
-                    Err(errno) => Err(errno.into()),
+        loop {
+            // Receive data packet.
+            match socket
+                .async_io(tokio::io::Interest::READABLE, |socket| {
+                    match socket::recvmsg::<LinkAddr>(
+                        socket.as_raw_fd(),
+                        &mut iov,
+                        None,
+                        socket::MsgFlags::empty(),
+                    ) {
+                        Ok(msg) => Ok((msg.address.unwrap(), msg.bytes)),
+                        Err(errno) => Err(errno.into()),
+                    }
+                })
+                .await
+            {
+                Ok((src, bytes)) => {
+                    // Filter out non-IS-IS packets by checking the LLC header
+                    // in broadcast interfaces.
+                    if broadcast && iov[0].deref()[0..3] != LLC_HDR {
+                        continue;
+                    }
+                    // For non-broadcast media types, only GRE is supported.
+                    if !broadcast
+                        && src.protocol() != GRE_PROTO_TYPE_ISO.to_be()
+                    {
+                        continue;
+                    }
+
+                    // Extract the source MAC address from the packet metadata.
+                    let Some(src) = src.addr() else {
+                        IoError::RecvMissingSourceAddr.log();
+                        continue;
+                    };
+
+                    // Decode packet.
+                    let offset = if broadcast { LLC_HDR.len() } else { 0 };
+                    let mut bytes =
+                        Bytes::copy_from_slice(&iov[0].deref()[offset..bytes]);
+                    let pdu = Pdu::decode(
+                        &mut bytes,
+                        hello_auth.load().as_ref().as_ref(),
+                        global_auth.load().as_ref().as_ref(),
+                    );
+                    let msg = NetRxPduMsg {
+                        iface_key: iface_id.into(),
+                        src: MacAddr::from(src),
+                        bytes,
+                        pdu,
+                    };
+                    net_packet_rxp.send(msg).await?;
                 }
-            })
-            .await
-        {
-            Ok((src, bytes)) => {
-                // Filter out non-IS-IS packets by checking the LLC header in
-                // broadcast interfaces.
-                if broadcast && iov[0].deref()[0..3] != LLC_HDR {
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::Interrupted =>
+                {
+                    // Retry if the syscall was interrupted (EINTR).
                     continue;
                 }
-                // For non-broadcast media types, only GRE is supported.
-                if !broadcast && src.protocol() != GRE_PROTO_TYPE_ISO.to_be() {
-                    continue;
+                Err(error) => {
+                    IoError::RecvError(error).log();
                 }
-
-                // Extract the source MAC address from the packet metadata.
-                let Some(src) = src.addr() else {
-                    IoError::RecvMissingSourceAddr.log();
-                    continue;
-                };
-
-                // Decode packet.
-                let offset = if broadcast { LLC_HDR.len() } else { 0 };
-                let mut bytes =
-                    Bytes::copy_from_slice(&iov[0].deref()[offset..bytes]);
-                let pdu = Pdu::decode(
-                    &mut bytes,
-                    hello_auth.load().as_ref().as_ref(),
-                    global_auth.load().as_ref().as_ref(),
-                );
-                let msg = NetRxPduMsg {
-                    iface_key: iface_id.into(),
-                    src: MacAddr::from(src),
-                    bytes,
-                    pdu,
-                };
-                net_packet_rxp.send(msg).await?;
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
-                // Retry if the syscall was interrupted (EINTR).
-                continue;
-            }
-            Err(error) => {
-                IoError::RecvError(error).log();
             }
         }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
     }
 }
 
 // ===== helper functions =====
 
-#[cfg(not(feature = "testing"))]
-async fn send_pdu(
+async fn send_to(
     socket: &AsyncFd<Socket>,
     broadcast: bool,
-    ifname: &str,
     ifindex: u32,
     dst: MulticastAddr,
-    pdu: &Pdu,
-    auth: Option<&Key>,
-    trace_opts: &Arc<ArcSwap<TraceOptionPacketResolved>>,
+    buf: &[u8],
 ) -> Result<usize, IoError> {
-    // Log PDU being sent.
-    if trace_opts.load().tx(pdu.pdu_type()) {
-        Debug::PduTx(ifname, dst, pdu).log();
+    #[cfg(network_backend = "linux")]
+    {
+        socket
+            .async_io(tokio::io::Interest::WRITABLE, |socket| {
+                if broadcast {
+                    // Prepend LLC header before IS-IS PDU.
+                    let iov = [IoSlice::new(&LLC_HDR), IoSlice::new(buf)];
+                    let sockaddr = LinkAddr::new(
+                        (LLC_HDR.len() + buf.len()) as u16,
+                        ifindex,
+                        Some(dst.as_bytes()),
+                    );
+                    socket::sendmsg(
+                        socket.as_raw_fd(),
+                        &iov,
+                        &[],
+                        socket::MsgFlags::empty(),
+                        Some(&sockaddr),
+                    )
+                } else {
+                    // For non-broadcast media types, only GRE is supported.
+                    let sockaddr = LinkAddr::new(
+                        GRE_PROTO_TYPE_ISO,
+                        ifindex,
+                        Some(dst.as_bytes()),
+                    );
+                    socket::sendto(
+                        socket.as_raw_fd(),
+                        buf,
+                        &sockaddr,
+                        socket::MsgFlags::empty(),
+                    )
+                }
+                .map_err(|errno| errno.into())
+            })
+            .await
+            .map_err(IoError::SendError)
     }
-
-    // Encode PDU.
-    let buf = pdu.encode(auth);
-
-    // Send PDU.
-    socket
-        .async_io(tokio::io::Interest::WRITABLE, |socket| {
-            if broadcast {
-                // Prepend LLC header before IS-IS PDU.
-                let iov = [IoSlice::new(&LLC_HDR), IoSlice::new(&buf)];
-                let sockaddr = LinkAddr::new(
-                    (LLC_HDR.len() + buf.len()) as u16,
-                    ifindex,
-                    Some(dst.as_bytes()),
-                );
-                socket::sendmsg(
-                    socket.as_raw_fd(),
-                    &iov,
-                    &[],
-                    socket::MsgFlags::empty(),
-                    Some(&sockaddr),
-                )
-            } else {
-                // For non-broadcast media types, only GRE is supported.
-                let sockaddr = LinkAddr::new(
-                    GRE_PROTO_TYPE_ISO,
-                    ifindex,
-                    Some(dst.as_bytes()),
-                );
-                socket::sendto(
-                    socket.as_raw_fd(),
-                    &buf,
-                    &sockaddr,
-                    socket::MsgFlags::empty(),
-                )
-            }
-            .map_err(|errno| errno.into())
-        })
-        .await
-        .map_err(IoError::SendError)
+    #[cfg(network_backend = "null")]
+    {
+        Ok(buf.len())
+    }
 }

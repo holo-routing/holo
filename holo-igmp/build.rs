@@ -8,6 +8,8 @@ use holo_northbound::yang_codegen;
 use holo_yang as yang;
 
 fn main() {
+    holo_platform::network_backend();
+
     let mut yang_ctx = yang::new_context();
     let modules = yang::implemented_modules::IGMP;
     yang::load_modules(&mut yang_ctx, modules);

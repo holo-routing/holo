@@ -267,7 +267,7 @@ impl InterfaceSys {
     }
 
     fn join_multicast_ipv4(&self, disc_socket: &UdpSocket) {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             if let Err(error) = disc_socket.join_multicast_ifindex_v4(
                 &network::udp::LDP_MCAST_ADDR_V4,
@@ -279,7 +279,7 @@ impl InterfaceSys {
     }
 
     fn leave_multicast_ipv4(&self, disc_socket: &UdpSocket) {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             if let Err(error) = disc_socket.leave_multicast_ifindex_v4(
                 &network::udp::LDP_MCAST_ADDR_V4,

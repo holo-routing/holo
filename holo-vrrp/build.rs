@@ -45,6 +45,8 @@ static LEAF_TYPES: &[(&str, TypeSpec)] = &[(
 )];
 
 fn main() {
+    holo_platform::network_backend();
+
     let mut yang_ctx = yang::new_context();
     let modules = yang::implemented_modules::VRRP;
     yang::load_modules(&mut yang_ctx, modules);

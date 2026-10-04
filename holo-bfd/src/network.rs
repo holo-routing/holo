@@ -17,7 +17,7 @@ use holo_utils::bfd::PathType;
 use holo_utils::capabilities;
 use holo_utils::ip::{AddressFamily, IpAddrExt};
 use holo_utils::socket::{SocketExt, TTL_MAX, UdpSocket, UdpSocketExt};
-#[cfg(target_os = "linux")]
+#[cfg(network_backend = "linux")]
 use nix::sys::socket::{self, ControlMessageOwned};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::Sender;
@@ -40,11 +40,13 @@ pub enum PacketInfo {
     IpMultihop { src: IpAddr, dst: IpAddr, ttl: u8 },
 }
 
+// ===== global functions =====
+
 pub(crate) fn socket_rx(
     path_type: PathType,
     af: AddressFamily,
 ) -> Result<UdpSocket, std::io::Error> {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         // Create socket.
         let port = match path_type {
@@ -86,7 +88,7 @@ pub(crate) fn socket_rx(
 
         Ok(socket)
     }
-    #[cfg(feature = "testing")]
+    #[cfg(network_backend = "null")]
     {
         Ok(UdpSocket {})
     }
@@ -98,7 +100,7 @@ pub(crate) fn socket_tx(
     addr: IpAddr,
     ttl: u8,
 ) -> Result<UdpSocket, std::io::Error> {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         // Create socket.
         //
@@ -139,7 +141,7 @@ pub(crate) fn socket_tx(
 
         Ok(socket)
     }
-    #[cfg(feature = "testing")]
+    #[cfg(network_backend = "null")]
     {
         Ok(UdpSocket {})
     }
@@ -157,7 +159,7 @@ pub(crate) async fn send_packet(
     let buf = packet.encode();
 
     // Send packet.
-    match socket.send_to(&buf, sockaddr).await {
+    match send_to(&socket, &buf, sockaddr).await {
         Ok(_) => {
             tx_packet_count.fetch_add(1, atomic::Ordering::Relaxed);
         }
@@ -168,7 +170,115 @@ pub(crate) async fn send_packet(
     }
 }
 
-#[cfg(not(feature = "testing"))]
+pub(crate) async fn read_loop(
+    socket: Arc<UdpSocket>,
+    path_type: PathType,
+    udp_packet_rxp: Sender<UdpRxPacketMsg>,
+) -> Result<(), SendError<UdpRxPacketMsg>> {
+    #[cfg(network_backend = "linux")]
+    {
+        let mut buf = [0; 1024];
+        let mut iov = [IoSliceMut::new(&mut buf)];
+        let mut cmsgspace = nix::cmsg_space!(libc::in6_pktinfo);
+
+        loop {
+            // Receive data from the network.
+            match socket
+                .async_io(tokio::io::Interest::READABLE, || {
+                    match socket::recvmsg::<socket::SockaddrStorage>(
+                        socket.as_raw_fd(),
+                        &mut iov,
+                        Some(&mut cmsgspace),
+                        socket::MsgFlags::empty(),
+                    ) {
+                        Ok(msg) => {
+                            // Retrieve source and destination addresses.
+                            let src = get_packet_src(msg.address.as_ref());
+                            let dst = get_packet_dst(msg.cmsgs().unwrap());
+                            Ok((src, dst, msg.bytes))
+                        }
+                        Err(errno) => Err(errno.into()),
+                    }
+                })
+                .await
+            {
+                Ok((src, dst, bytes)) => {
+                    let Some(src) = src else {
+                        IoError::UdpRecvMissingSourceAddr.log();
+                        return Ok(());
+                    };
+                    let Some(dst) = dst else {
+                        IoError::UdpRecvMissingAncillaryData.log();
+                        return Ok(());
+                    };
+
+                    // Validate packet's source address.
+                    if !src.ip().is_usable() {
+                        Error::UdpInvalidSourceAddr(src.ip()).log();
+                        continue;
+                    }
+
+                    // Decode packet, discarding malformed ones.
+                    let packet = match Packet::decode(&iov[0].deref()[0..bytes])
+                    {
+                        Ok(packet) => packet,
+                        Err(_) => continue,
+                    };
+
+                    // Notify the BFD main task about the received packet.
+                    let packet_info = match path_type {
+                        PathType::IpSingleHop => {
+                            PacketInfo::IpSingleHop { src }
+                        }
+                        PathType::IpMultihop => {
+                            let src = src.ip();
+                            // TODO: get packet's TTL using IP_RECVTTL/IPV6_HOPLIMIT
+                            let ttl = TTL_MAX;
+                            PacketInfo::IpMultihop { src, dst, ttl }
+                        }
+                    };
+                    let msg = UdpRxPacketMsg {
+                        packet_info,
+                        packet,
+                    };
+                    udp_packet_rxp.send(msg).await?;
+                }
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::Interrupted =>
+                {
+                    // Retry if the syscall was interrupted (EINTR).
+                    continue;
+                }
+                Err(error) => {
+                    IoError::UdpRecvError(error).log();
+                }
+            }
+        }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
+}
+
+// ===== helper functions =====
+
+async fn send_to(
+    socket: &UdpSocket,
+    buf: &[u8],
+    sockaddr: SocketAddr,
+) -> Result<usize, std::io::Error> {
+    #[cfg(network_backend = "linux")]
+    {
+        socket.send_to(buf, sockaddr).await
+    }
+    #[cfg(network_backend = "null")]
+    {
+        Ok(buf.len())
+    }
+}
+
+#[cfg(network_backend = "linux")]
 fn get_packet_src(sa: Option<&socket::SockaddrStorage>) -> Option<SocketAddr> {
     sa.and_then(|sa| {
         sa.as_sockaddr_in()
@@ -180,7 +290,7 @@ fn get_packet_src(sa: Option<&socket::SockaddrStorage>) -> Option<SocketAddr> {
     })
 }
 
-#[cfg(not(feature = "testing"))]
+#[cfg(network_backend = "linux")]
 fn get_packet_dst(cmsgs: socket::CmsgIterator<'_>) -> Option<IpAddr> {
     for cmsg in cmsgs {
         match cmsg {
@@ -197,84 +307,4 @@ fn get_packet_dst(cmsgs: socket::CmsgIterator<'_>) -> Option<IpAddr> {
     }
 
     None
-}
-
-#[cfg(not(feature = "testing"))]
-pub(crate) async fn read_loop(
-    socket: Arc<UdpSocket>,
-    path_type: PathType,
-    udp_packet_rxp: Sender<UdpRxPacketMsg>,
-) -> Result<(), SendError<UdpRxPacketMsg>> {
-    let mut buf = [0; 1024];
-    let mut iov = [IoSliceMut::new(&mut buf)];
-    let mut cmsgspace = nix::cmsg_space!(libc::in6_pktinfo);
-
-    loop {
-        // Receive data from the network.
-        match socket
-            .async_io(tokio::io::Interest::READABLE, || {
-                match socket::recvmsg::<socket::SockaddrStorage>(
-                    socket.as_raw_fd(),
-                    &mut iov,
-                    Some(&mut cmsgspace),
-                    socket::MsgFlags::empty(),
-                ) {
-                    Ok(msg) => {
-                        // Retrieve source and destination addresses.
-                        let src = get_packet_src(msg.address.as_ref());
-                        let dst = get_packet_dst(msg.cmsgs().unwrap());
-                        Ok((src, dst, msg.bytes))
-                    }
-                    Err(errno) => Err(errno.into()),
-                }
-            })
-            .await
-        {
-            Ok((src, dst, bytes)) => {
-                let Some(src) = src else {
-                    IoError::UdpRecvMissingSourceAddr.log();
-                    return Ok(());
-                };
-                let Some(dst) = dst else {
-                    IoError::UdpRecvMissingAncillaryData.log();
-                    return Ok(());
-                };
-
-                // Validate packet's source address.
-                if !src.ip().is_usable() {
-                    Error::UdpInvalidSourceAddr(src.ip()).log();
-                    continue;
-                }
-
-                // Decode packet, discarding malformed ones.
-                let packet = match Packet::decode(&iov[0].deref()[0..bytes]) {
-                    Ok(packet) => packet,
-                    Err(_) => continue,
-                };
-
-                // Notify the BFD main task about the received packet.
-                let packet_info = match path_type {
-                    PathType::IpSingleHop => PacketInfo::IpSingleHop { src },
-                    PathType::IpMultihop => {
-                        let src = src.ip();
-                        // TODO: get packet's TTL using IP_RECVTTL/IPV6_HOPLIMIT
-                        let ttl = TTL_MAX;
-                        PacketInfo::IpMultihop { src, dst, ttl }
-                    }
-                };
-                let msg = UdpRxPacketMsg {
-                    packet_info,
-                    packet,
-                };
-                udp_packet_rxp.send(msg).await?;
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
-                // Retry if the syscall was interrupted (EINTR).
-                continue;
-            }
-            Err(error) => {
-                IoError::UdpRecvError(error).log();
-            }
-        }
-    }
 }

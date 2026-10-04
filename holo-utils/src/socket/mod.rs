@@ -9,16 +9,16 @@ use std::net::IpAddr;
 use serde::{Deserialize, Serialize};
 
 // Real Linux sockets.
-#[cfg(all(target_os = "linux", not(feature = "testing")))]
+#[cfg(network_backend = "linux")]
 mod linux;
-// Stubs with the same names, for test builds and WebAssembly.
-#[cfg(any(target_family = "wasm", feature = "testing"))]
-mod mock;
+// Sockets that go nowhere, for test builds and platforms without a backend.
+#[cfg(network_backend = "null")]
+mod null;
 
-#[cfg(all(target_os = "linux", not(feature = "testing")))]
+#[cfg(network_backend = "linux")]
 pub use crate::socket::linux::*;
-#[cfg(any(target_family = "wasm", feature = "testing"))]
-pub use crate::socket::mock::*;
+#[cfg(network_backend = "null")]
+pub use crate::socket::null::*;
 
 // Maximum TTL for IPv4 or Hop Limit for IPv6.
 pub const TTL_MAX: u8 = 255;

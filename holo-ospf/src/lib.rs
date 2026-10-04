@@ -5,7 +5,7 @@
 //
 
 #![cfg_attr(
-    feature = "testing",
+    any(feature = "testing", network_backend = "null"),
     allow(dead_code, unused_variables, unused_imports)
 )]
 #![allow(type_alias_bounds)]

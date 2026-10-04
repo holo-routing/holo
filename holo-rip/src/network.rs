@@ -43,25 +43,6 @@ pub trait NetworkVersion<V: Version> {
 // ===== global functions =====
 
 #[cfg(not(feature = "testing"))]
-pub(crate) async fn send_packet<V>(
-    socket: &UdpSocket,
-    pdu: V::Pdu,
-    dst: V::SocketAddr,
-    auth: Option<&AuthCtx>,
-) -> Result<(), std::io::Error>
-where
-    V: Version,
-{
-    // Encode PDU.
-    let buf = pdu.encode(auth);
-
-    // Send packet.
-    socket.send_to(&buf, dst).await?;
-
-    Ok(())
-}
-
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop<V>(
     socket: Arc<UdpSocket>,
     auth: Option<AuthCtx>,
@@ -70,15 +51,16 @@ pub(crate) async fn write_loop<V>(
     V: Version,
 {
     while let Some(UdpTxPduMsg { dst, pdu }) = udp_tx_pduc.recv().await {
-        if let Err(error) =
-            send_packet::<V>(&socket, pdu, dst, auth.as_ref()).await
-        {
+        // Encode PDU.
+        let buf = pdu.encode(auth.as_ref());
+
+        // Send packet.
+        if let Err(error) = send_to(&socket, &buf, dst.into()).await {
             IoError::UdpSendError(error).log();
         }
     }
 }
 
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop<V>(
     socket: Arc<UdpSocket>,
     auth: Option<AuthCtx>,
@@ -87,29 +69,53 @@ pub(crate) async fn read_loop<V>(
 where
     V: Version,
 {
-    let mut buf = [0; 16384];
+    #[cfg(network_backend = "linux")]
+    {
+        let mut buf = [0; 16384];
 
-    loop {
-        // Receive data from the network.
-        let (num_bytes, src) = match socket.recv_from(&mut buf).await {
-            Ok((num_bytes, src)) => (num_bytes, src),
-            Err(error) => {
-                IoError::UdpRecvError(error).log();
+        loop {
+            // Receive data from the network.
+            let (num_bytes, src) = match socket.recv_from(&mut buf).await {
+                Ok((num_bytes, src)) => (num_bytes, src),
+                Err(error) => {
+                    IoError::UdpRecvError(error).log();
+                    continue;
+                }
+            };
+
+            // Validate packet's source address.
+            let src = V::SocketAddr::get(src).unwrap();
+            let src_ip = *src.ip();
+            if !src_ip.is_usable() {
+                Error::<V>::UdpInvalidSourceAddr(src_ip).log();
                 continue;
             }
-        };
 
-        // Validate packet's source address.
-        let src = V::SocketAddr::get(src).unwrap();
-        let src_ip = *src.ip();
-        if !src_ip.is_usable() {
-            Error::<V>::UdpInvalidSourceAddr(src_ip).log();
-            continue;
+            // Decode packet.
+            let pdu = V::Pdu::decode(&buf[0..num_bytes], auth.as_ref());
+            let msg = UdpRxPduMsg { src, pdu };
+            udp_pdu_rxp.send(msg).await?;
         }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
+}
 
-        // Decode packet.
-        let pdu = V::Pdu::decode(&buf[0..num_bytes], auth.as_ref());
-        let msg = UdpRxPduMsg { src, pdu };
-        udp_pdu_rxp.send(msg).await?;
+// ===== helper functions =====
+
+async fn send_to(
+    socket: &UdpSocket,
+    buf: &[u8],
+    dst: std::net::SocketAddr,
+) -> Result<usize, std::io::Error> {
+    #[cfg(network_backend = "linux")]
+    {
+        socket.send_to(buf, dst).await
+    }
+    #[cfg(network_backend = "null")]
+    {
+        Ok(buf.len())
     }
 }

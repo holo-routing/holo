@@ -10,6 +10,7 @@ members = [
   "holo-ldp",
   "holo-northbound",
   "holo-ospf",
+  "holo-platform",
   "holo-policy",
   "holo-protocol",
   "holo-rip",

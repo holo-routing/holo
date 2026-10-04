@@ -14,7 +14,7 @@ use arc_swap::ArcSwap;
 use holo_utils::bytes::Bytes;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::socket::{AsyncFd, Socket};
-#[cfg(target_os = "linux")]
+#[cfg(network_backend = "linux")]
 use nix::sys::socket::{self, SockaddrLike};
 use serde::Serialize;
 use tokio::sync::mpsc::error::SendError;
@@ -44,9 +44,9 @@ pub enum MulticastAddr {
 pub trait NetworkVersion<V: Version> {
     type NetIpAddr: IpAddrKind;
     type NetIpNetwork: IpNetworkKind<Self::NetIpAddr>;
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     type SocketAddr: SockaddrLike + Send + Sync;
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     type Pktinfo: Send + Sync;
 
     // Create OSPF socket.
@@ -79,23 +79,23 @@ pub trait NetworkVersion<V: Version> {
     ) -> Result<(), std::io::Error>;
 
     // Create new IP_PKTINFO/IPV6_PKTINFO struct.
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     fn new_pktinfo(src: V::NetIpAddr, ifindex: u32) -> V::Pktinfo;
 
     // Initialize the control message used by `sendmsg`.
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     fn set_cmsg_data(pktinfo: &V::Pktinfo) -> socket::ControlMessage<'_>;
 
     // Get destination address from the control message of a received packet.
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     fn get_cmsg_data(cmsgs: socket::CmsgIterator<'_>) -> Option<V::NetIpAddr>;
 
     // Convert packet destination to socket address.
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     fn dst_to_sockaddr(ifindex: u32, addr: V::NetIpAddr) -> V::SocketAddr;
 
     // Convert socket address to packet source address.
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     fn src_from_sockaddr(sockaddr: &V::SocketAddr) -> V::NetIpAddr;
 
     // Validate the IP header of the received packet.
@@ -103,48 +103,6 @@ pub trait NetworkVersion<V: Version> {
 }
 
 // ===== global functions =====
-
-#[cfg(not(feature = "testing"))]
-pub(crate) async fn send_packet<V>(
-    socket: &AsyncFd<Socket>,
-    ifname: &str,
-    ifindex: u32,
-    src: V::NetIpAddr,
-    dst: V::NetIpAddr,
-    packet: &Packet<V>,
-    auth: Option<AuthEncodeCtx<'_>>,
-    trace_opts: &Arc<ArcSwap<TraceOptionPacketResolved>>,
-) -> Result<usize, IoError>
-where
-    V: Version,
-{
-    // Log packet being sent.
-    if trace_opts.load().tx(packet.hdr().pkt_type()) {
-        Debug::<V>::PacketTx(ifname, &dst, packet).log();
-    }
-
-    // Encode packet.
-    let buf = packet.encode(auth);
-
-    // Send packet.
-    let iov = [IoSlice::new(&buf)];
-    let sockaddr: V::SocketAddr = V::dst_to_sockaddr(ifindex, dst);
-    let pktinfo = V::new_pktinfo(src, ifindex);
-    let cmsg = [V::set_cmsg_data(&pktinfo)];
-    socket
-        .async_io(tokio::io::Interest::WRITABLE, |socket| {
-            socket::sendmsg(
-                socket.as_raw_fd(),
-                &iov,
-                &cmsg,
-                socket::MsgFlags::empty(),
-                Some(&sockaddr),
-            )
-            .map_err(|errno| errno.into())
-        })
-        .await
-        .map_err(IoError::SendError)
-}
 
 #[cfg(not(feature = "testing"))]
 pub(crate) async fn write_loop<V>(
@@ -184,17 +142,17 @@ pub(crate) async fn write_loop<V>(
 
         // Send packet to all requested destinations.
         for dst in dst {
-            if let Err(error) = send_packet(
-                &socket,
-                &ifname,
-                ifindex,
-                src,
-                dst,
-                &packet,
-                auth,
-                &trace_opts,
-            )
-            .await
+            // Log packet being sent.
+            if trace_opts.load().tx(packet.hdr().pkt_type()) {
+                Debug::<V>::PacketTx(&ifname, &dst, &packet).log();
+            }
+
+            // Encode packet.
+            let buf = packet.encode(auth);
+
+            // Send packet.
+            if let Err(error) =
+                send_to::<V>(&socket, ifindex, src, dst, &buf).await
             {
                 error.log();
             }
@@ -202,7 +160,6 @@ pub(crate) async fn write_loop<V>(
     }
 }
 
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop<V>(
     socket: Arc<AsyncFd<Socket>>,
     area_id: AreaId,
@@ -214,70 +171,118 @@ pub(crate) async fn read_loop<V>(
 where
     V: Version,
 {
-    let mut buf = [0; 16384];
-    let mut iov = [IoSliceMut::new(&mut buf)];
-    let mut cmsgspace = nix::cmsg_space!(V::Pktinfo);
+    #[cfg(network_backend = "linux")]
+    {
+        let mut buf = [0; 16384];
+        let mut iov = [IoSliceMut::new(&mut buf)];
+        let mut cmsgspace = nix::cmsg_space!(V::Pktinfo);
 
-    loop {
-        // Receive data packet.
-        match socket
-            .async_io(tokio::io::Interest::READABLE, |socket| {
-                match socket::recvmsg::<V::SocketAddr>(
-                    socket.as_raw_fd(),
-                    &mut iov,
-                    Some(&mut cmsgspace),
-                    socket::MsgFlags::empty(),
-                ) {
-                    Ok(msg) => {
-                        // Retrieve source and destination addresses.
-                        let src = msg
-                            .address
-                            .as_ref()
-                            .map(|addr| V::src_from_sockaddr(addr));
-                        let dst = V::get_cmsg_data(msg.cmsgs().unwrap());
-                        Ok((src, dst, msg.bytes))
+        loop {
+            // Receive data packet.
+            match socket
+                .async_io(tokio::io::Interest::READABLE, |socket| {
+                    match socket::recvmsg::<V::SocketAddr>(
+                        socket.as_raw_fd(),
+                        &mut iov,
+                        Some(&mut cmsgspace),
+                        socket::MsgFlags::empty(),
+                    ) {
+                        Ok(msg) => {
+                            // Retrieve source and destination addresses.
+                            let src = msg
+                                .address
+                                .as_ref()
+                                .map(|addr| V::src_from_sockaddr(addr));
+                            let dst = V::get_cmsg_data(msg.cmsgs().unwrap());
+                            Ok((src, dst, msg.bytes))
+                        }
+                        Err(errno) => Err(errno.into()),
                     }
-                    Err(errno) => Err(errno.into()),
-                }
-            })
-            .await
-        {
-            Ok((src, dst, bytes)) => {
-                let Some(src) = src else {
-                    IoError::RecvMissingSourceAddr.log();
-                    return Ok(());
-                };
-                let Some(dst) = dst else {
-                    IoError::RecvMissingAncillaryData.log();
-                    return Ok(());
-                };
+                })
+                .await
+            {
+                Ok((src, dst, bytes)) => {
+                    let Some(src) = src else {
+                        IoError::RecvMissingSourceAddr.log();
+                        return Ok(());
+                    };
+                    let Some(dst) = dst else {
+                        IoError::RecvMissingAncillaryData.log();
+                        return Ok(());
+                    };
 
-                // Decode packet.
-                let mut buf = Bytes::copy_from_slice(&iov[0].deref()[0..bytes]);
-                let auth_guard = auth.load();
-                let packet = V::validate_ip_hdr(&mut buf).and_then(|_| {
-                    let auth = auth_guard
-                        .as_ref()
-                        .as_ref()
-                        .map(|auth| AuthDecodeCtx::new(auth, src.into()));
-                    Packet::decode(af, &mut buf, auth)
-                });
-                let msg = NetRxPacketMsg {
-                    area_key: area_id.into(),
-                    iface_key: iface_id.into(),
-                    src,
-                    dst,
-                    packet,
-                };
-                net_packet_rxp.send(msg).await?;
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
-                // Retry if the syscall was interrupted (EINTR).
-                continue;
-            }
-            Err(error) => {
-                IoError::RecvError(error).log();
+                    // Decode packet.
+                    let mut buf =
+                        Bytes::copy_from_slice(&iov[0].deref()[0..bytes]);
+                    let auth_guard = auth.load();
+                    let packet = V::validate_ip_hdr(&mut buf).and_then(|_| {
+                        let auth = auth_guard
+                            .as_ref()
+                            .as_ref()
+                            .map(|auth| AuthDecodeCtx::new(auth, src.into()));
+                        Packet::decode(af, &mut buf, auth)
+                    });
+                    let msg = NetRxPacketMsg {
+                        area_key: area_id.into(),
+                        iface_key: iface_id.into(),
+                        src,
+                        dst,
+                        packet,
+                    };
+                    net_packet_rxp.send(msg).await?;
+                }
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::Interrupted =>
+                {
+                    // Retry if the syscall was interrupted (EINTR).
+                    continue;
+                }
+                Err(error) => {
+                    IoError::RecvError(error).log();
+                }
             }
         }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
+}
+
+// ===== helper functions =====
+
+async fn send_to<V>(
+    socket: &AsyncFd<Socket>,
+    ifindex: u32,
+    src: V::NetIpAddr,
+    dst: V::NetIpAddr,
+    buf: &[u8],
+) -> Result<usize, IoError>
+where
+    V: Version,
+{
+    #[cfg(network_backend = "linux")]
+    {
+        let iov = [IoSlice::new(buf)];
+        let sockaddr: V::SocketAddr = V::dst_to_sockaddr(ifindex, dst);
+        let pktinfo = V::new_pktinfo(src, ifindex);
+        let cmsg = [V::set_cmsg_data(&pktinfo)];
+        socket
+            .async_io(tokio::io::Interest::WRITABLE, |socket| {
+                socket::sendmsg(
+                    socket.as_raw_fd(),
+                    &iov,
+                    &cmsg,
+                    socket::MsgFlags::empty(),
+                    Some(&sockaddr),
+                )
+                .map_err(|errno| errno.into())
+            })
+            .await
+            .map_err(IoError::SendError)
+    }
+    #[cfg(network_backend = "null")]
+    {
+        Ok(buf.len())
     }
 }

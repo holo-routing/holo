@@ -31,7 +31,7 @@ const BGP_PORT: u16 = 179;
 pub(crate) fn listen_socket(
     af: AddressFamily,
 ) -> Result<TcpListener, std::io::Error> {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         // Create TCP socket.
         let socket = socket(af)?;
@@ -56,7 +56,7 @@ pub(crate) fn listen_socket(
 
         Ok(socket)
     }
-    #[cfg(feature = "testing")]
+    #[cfg(network_backend = "null")]
     {
         Ok(TcpListener {})
     }
@@ -67,7 +67,7 @@ pub(crate) fn listen_socket_md5sig_update(
     nbr_addr: &IpAddr,
     password: Option<&str>,
 ) {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         if let Err(error) = socket.set_md5sig(nbr_addr, password) {
             IoError::TcpAuthError(error).log();
@@ -75,29 +75,35 @@ pub(crate) fn listen_socket_md5sig_update(
     }
 }
 
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn listen_loop(
     listener: Arc<TcpListener>,
     tcp_acceptp: Sender<TcpAcceptMsg>,
 ) -> Result<(), SendError<TcpAcceptMsg>> {
-    loop {
-        match listener.accept().await {
-            Ok((stream, _)) => match stream.conn_info() {
-                Ok(conn_info) => {
-                    let msg = TcpAcceptMsg {
-                        stream: Some(stream),
-                        conn_info,
-                    };
-                    tcp_acceptp.send(msg).await?;
-                }
+    #[cfg(network_backend = "linux")]
+    {
+        loop {
+            match listener.accept().await {
+                Ok((stream, _)) => match stream.conn_info() {
+                    Ok(conn_info) => {
+                        let msg = TcpAcceptMsg {
+                            stream: Some(stream),
+                            conn_info,
+                        };
+                        tcp_acceptp.send(msg).await?;
+                    }
+                    Err(error) => {
+                        IoError::TcpInfoError(error).log();
+                    }
+                },
                 Err(error) => {
-                    IoError::TcpInfoError(error).log();
+                    IoError::TcpAcceptError(error).log();
                 }
-            },
-            Err(error) => {
-                IoError::TcpAcceptError(error).log();
             }
         }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
     }
 }
 
@@ -108,7 +114,7 @@ pub(crate) fn accepted_stream_init(
     ttl_security: Option<u8>,
     tcp_mss: Option<u16>,
 ) -> Result<(), std::io::Error> {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         // Set TTL.
         match af {
@@ -134,7 +140,6 @@ pub(crate) fn accepted_stream_init(
     Ok(())
 }
 
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn connect(
     remote_addr: IpAddr,
     local_addr: Option<IpAddr>,
@@ -143,157 +148,178 @@ pub(crate) async fn connect(
     tcp_mss: Option<u16>,
     tcp_password: &Option<String>,
 ) -> Result<(TcpStream, TcpConnInfo), Error> {
-    let af = remote_addr.address_family();
+    #[cfg(network_backend = "linux")]
+    {
+        let af = remote_addr.address_family();
 
-    // Create TCP socket.
-    let socket = socket(af).map_err(IoError::TcpSocketError)?;
+        // Create TCP socket.
+        let socket = socket(af).map_err(IoError::TcpSocketError)?;
 
-    // Bind socket.
-    if let Some(local_addr) = local_addr {
-        let sockaddr = SocketAddr::from((local_addr, 0));
-        socket
-            .set_reuseaddr(true)
-            .map_err(IoError::TcpSocketError)?;
-        capabilities::raise(|| socket.bind(sockaddr))
-            .map_err(IoError::TcpSocketError)?;
-    }
+        // Bind socket.
+        if let Some(local_addr) = local_addr {
+            let sockaddr = SocketAddr::from((local_addr, 0));
+            socket
+                .set_reuseaddr(true)
+                .map_err(IoError::TcpSocketError)?;
+            capabilities::raise(|| socket.bind(sockaddr))
+                .map_err(IoError::TcpSocketError)?;
+        }
 
-    // Set TTL.
-    match af {
-        AddressFamily::Ipv4 => socket.set_ipv4_ttl(ttl),
-        AddressFamily::Ipv6 => socket.set_ipv6_unicast_hops(ttl),
-    }
-    .map_err(IoError::TcpSocketError)?;
-
-    // Set TTL security check.
-    if let Some(ttl_security_hops) = ttl_security {
-        let ttl = TTL_MAX - ttl_security_hops + 1;
+        // Set TTL.
         match af {
-            AddressFamily::Ipv4 => socket.set_ipv4_minttl(ttl),
-            AddressFamily::Ipv6 => socket.set_ipv6_min_hopcount(ttl),
+            AddressFamily::Ipv4 => socket.set_ipv4_ttl(ttl),
+            AddressFamily::Ipv6 => socket.set_ipv6_unicast_hops(ttl),
         }
         .map_err(IoError::TcpSocketError)?;
-    }
 
-    // Set the TCP Maximum Segment Size.
-    if let Some(tcp_mss) = tcp_mss {
-        socket
-            .set_mss(tcp_mss.into())
+        // Set TTL security check.
+        if let Some(ttl_security_hops) = ttl_security {
+            let ttl = TTL_MAX - ttl_security_hops + 1;
+            match af {
+                AddressFamily::Ipv4 => socket.set_ipv4_minttl(ttl),
+                AddressFamily::Ipv6 => socket.set_ipv6_min_hopcount(ttl),
+            }
             .map_err(IoError::TcpSocketError)?;
+        }
+
+        // Set the TCP Maximum Segment Size.
+        if let Some(tcp_mss) = tcp_mss {
+            socket
+                .set_mss(tcp_mss.into())
+                .map_err(IoError::TcpSocketError)?;
+        }
+
+        // Set the TCP MD5 password.
+        if let Some(tcp_password) = tcp_password {
+            socket
+                .set_md5sig(&remote_addr, Some(tcp_password))
+                .map_err(IoError::TcpAuthError)?;
+        }
+
+        // Connect to remote address on the BGP port.
+        let sockaddr = SocketAddr::from((remote_addr, BGP_PORT));
+        let stream = socket
+            .connect(sockaddr)
+            .await
+            .map_err(IoError::TcpConnectError)?;
+
+        // Obtain TCP connection address/port information.
+        let conn_info = stream.conn_info().map_err(IoError::TcpInfoError)?;
+
+        Ok((stream, conn_info))
     }
-
-    // Set the TCP MD5 password.
-    if let Some(tcp_password) = tcp_password {
-        socket
-            .set_md5sig(&remote_addr, Some(tcp_password))
-            .map_err(IoError::TcpAuthError)?;
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
     }
-
-    // Connect to remote address on the BGP port.
-    let sockaddr = SocketAddr::from((remote_addr, BGP_PORT));
-    let stream = socket
-        .connect(sockaddr)
-        .await
-        .map_err(IoError::TcpConnectError)?;
-
-    // Obtain TCP connection address/port information.
-    let conn_info = stream.conn_info().map_err(IoError::TcpInfoError)?;
-
-    Ok((stream, conn_info))
 }
 
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn nbr_write_loop(
     stream: OwnedWriteHalf,
-    mut cxt: EncodeCxt,
+    cxt: EncodeCxt,
     mut nbr_msg_txc: UnboundedReceiver<NbrTxMsg>,
 ) {
-    let mut stream = BufWriter::with_capacity(65536, stream);
-    while let Some(msg) = nbr_msg_txc.recv().await {
-        match msg {
-            // Send message to the peer.
-            NbrTxMsg::SendMessage { msg, .. } => {
-                let buf = msg.encode(&cxt);
-                if let Err(error) = stream.write_all(&buf).await {
-                    IoError::TcpSendError(error).log();
-                }
-            }
-            // Send list of messages to the peer.
-            NbrTxMsg::SendMessageList { msg_list, .. } => {
-                for msg in msg_list {
+    #[cfg(network_backend = "linux")]
+    {
+        let mut cxt = cxt;
+        let mut stream = BufWriter::with_capacity(65536, stream);
+        while let Some(msg) = nbr_msg_txc.recv().await {
+            match msg {
+                // Send message to the peer.
+                NbrTxMsg::SendMessage { msg, .. } => {
                     let buf = msg.encode(&cxt);
                     if let Err(error) = stream.write_all(&buf).await {
                         IoError::TcpSendError(error).log();
                     }
                 }
+                // Send list of messages to the peer.
+                NbrTxMsg::SendMessageList { msg_list, .. } => {
+                    for msg in msg_list {
+                        let buf = msg.encode(&cxt);
+                        if let Err(error) = stream.write_all(&buf).await {
+                            IoError::TcpSendError(error).log();
+                        }
+                    }
+                }
+                // Update negotiated capabilities.
+                NbrTxMsg::UpdateCapabilities(caps) => cxt.capabilities = caps,
             }
-            // Update negotiated capabilities.
-            NbrTxMsg::UpdateCapabilities(caps) => cxt.capabilities = caps,
-        }
 
-        // Send any data still sitting in the write buffer.
-        if let Err(error) = stream.flush().await {
-            IoError::TcpSendError(error).log();
+            // Send any data still sitting in the write buffer.
+            if let Err(error) = stream.flush().await {
+                IoError::TcpSendError(error).log();
+            }
         }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        while nbr_msg_txc.recv().await.is_some() {}
     }
 }
 
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn nbr_read_loop(
-    mut stream: OwnedReadHalf,
+    stream: OwnedReadHalf,
     nbr_addr: IpAddr,
-    mut cxt: DecodeCxt,
+    cxt: DecodeCxt,
     nbr_msg_rxp: Sender<NbrRxMsg>,
 ) -> Result<(), SendError<NbrRxMsg>> {
-    const BUF_SIZE: usize = 65535;
-    let mut data = BytesMut::with_capacity(BUF_SIZE);
+    #[cfg(network_backend = "linux")]
+    {
+        let (mut stream, mut cxt) = (stream, cxt);
+        const BUF_SIZE: usize = 65535;
+        let mut data = BytesMut::with_capacity(BUF_SIZE);
 
-    loop {
-        // Read data from the network.
-        match data.read_from(&mut stream).await {
-            Ok(0) => {
-                // Notify that the connection was closed by the remote end.
-                let msg = NbrRxMsg {
-                    nbr_addr,
-                    msg: Err(NbrRxError::TcpConnClosed),
-                };
+        loop {
+            // Read data from the network.
+            match data.read_from(&mut stream).await {
+                Ok(0) => {
+                    // Notify that the connection was closed by the remote end.
+                    let msg = NbrRxMsg {
+                        nbr_addr,
+                        msg: Err(NbrRxError::TcpConnClosed),
+                    };
+                    nbr_msg_rxp.send(msg).await?;
+                    return Ok(());
+                }
+                Ok(_) => {}
+                Err(error) => {
+                    IoError::TcpRecvError(error).log();
+                    continue;
+                }
+            };
+
+            // Decode message(s).
+            while let Some(msg_size) = Message::get_message_len(&data) {
+                let msg = Message::decode(&data[0..msg_size], &cxt)
+                    .map_err(NbrRxError::MsgDecodeError);
+                data.try_advance(msg_size).unwrap();
+
+                // Keep track of received capabilities as they influence how
+                // some messages should be decoded.
+                if let Ok(Message::Open(msg)) = &msg {
+                    let capabilities = msg
+                        .capabilities
+                        .iter()
+                        .map(|cap| cap.as_negotiated())
+                        .collect::<BTreeSet<_>>();
+                    cxt.capabilities = capabilities;
+                }
+
+                // Notify that the BGP message was received.
+                let msg = NbrRxMsg { nbr_addr, msg };
                 nbr_msg_rxp.send(msg).await?;
-                return Ok(());
             }
-            Ok(_) => {}
-            Err(error) => {
-                IoError::TcpRecvError(error).log();
-                continue;
-            }
-        };
-
-        // Decode message(s).
-        while let Some(msg_size) = Message::get_message_len(&data) {
-            let msg = Message::decode(&data[0..msg_size], &cxt)
-                .map_err(NbrRxError::MsgDecodeError);
-            data.try_advance(msg_size).unwrap();
-
-            // Keep track of received capabilities as they influence how some
-            // messages should be decoded.
-            if let Ok(Message::Open(msg)) = &msg {
-                let capabilities = msg
-                    .capabilities
-                    .iter()
-                    .map(|cap| cap.as_negotiated())
-                    .collect::<BTreeSet<_>>();
-                cxt.capabilities = capabilities;
-            }
-
-            // Notify that the BGP message was received.
-            let msg = NbrRxMsg { nbr_addr, msg };
-            nbr_msg_rxp.send(msg).await?;
         }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
     }
 }
 
 // ===== helper functions =====
 
-#[cfg(not(feature = "testing"))]
+#[cfg(network_backend = "linux")]
 fn socket(af: AddressFamily) -> Result<TcpSocket, std::io::Error> {
     let socket = match af {
         AddressFamily::Ipv4 => TcpSocket::new_v4()?,

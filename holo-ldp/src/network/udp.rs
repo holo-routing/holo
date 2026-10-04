@@ -32,7 +32,7 @@ pub static LDP_MCAST_SOCKADDR_V6: SocketAddr = sock!("[ff02::2]:646");
 pub(crate) fn discovery_socket(
     addr: IpAddr,
 ) -> Result<UdpSocket, std::io::Error> {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         // Create and bind socket.
         let sockaddr = SocketAddr::from((addr, network::LDP_PORT));
@@ -44,7 +44,7 @@ pub(crate) fn discovery_socket(
 
         Ok(socket)
     }
-    #[cfg(feature = "testing")]
+    #[cfg(network_backend = "null")]
     {
         Ok(UdpSocket {})
     }
@@ -53,7 +53,7 @@ pub(crate) fn discovery_socket(
 pub(crate) fn interface_discovery_socket(
     iface: &Interface,
 ) -> Result<UdpSocket, std::io::Error> {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         // Create and bind socket.
         let socket = UdpSocket::new(AddressFamily::Ipv4)?;
@@ -68,7 +68,7 @@ pub(crate) fn interface_discovery_socket(
 
         Ok(socket)
     }
-    #[cfg(feature = "testing")]
+    #[cfg(network_backend = "null")]
     {
         Ok(UdpSocket {})
     }
@@ -78,14 +78,11 @@ pub(crate) async fn send_packet_multicast(
     socket: &UdpSocket,
     pdu: Pdu,
 ) -> Result<(), std::io::Error> {
-    #[cfg(not(feature = "testing"))]
-    {
-        // Encode Hello message.
-        let buf = pdu.encode(Pdu::DFLT_MAX_LEN);
+    // Encode Hello message.
+    let buf = pdu.encode(Pdu::DFLT_MAX_LEN);
 
-        // Send packet.
-        socket.send_to(&buf, &LDP_MCAST_SOCKADDR_V4).await?;
-    }
+    // Send packet.
+    send_to(socket, &buf, LDP_MCAST_SOCKADDR_V4).await?;
 
     Ok(())
 }
@@ -95,75 +92,93 @@ pub(crate) async fn send_packet_unicast(
     pdu: Pdu,
     addr: &IpAddr,
 ) -> Result<(), std::io::Error> {
-    #[cfg(not(feature = "testing"))]
-    {
-        // Encode Hello message.
-        let buf = pdu.encode(Pdu::DFLT_MAX_LEN);
+    // Encode Hello message.
+    let buf = pdu.encode(Pdu::DFLT_MAX_LEN);
 
-        // Send packet.
-        socket
-            .send_to(&buf, SocketAddr::new(*addr, network::LDP_PORT))
-            .await?;
-    }
+    // Send packet.
+    send_to(socket, &buf, SocketAddr::new(*addr, network::LDP_PORT)).await?;
 
     Ok(())
 }
 
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop(
     socket: Arc<UdpSocket>,
     multicast: bool,
     udp_pdu_rxp: Sender<UdpRxPduMsg>,
 ) -> Result<(), SendError<UdpRxPduMsg>> {
-    let mut buf = [0; 4096];
+    #[cfg(network_backend = "linux")]
+    {
+        let mut buf = [0; 4096];
 
-    // PDU header validation closure.
-    let validate_pdu_hdr = |_lsr_id, label_space| {
-        if label_space != 0 {
-            return Err(DecodeError::InvalidLabelSpace(label_space));
-        }
-        Ok(())
-    };
+        // PDU header validation closure.
+        let validate_pdu_hdr = |_lsr_id, label_space| {
+            if label_space != 0 {
+                return Err(DecodeError::InvalidLabelSpace(label_space));
+            }
+            Ok(())
+        };
 
-    // Decode context.
-    let mut cxt = DecodeCxt {
-        pkt_info: PacketInfo {
-            // The source address will be overwritten later.
-            src_addr: IpAddr::from([0, 0, 0, 0]),
-            multicast: None,
-        },
-        pdu_max_len: Pdu::DFLT_MAX_LEN,
-        validate_pdu_hdr: Some(Box::new(validate_pdu_hdr)),
-        validate_msg_hdr: None,
-    };
+        // Decode context.
+        let mut cxt = DecodeCxt {
+            pkt_info: PacketInfo {
+                // The source address will be overwritten later.
+                src_addr: IpAddr::from([0, 0, 0, 0]),
+                multicast: None,
+            },
+            pdu_max_len: Pdu::DFLT_MAX_LEN,
+            validate_pdu_hdr: Some(Box::new(validate_pdu_hdr)),
+            validate_msg_hdr: None,
+        };
 
-    loop {
-        // Receive data from the network.
-        let (num_bytes, src) = match socket.recv_from(&mut buf).await {
-            Ok((num_bytes, src)) => (num_bytes, src),
-            Err(error) => {
-                IoError::UdpRecvError(error).log();
+        loop {
+            // Receive data from the network.
+            let (num_bytes, src) = match socket.recv_from(&mut buf).await {
+                Ok((num_bytes, src)) => (num_bytes, src),
+                Err(error) => {
+                    IoError::UdpRecvError(error).log();
+                    continue;
+                }
+            };
+
+            // Validate packet source address.
+            let src_addr = src.ip();
+            if !src_addr.is_usable() {
+                Error::UdpInvalidSourceAddr(src_addr).log();
                 continue;
             }
-        };
 
-        // Validate packet source address.
-        let src_addr = src.ip();
-        if !src_addr.is_usable() {
-            Error::UdpInvalidSourceAddr(src_addr).log();
-            continue;
+            // Decode packet.
+            cxt.pkt_info.src_addr = src_addr;
+            let buf = &buf[0..num_bytes];
+            let pdu = Pdu::get_pdu_size(buf, &cxt)
+                .and_then(|pdu_size| Pdu::decode(&buf[0..pdu_size], &cxt));
+            let msg = UdpRxPduMsg {
+                src_addr,
+                multicast,
+                pdu,
+            };
+            udp_pdu_rxp.send(msg).await?;
         }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
+}
 
-        // Decode packet.
-        cxt.pkt_info.src_addr = src_addr;
-        let buf = &buf[0..num_bytes];
-        let pdu = Pdu::get_pdu_size(buf, &cxt)
-            .and_then(|pdu_size| Pdu::decode(&buf[0..pdu_size], &cxt));
-        let msg = UdpRxPduMsg {
-            src_addr,
-            multicast,
-            pdu,
-        };
-        udp_pdu_rxp.send(msg).await?;
+// ===== helper functions =====
+
+async fn send_to(
+    socket: &UdpSocket,
+    buf: &[u8],
+    dst: SocketAddr,
+) -> Result<usize, std::io::Error> {
+    #[cfg(network_backend = "linux")]
+    {
+        socket.send_to(buf, dst).await
+    }
+    #[cfg(network_backend = "null")]
+    {
+        Ok(buf.len())
     }
 }

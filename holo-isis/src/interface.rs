@@ -866,7 +866,7 @@ impl Drop for Interface {
 
 impl InterfaceSys {
     fn join_multicast(&self, socket: &Socket, addr: MulticastAddr) {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             let ifindex = self.ifindex.unwrap();
             if let Err(error) =
@@ -879,7 +879,7 @@ impl InterfaceSys {
 
     #[expect(unused)]
     fn leave_multicast(&self, socket: &Socket, addr: MulticastAddr) {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             let ifindex = self.ifindex.unwrap();
             if let Err(error) =

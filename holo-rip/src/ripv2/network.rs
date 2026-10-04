@@ -23,7 +23,7 @@ impl NetworkVersion<Self> for Ripv2 {
     const UDP_PORT: u16 = 520;
 
     fn socket(ifname: &str) -> Result<UdpSocket, std::io::Error> {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             let sockaddr =
                 SocketAddr::from((Ipv4Addr::UNSPECIFIED, Self::UDP_PORT));
@@ -37,7 +37,7 @@ impl NetworkVersion<Self> for Ripv2 {
             socket.set_ipv4_tos(libc::IPTOS_PREC_INTERNETCONTROL)?;
             Ok(socket)
         }
-        #[cfg(feature = "testing")]
+        #[cfg(network_backend = "null")]
         {
             Ok(UdpSocket {})
         }
@@ -47,11 +47,11 @@ impl NetworkVersion<Self> for Ripv2 {
         socket: &UdpSocket,
         ifindex: u32,
     ) -> Result<(), std::io::Error> {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             socket.join_multicast_ifindex_v4(&RIPV2_MCAST_ADDR, ifindex)
         }
-        #[cfg(feature = "testing")]
+        #[cfg(network_backend = "null")]
         {
             Ok(())
         }
@@ -61,11 +61,11 @@ impl NetworkVersion<Self> for Ripv2 {
         socket: &UdpSocket,
         ifindex: u32,
     ) -> Result<(), std::io::Error> {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             socket.leave_multicast_ifindex_v4(&RIPV2_MCAST_ADDR, ifindex)
         }
-        #[cfg(feature = "testing")]
+        #[cfg(network_backend = "null")]
         {
             Ok(())
         }

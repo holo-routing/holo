@@ -55,6 +55,7 @@ criterion.workspace = true
 yang5 = { workspace = true, features = ["bundled"] }
 holo-northbound = { path = "../holo-northbound", features = ["isis"] }
 holo-yang = { path = "../holo-yang" }
+holo-platform = { path = "../holo-platform" }
 
 [lints]
 workspace = true

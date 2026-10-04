@@ -23,7 +23,7 @@ impl NetworkVersion<Self> for Ripng {
     const UDP_PORT: u16 = 521;
 
     fn socket(ifname: &str) -> Result<UdpSocket, std::io::Error> {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             let sockaddr =
                 SocketAddr::from((Ipv6Addr::UNSPECIFIED, Self::UDP_PORT));
@@ -45,7 +45,7 @@ impl NetworkVersion<Self> for Ripng {
 
             Ok(socket)
         }
-        #[cfg(feature = "testing")]
+        #[cfg(network_backend = "null")]
         {
             Ok(UdpSocket {})
         }
@@ -55,11 +55,11 @@ impl NetworkVersion<Self> for Ripng {
         socket: &UdpSocket,
         ifindex: u32,
     ) -> Result<(), std::io::Error> {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             socket.join_multicast_v6(&RIPNG_MCAST_ADDR, ifindex)
         }
-        #[cfg(feature = "testing")]
+        #[cfg(network_backend = "null")]
         {
             Ok(())
         }
@@ -69,11 +69,11 @@ impl NetworkVersion<Self> for Ripng {
         socket: &UdpSocket,
         ifindex: u32,
     ) -> Result<(), std::io::Error> {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             socket.leave_multicast_v6(&RIPNG_MCAST_ADDR, ifindex)
         }
-        #[cfg(feature = "testing")]
+        #[cfg(network_backend = "null")]
         {
             Ok(())
         }

@@ -14,8 +14,8 @@ use const_addrs::ip4;
 use holo_utils::bytes::{Bytes, TryGetError};
 use holo_utils::capabilities;
 use holo_utils::socket::{AsyncFd, RawSocketExt, Socket};
-#[cfg(target_os = "linux")]
-use nix::sys::socket::{self, SockaddrIn};
+#[cfg(network_backend = "linux")]
+use nix::sys::socket::{self, ControlMessageOwned, SockaddrIn};
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
@@ -34,7 +34,7 @@ pub static ALL_ROUTERS: Ipv4Addr = ip4!("224.0.0.2");
 // ===== global functions =====
 
 pub(crate) fn socket_tx(ifname: &str) -> Result<Socket, std::io::Error> {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         use socket2::{Domain, Protocol, Type};
 
@@ -56,14 +56,14 @@ pub(crate) fn socket_tx(ifname: &str) -> Result<Socket, std::io::Error> {
 
         Ok(socket)
     }
-    #[cfg(feature = "testing")]
+    #[cfg(network_backend = "null")]
     {
         Ok(Socket {})
     }
 }
 
 pub(crate) fn socket_rx() -> Result<Socket, std::io::Error> {
-    #[cfg(not(feature = "testing"))]
+    #[cfg(network_backend = "linux")]
     {
         use socket2::{Domain, Protocol, Type};
 
@@ -82,7 +82,7 @@ pub(crate) fn socket_rx() -> Result<Socket, std::io::Error> {
         Ok(socket)
     }
 
-    #[cfg(feature = "testing")]
+    #[cfg(network_backend = "null")]
     {
         Ok(Socket {})
     }
@@ -96,83 +96,96 @@ pub(crate) async fn write_loop(
     while let Some(NetTxPacketMsg { dst, packet, .. }) =
         net_tx_packetc.recv().await
     {
+        // Encode packet.
+        let buf = packet.encode();
+
         // Send packet out the interface.
-        if let Err(error) = send_packet(&socket, dst, &packet).await {
+        if let Err(error) = send_to(&socket, dst, &buf).await {
             error.log();
         }
     }
 }
 
-#[cfg(not(feature = "testing"))]
 pub(crate) async fn read_loop(
     socket: Arc<AsyncFd<Socket>>,
     net_packet_rxp: Sender<NetRxPacketMsg>,
 ) -> Result<(), SendError<NetRxPacketMsg>> {
-    let mut buf = [0; 16384];
-    let mut iov = [IoSliceMut::new(&mut buf)];
-    let mut cmsgspace = nix::cmsg_space!(libc::in_pktinfo);
+    #[cfg(network_backend = "linux")]
+    {
+        let mut buf = [0; 16384];
+        let mut iov = [IoSliceMut::new(&mut buf)];
+        let mut cmsgspace = nix::cmsg_space!(libc::in_pktinfo);
 
-    loop {
-        // Receive data packet.
-        match socket
-            .async_io(tokio::io::Interest::READABLE, |socket| {
-                match socket::recvmsg::<SockaddrIn>(
-                    socket.as_raw_fd(),
-                    &mut iov,
-                    Some(&mut cmsgspace),
-                    socket::MsgFlags::empty(),
-                ) {
-                    Ok(msg) => {
-                        let ifindex = msg.cmsgs().unwrap().find_map(|cmsg| {
-                            if let socket::ControlMessageOwned::Ipv4PacketInfo(
-                                pktinfo,
-                            ) = cmsg
-                            {
-                                Some(pktinfo.ipi_ifindex as u32)
-                            } else {
-                                None
-                            }
-                        });
-                        Ok((ifindex, msg.address, msg.bytes))
+        loop {
+            // Receive data packet.
+            match socket
+                .async_io(tokio::io::Interest::READABLE, |socket| {
+                    match socket::recvmsg::<SockaddrIn>(
+                        socket.as_raw_fd(),
+                        &mut iov,
+                        Some(&mut cmsgspace),
+                        socket::MsgFlags::empty(),
+                    ) {
+                        Ok(msg) => {
+                            let ifindex =
+                                msg.cmsgs().unwrap().find_map(|cmsg| {
+                                    if let ControlMessageOwned::Ipv4PacketInfo(
+                                        pktinfo,
+                                    ) = cmsg
+                                    {
+                                        Some(pktinfo.ipi_ifindex as u32)
+                                    } else {
+                                        None
+                                    }
+                                });
+                            Ok((ifindex, msg.address, msg.bytes))
+                        }
+                        Err(errno) => Err(errno.into()),
                     }
-                    Err(errno) => Err(errno.into()),
-                }
-            })
-            .await
-        {
-            Ok((ifindex, src, bytes)) => {
-                let Some(ifindex) = ifindex else {
-                    IoError::RecvMissingAncillaryData.log();
-                    return Ok(());
-                };
-                let Some(src) = src else {
-                    IoError::RecvMissingSourceAddr.log();
-                    return Ok(());
-                };
+                })
+                .await
+            {
+                Ok((ifindex, src, bytes)) => {
+                    let Some(ifindex) = ifindex else {
+                        IoError::RecvMissingAncillaryData.log();
+                        return Ok(());
+                    };
+                    let Some(src) = src else {
+                        IoError::RecvMissingSourceAddr.log();
+                        return Ok(());
+                    };
 
-                // Move past the IPv4 header.
-                let mut buf = Bytes::copy_from_slice(&iov[0].deref()[0..bytes]);
-                if skip_ip_hdr(&mut buf).is_err() {
+                    // Move past the IPv4 header.
+                    let mut buf =
+                        Bytes::copy_from_slice(&iov[0].deref()[0..bytes]);
+                    if skip_ip_hdr(&mut buf).is_err() {
+                        continue;
+                    }
+
+                    // Decode IGMP packet.
+                    let packet = Packet::decode(&mut buf);
+                    let msg = NetRxPacketMsg {
+                        ifindex,
+                        src: src.ip(),
+                        packet,
+                    };
+                    net_packet_rxp.send(msg).await?;
+                }
+                Err(error)
+                    if error.kind() == std::io::ErrorKind::Interrupted =>
+                {
+                    // Retry if the syscall was interrupted (EINTR).
                     continue;
                 }
-
-                // Decode IGMP packet.
-                let packet = Packet::decode(&mut buf);
-                let msg = NetRxPacketMsg {
-                    ifindex,
-                    src: src.ip(),
-                    packet,
-                };
-                net_packet_rxp.send(msg).await?;
-            }
-            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {
-                // Retry if the syscall was interrupted (EINTR).
-                continue;
-            }
-            Err(error) => {
-                IoError::RecvError(error).log();
+                Err(error) => {
+                    IoError::RecvError(error).log();
+                }
             }
         }
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
     }
 }
 
@@ -186,29 +199,31 @@ fn skip_ip_hdr(buf: &mut Bytes) -> Result<(), TryGetError> {
     buf.try_advance(((hdr_len << 2) - 4) as usize)
 }
 
-#[cfg(not(feature = "testing"))]
-async fn send_packet(
+async fn send_to(
     socket: &AsyncFd<Socket>,
     dst: Ipv4Addr,
-    packet: &Packet,
+    buf: &[u8],
 ) -> Result<usize, IoError> {
-    // Encode packet.
-    let buf = packet.encode();
-
-    // Send packet.
-    let iov = [IoSlice::new(&buf)];
-    let sockaddr: SockaddrIn = SocketAddrV4::new(dst, 0).into();
-    socket
-        .async_io(tokio::io::Interest::WRITABLE, |socket| {
-            socket::sendmsg(
-                socket.as_raw_fd(),
-                &iov,
-                &[],
-                socket::MsgFlags::empty(),
-                Some(&sockaddr),
-            )
-            .map_err(|errno| errno.into())
-        })
-        .await
-        .map_err(IoError::SendError)
+    #[cfg(network_backend = "linux")]
+    {
+        let iov = [IoSlice::new(buf)];
+        let sockaddr: SockaddrIn = SocketAddrV4::new(dst, 0).into();
+        socket
+            .async_io(tokio::io::Interest::WRITABLE, |socket| {
+                socket::sendmsg(
+                    socket.as_raw_fd(),
+                    &iov,
+                    &[],
+                    socket::MsgFlags::empty(),
+                    Some(&sockaddr),
+                )
+                .map_err(|errno| errno.into())
+            })
+            .await
+            .map_err(IoError::SendError)
+    }
+    #[cfg(network_backend = "null")]
+    {
+        Ok(buf.len())
+    }
 }

@@ -97,7 +97,7 @@ impl Interface {
 
         let ifindex = self.system.ifindex.unwrap();
 
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         instance
             .state
             .net
@@ -106,7 +106,7 @@ impl Interface {
             .start_vif(ifindex, ifindex as u16)
             .expect("TODO: panic message");
 
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         instance
             .state
             .net

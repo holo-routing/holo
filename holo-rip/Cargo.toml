@@ -42,6 +42,7 @@ holo-rip = { path = ".", features = ["testing", "deterministic"] }
 yang5 = { workspace = true, features = ["bundled"] }
 holo-northbound = { path = "../holo-northbound", features = ["rip"] }
 holo-yang = { path = "../holo-yang" }
+holo-platform = { path = "../holo-platform" }
 
 [lints]
 workspace = true

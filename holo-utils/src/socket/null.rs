@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-// Mock sockets for unit testing.
+// Sockets that go nowhere, for test builds and platforms without a backend.
 
 #[derive(Debug, Default)]
 pub struct AsyncFd<T>(T);

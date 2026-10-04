@@ -11,8 +11,8 @@ use holo_utils::bytes::Bytes;
 use holo_utils::capabilities;
 use holo_utils::socket::{RawSocketExt, Socket};
 use ipnetwork::Ipv6Network;
-#[cfg(target_os = "linux")]
-use nix::sys::socket::{self, SockaddrIn6};
+#[cfg(network_backend = "linux")]
+use nix::sys::socket::{self, ControlMessageOwned, SockaddrIn6};
 
 use crate::network::{MulticastAddr, NetworkVersion, OSPF_IP_PROTO};
 use crate::ospfv3;
@@ -28,13 +28,13 @@ static ALL_DR_RTRS: Ipv6Addr = ip6!("FF02::6");
 impl NetworkVersion<Self> for Ospfv3 {
     type NetIpAddr = Ipv6Addr;
     type NetIpNetwork = Ipv6Network;
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     type SocketAddr = SockaddrIn6;
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     type Pktinfo = libc::in6_pktinfo;
 
     fn socket(ifname: Option<&str>) -> Result<Socket, std::io::Error> {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             use socket2::{Domain, Protocol, Type};
 
@@ -59,7 +59,7 @@ impl NetworkVersion<Self> for Ospfv3 {
 
             Ok(socket)
         }
-        #[cfg(feature = "testing")]
+        #[cfg(network_backend = "null")]
         {
             Ok(Socket {})
         }
@@ -69,7 +69,7 @@ impl NetworkVersion<Self> for Ospfv3 {
         socket: &Socket,
         enable: bool,
     ) -> Result<(), std::io::Error> {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             let offset = if enable {
                 ospfv3::packet::PacketHdr::CHECKSUM_OFFSET
@@ -78,7 +78,7 @@ impl NetworkVersion<Self> for Ospfv3 {
             };
             socket.set_ipv6_checksum(offset)
         }
-        #[cfg(feature = "testing")]
+        #[cfg(network_backend = "null")]
         {
             Ok(())
         }
@@ -96,13 +96,13 @@ impl NetworkVersion<Self> for Ospfv3 {
         addr: MulticastAddr,
         ifindex: u32,
     ) -> Result<(), std::io::Error> {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             let addr = Self::multicast_addr(addr);
             let socket = socket2::SockRef::from(socket);
             socket.join_multicast_v6(addr, ifindex)
         }
-        #[cfg(feature = "testing")]
+        #[cfg(network_backend = "null")]
         {
             Ok(())
         }
@@ -113,19 +113,19 @@ impl NetworkVersion<Self> for Ospfv3 {
         addr: MulticastAddr,
         ifindex: u32,
     ) -> Result<(), std::io::Error> {
-        #[cfg(not(feature = "testing"))]
+        #[cfg(network_backend = "linux")]
         {
             let addr = Self::multicast_addr(addr);
             let socket = socket2::SockRef::from(socket);
             socket.leave_multicast_v6(addr, ifindex)
         }
-        #[cfg(feature = "testing")]
+        #[cfg(network_backend = "null")]
         {
             Ok(())
         }
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     fn new_pktinfo(src: Ipv6Addr, ifindex: u32) -> libc::in6_pktinfo {
         libc::in6_pktinfo {
             ipi6_addr: libc::in6_addr {
@@ -135,17 +135,17 @@ impl NetworkVersion<Self> for Ospfv3 {
         }
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     fn set_cmsg_data(
         pktinfo: &libc::in6_pktinfo,
     ) -> socket::ControlMessage<'_> {
         socket::ControlMessage::Ipv6PacketInfo(pktinfo)
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     fn get_cmsg_data(mut cmsgs: socket::CmsgIterator<'_>) -> Option<Ipv6Addr> {
         cmsgs.find_map(|cmsg| {
-            if let socket::ControlMessageOwned::Ipv6PacketInfo(pktinfo) = cmsg {
+            if let ControlMessageOwned::Ipv6PacketInfo(pktinfo) = cmsg {
                 let dst = Ipv6Addr::from(pktinfo.ipi6_addr.s6_addr);
                 Some(dst)
             } else {
@@ -154,12 +154,12 @@ impl NetworkVersion<Self> for Ospfv3 {
         })
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     fn dst_to_sockaddr(ifindex: u32, addr: Ipv6Addr) -> SockaddrIn6 {
         std::net::SocketAddrV6::new(addr, 0, 0, ifindex).into()
     }
 
-    #[cfg(target_os = "linux")]
+    #[cfg(network_backend = "linux")]
     fn src_from_sockaddr(sockaddr: &SockaddrIn6) -> Ipv6Addr {
         sockaddr.ip()
     }

@@ -844,7 +844,10 @@ fn process_pdu_lsp(
                         )
                     }
                 };
-                if instance.config.trace_opts.flood_reduction {
+                if instance.config.trace_opts.flood_reduction
+                    && instance.config.flooding_reduction.algo
+                        != FloodingAlgo::ZeroPruner
+                {
                     Debug::FloodDecision(level, lsp, other_iface, !allow_flood)
                         .log();
                 }
@@ -915,7 +918,10 @@ fn process_pdu_lsp(
                     &arenas.adjacencies,
                 ),
             };
-            if instance.config.trace_opts.flood_reduction {
+            if instance.config.trace_opts.flood_reduction
+                && instance.config.flooding_reduction.algo
+                    != FloodingAlgo::ZeroPruner
+            {
                 Debug::FloodDecision(level, &lsp, iface, !allow_flood).log();
             }
 

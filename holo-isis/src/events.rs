@@ -733,10 +733,13 @@ fn process_pdu_lsp(
         if lse.is_none() {
             // Self-originated LSP not found in the LSDB, so it should be purged
             // from the network.
-            lsp.set_rem_lifetime(0);
-            for iface in arenas.interfaces.iter_mut() {
-                iface.srm_list_add(instance, level, &lsp, false);
-            }
+            lsdb::lsp_purge(
+                instance,
+                arenas,
+                level,
+                lsp,
+                LspPurgeReason::Removed,
+            );
             return Ok(());
         }
 
@@ -1482,44 +1485,10 @@ pub(crate) fn process_lsp_purge(
     // Lookup LSP entry in the LSDB.
     let lsdb = instance.state.lsdb.get_mut(level);
     let (_, lse) = lsdb.get_mut_by_key(&mut arenas.lsp_entries, &lse_key)?;
-    let mut lsp = lse.data.clone();
+    let lsp = lse.data.clone();
 
-    // Log LSP purge.
-    if instance.config.trace_opts.lsdb {
-        Debug::LspPurge(level, &lsp, reason).log();
-    }
-
-    // Set remaining lifetime to zero if it's not already.
-    lsp.set_rem_lifetime(0);
-
-    // Remove all existing TLVs, retaining only the LSP header.
-    lsp.tlvs = Default::default();
-
-    // Add the POI TLV if purge originator support is enabled.
-    if instance.config.purge_originator {
-        lsp.tlvs.add_purge_originator_id(
-            instance.config.system_id.unwrap(),
-            None,
-            instance.shared.hostname.clone(),
-        );
-    };
-
-    // Regenerate the LSP data, adding an authentication TLV if necessary.
-    let auth = instance.config.auth.all.method(&instance.shared.keychains);
-    let auth = auth.as_ref().and_then(|auth| auth.get_key_send());
-    lsp.encode(auth);
-
-    // Reinstall the LSP to trigger a SPF run.
-    let lse = lsdb::install(instance, &mut arenas.lsp_entries, level, lsp);
-    let lsp = &lse.data;
-
-    // Stop the LSP's refresh timer.
-    lse.refresh_timer = None;
-
-    // Send purged LSP to all interfaces.
-    for iface in arenas.interfaces.iter_mut() {
-        iface.srm_list_add(instance, level, lsp, false);
-    }
+    // Purge the LSP from the network.
+    lsdb::lsp_purge(instance, arenas, level, lsp, reason);
 
     Ok(())
 }

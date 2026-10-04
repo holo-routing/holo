@@ -11,7 +11,7 @@
                 "holo-isis:level": [
                   {
                     "level": 2,
-                    "current-state": "quiet"
+                    "current-state": "short-wait"
                   }
                 ]
               }
@@ -1307,6 +1307,16 @@
                         "49.0000"
                       ],
                       "holo-isis:lsp-buffer-size": 1492
+                    },
+                    {
+                      "lsp-id": "0000.0000.0006.00-01",
+                      "remaining-lifetime": 0,
+                      "attributes": {
+                        "lsp-flags": [
+                          "lsp-l2-system-flag",
+                          "lsp-l1-system-flag"
+                        ]
+                      }
                     }
                   ],
                   "holo-isis:lsp-count": 7

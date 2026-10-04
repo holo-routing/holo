@@ -1718,3 +1718,48 @@ pub(crate) fn lsp_originate(
     );
     lse.refresh_timer = Some(refresh_timer);
 }
+
+pub(crate) fn lsp_purge(
+    instance: &mut InstanceUpView<'_>,
+    arenas: &mut InstanceArenas,
+    level: LevelNumber,
+    mut lsp: Lsp,
+    reason: LspPurgeReason,
+) {
+    // Log LSP purge.
+    if instance.config.trace_opts.lsdb {
+        Debug::LspPurge(level, &lsp, reason).log();
+    }
+
+    // Set remaining lifetime to zero if it's not already.
+    lsp.set_rem_lifetime(0);
+
+    // Remove all existing TLVs, retaining only the LSP header.
+    lsp.tlvs = Default::default();
+
+    // Add the POI TLV if purge originator support is enabled.
+    if instance.config.purge_originator {
+        lsp.tlvs.add_purge_originator_id(
+            instance.config.system_id.unwrap(),
+            None,
+            instance.shared.hostname.clone(),
+        );
+    };
+
+    // Regenerate the LSP data, adding an authentication TLV if necessary.
+    let auth = instance.config.auth.all.method(&instance.shared.keychains);
+    let auth = auth.as_ref().and_then(|auth| auth.get_key_send());
+    lsp.encode(auth);
+
+    // Install the purged LSP to trigger a SPF run.
+    let lse = install(instance, &mut arenas.lsp_entries, level, lsp);
+    let lsp = &lse.data;
+
+    // Stop the LSP's refresh timer.
+    lse.refresh_timer = None;
+
+    // Send purged LSP to all interfaces.
+    for iface in arenas.interfaces.iter_mut() {
+        iface.srm_list_add(instance, level, lsp, false);
+    }
+}

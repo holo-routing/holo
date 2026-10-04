@@ -18,6 +18,9 @@ automation-driven networks.
 For a description of what a routing protocol is, please refer to this
 [Wikipedia page](https://en.wikipedia.org/wiki/Routing_protocol).
 
+You can try Holo in your browser, without installing anything, at
+[Holo Lab](https://holo-lab.pages.dev/).
+
 ## Features
 
 #### Focus on simplicity and correctness
@@ -117,21 +120,29 @@ For detailed instructions on installation, please refer to the
 
 #### Supported Platforms
 
-At present, Holo is only compatible with Linux operating systems.
-WebAssembly support is planned for the future.
+Holo runs on Linux. The codebase is largely platform independent, and
+the parts that interact with the operating system, such as network I/O,
+interface management and route installation, are isolated in a few
+places, so Holo can be ported to other platforms with little effort. It
+can also be compiled to WebAssembly, mainly to run virtual networks in
+the browser.
 
 #### Getting Started
 
-The easiest way to start using Holo is by using pre-built Docker containers
-in combination with the [containerlab](https://containerlab.dev/) software.
+The quickest way to try Holo is [Holo Lab](https://holo-lab.pages.dev/),
+which runs network topologies of Holo routers directly in the browser.
+
+For a complete setup, use pre-built Docker containers in combination with
+the [containerlab](https://containerlab.dev/) software.
 You can find a variety of pre-configured network topologies at [this
 link](https://github.com/holo-routing/containerlab-topologies).  These topologies
 can be deployed with a single command, allowing you to test Holo in various
 network setups, including interoperability testing with other implementations.
 
-Additionally, Holo can be used wherever a routing stack is required, such
-as in software routers, provided that the feature set aligns with your
-specific needs.
+Additionally, Holo can be integrated into any platform that requires a
+routing stack, including hardware routers, open source network operating
+systems and software routers, provided that the feature set aligns with
+your specific needs.
 
 ## Compliance
 

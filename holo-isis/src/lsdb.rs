@@ -1221,14 +1221,38 @@ fn lsp_propagate_l1_to_l2(
         .filter(|lsp| lsp.lsp_id.system_id != system_id)
     {
         // Propagate the Router Capability TLV.
-        for l1_router_cap in l1_lsp
-            .tlvs
-            .router_cap
-            .iter()
-            .filter(|router_cap| router_cap.flags.contains(RouterCapFlags::S))
-            .cloned()
+        //
+        // As per RFC 7981, the TLV is only propagated if the originating
+        // system is reachable at Level 1. The system is considered reachable
+        // if it's present in the L1 SPT of any enabled topology.
+        if MtId::ALL
+            .into_iter()
+            .filter(|mt_id| instance.config.is_topology_enabled(*mt_id))
+            .any(|mt_id| {
+                instance
+                    .state
+                    .spt
+                    .get(mt_id)
+                    .get(LevelNumber::L1)
+                    .contains(&VertexId::from(l1_lsp.lsp_id.system_id))
+            })
         {
-            l2_router_cap.push(l1_router_cap);
+            for l1_router_cap in l1_lsp
+                .tlvs
+                .router_cap
+                .iter()
+                // Domain-wide flooding scope only.
+                .filter(|router_cap| {
+                    router_cap.flags.contains(RouterCapFlags::S)
+                })
+                // Skip TLVs that came down from L2, which would otherwise loop.
+                .filter(|router_cap| {
+                    !router_cap.flags.contains(RouterCapFlags::D)
+                })
+                .cloned()
+            {
+                l2_router_cap.push(l1_router_cap);
+            }
         }
 
         // Standard topology: get the distance to the corresponding L1 router

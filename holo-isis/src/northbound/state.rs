@@ -30,13 +30,15 @@ use crate::instance::Instance;
 use crate::interface::Interface;
 use crate::lsdb::{LspEntry, LspLogEntry, LspLogId};
 use crate::northbound::yang_gen::{self, isis};
+#[cfg(feature = "testing")]
+use crate::packet::LevelType;
 use crate::packet::iana::IgpMetricType;
 use crate::packet::subtlvs::capability::{FadStlv, LabelBlockEntry};
 use crate::packet::subtlvs::neighbor::{AdjSidStlv, AslaStlv};
 use crate::packet::subtlvs::prefix::{FapmStlv, PrefixAttrFlags, PrefixSidStlv};
 use crate::packet::subtlvs::spb::{IsidEntry, IsidFlags, SpbmSiStlv};
 use crate::packet::tlv::{AuthenticationTlv, IpReachTlvEntry, Ipv4Reach, Ipv6Reach, IsReach, LegacyIpv4Reach, LegacyIsReach, MtCapabilityTlv, MultiTopologyEntry, RouterCapTlv, UnknownTlv};
-use crate::packet::{LanId, LevelNumber, LevelType, SystemId};
+use crate::packet::{LanId, LevelNumber, SystemId};
 use crate::route::{Nexthop, Route};
 use crate::spf::{SpfLogEntry, SpfScheduler};
 
@@ -2339,13 +2341,14 @@ impl<'a> YangContainer<'a, Instance> for isis::interfaces::interface::packet_cou
     }
 }
 
+#[cfg(feature = "testing")]
 impl<'a> YangList<'a, Instance> for isis::interfaces::interface::srm::level::Level<'a> {
     type ParentListEntry = &'a Interface;
     type ListEntry = (&'a Interface, LevelNumber);
 
     fn iter(_instance: &'a Instance, &iface: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let iter = LevelType::All.into_iter().filter(|level| !iface.state.srm_list.get(*level).is_empty()).map(move |level| (iface, level));
-        Some(iter).only_in_testing()
+        Some(iter)
     }
 
     fn new(_instance: &'a Instance, (iface, level): &Self::ListEntry) -> Self {
@@ -2356,13 +2359,14 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::srm::level::Lev
     }
 }
 
+#[cfg(feature = "testing")]
 impl<'a> YangList<'a, Instance> for isis::interfaces::interface::ssn::level::Level<'a> {
     type ParentListEntry = &'a Interface;
     type ListEntry = (&'a Interface, LevelNumber);
 
     fn iter(_instance: &'a Instance, &iface: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let iter = LevelType::All.into_iter().filter(|level| !iface.state.ssn_list.get(*level).is_empty()).map(move |level| (iface, level));
-        Some(iter).only_in_testing()
+        Some(iter)
     }
 
     fn new(_instance: &'a Instance, (iface, level): &Self::ListEntry) -> Self {

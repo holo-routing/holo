@@ -290,6 +290,7 @@ pub mod implemented_modules {
         "ietf-segment-routing-mpls",
         // IETF Holo augmentations
         "holo-isis",
+        #[cfg(feature = "testing")]
         "holo-isis-dev",
     ];
     pub const KEYCHAIN: &[&str] = &[
@@ -312,6 +313,7 @@ pub mod implemented_modules {
         "ietf-segment-routing-mpls",
         // IETF Holo augmentations
         "holo-ospf",
+        #[cfg(feature = "testing")]
         "holo-ospf-dev",
     ];
     pub const POLICY: &[&str] = &[

@@ -56,4 +56,5 @@ testing = [
   "ospf",
   "rip",
   "vrrp",
+  "holo-yang/testing",
 ]

@@ -228,7 +228,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_ty
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
-            maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
+            #[cfg(feature = "testing")]
+            maxage: lsa.hdr.is_maxage().then_some(()),
         })
     }
 }
@@ -541,7 +542,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
-            maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
+            #[cfg(feature = "testing")]
+            maxage: lsa.hdr.is_maxage().then_some(()),
         })
     }
 }
@@ -1042,7 +1044,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::ar
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
-            maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
+            #[cfg(feature = "testing")]
+            maxage: lsa.hdr.is_maxage().then_some(()),
         })
     }
 }
@@ -1597,7 +1600,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
-            maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
+            #[cfg(feature = "testing")]
+            maxage: lsa.hdr.is_maxage().then_some(()),
         })
     }
 }
@@ -2703,7 +2707,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::virtual_link
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
-            maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
+            #[cfg(feature = "testing")]
+            maxage: lsa.hdr.is_maxage().then_some(()),
         })
     }
 }
@@ -2827,7 +2832,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::virtual_link
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
-            maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
+            #[cfg(feature = "testing")]
+            maxage: lsa.hdr.is_maxage().then_some(()),
         })
     }
 }
@@ -3098,7 +3104,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::interfaces::
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
-            maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
+            #[cfg(feature = "testing")]
+            maxage: lsa.hdr.is_maxage().then_some(()),
         })
     }
 }
@@ -3238,7 +3245,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
             seq_num: Some(lsa.hdr.seq_no).ignore_in_testing(),
             checksum: Some(FletcherChecksum16(lsa.hdr.cksum)).ignore_in_testing(),
             length: Some(lsa.hdr.length),
-            maxage: lsa.hdr.is_maxage().then_some(()).only_in_testing(),
+            #[cfg(feature = "testing")]
+            maxage: lsa.hdr.is_maxage().then_some(()),
         })
     }
 }

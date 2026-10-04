@@ -578,6 +578,26 @@ async fn pdu_ext_seqnum1() {
 }
 
 // Input:
+//  * Protocol: received a P2P Hello on eth-rt3-1 from 0000.0000.0003 listing
+//    the IPv6 unicast topology alone in the Multi-Topology TLV
+// Output:
+//  * Protocol: send an updated local LSP to all L2 adjacencies
+//  * Northbound:
+//    - update the topologies and addresses of the 0000.0000.0003 adjacency on
+//      eth-rt3-1
+//    - remove the MT #0 IS reachability to 0000.0000.0003 over eth-rt3-1 from
+//      the local LSP
+//    - add the local LSP to the SRM list of all L2 adjacencies
+//    - remove eth-rt3-1 from the IPv4 routes in the local RIB
+//    - transition the SPF Delay FSM state from "quiet" to "short-wait"
+//    - send an "lsp-generation" YANG notification
+//  * Ibus: reinstall the IPv4 routes through 0000.0000.0003 without eth-rt3-1
+#[tokio::test]
+async fn pdu_hello_topology1() {
+    run_test::<Instance>("pdu-hello-topology1", "topo2-4", "rt5").await;
+}
+
+// Input:
 //  * Northbound: disable the IPv4 address family for the instance
 // Output:
 //  * Protocol: send an updated local LSP to all adjacencies

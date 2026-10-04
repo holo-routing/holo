@@ -323,13 +323,20 @@ fn process_pdu_hello_lan(
             .spf_delay_event(level, spf::fsm::Event::AdjacencyChange);
     }
 
+    // Schedule LSP reorigination if the adjacency topologies have changed.
+    // These topologies determine the IS reachability advertised over the LAN.
+    let hello_topologies = hello.tlvs.topologies();
+    if adj.state == AdjacencyState::Up && adj.topologies != hello_topologies {
+        adj.schedule_lsp_origination(instance);
+    }
+
     // Update adjacency with received PDU values.
     let old_priority = adj.priority;
     adj.priority = Some(priority);
     adj.lan_id = Some(lan_id);
     adj.protocols_supported = hello.tlvs.protocols_supported().collect();
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
-    adj.topologies = hello.tlvs.topologies();
+    adj.topologies = hello_topologies;
     adj.neighbors = hello.tlvs.neighbors().cloned().collect();
     adj.ipv4_addrs = hello.tlvs.ipv4_addrs().cloned().collect();
     adj.ipv6_addrs = hello.tlvs.ipv6_addrs().cloned().collect();
@@ -526,6 +533,13 @@ fn process_pdu_hello_p2p(
                 .protocol_input
                 .spf_delay_event(level, spf::fsm::Event::AdjacencyChange);
         }
+    }
+
+    // Schedule LSP reorigination if the adjacency topologies have changed.
+    // These topologies determine the IS reachability advertised for the
+    // neighbor.
+    if adj.state == AdjacencyState::Up && adj.topologies != hello_topologies {
+        adj.schedule_lsp_origination(instance);
     }
 
     // Update adjacency with received PDU values.

@@ -10,7 +10,7 @@ use holo_utils::ibus::IbusMsg;
 use ipnetwork::IpNetwork;
 use tracing::{debug, debug_span};
 
-use crate::neighbor::fsm;
+use crate::neighbor::{ConnOrigin, fsm};
 use crate::packet::error::AttrError;
 use crate::packet::iana::AttrType;
 use crate::packet::message::Message;
@@ -26,6 +26,8 @@ pub enum Debug<'a> {
     NbrFsmEvent(&'a IpAddr, &'a fsm::Event),
     NbrFsmTransition(&'a IpAddr, &'a fsm::State, &'a fsm::State),
     NbrFastExternalFailover(&'a IpAddr),
+    NbrConnCollision(&'a IpAddr),
+    NbrConnCollisionResolved(&'a IpAddr, ConnOrigin),
     NbrMsgRx(&'a IpAddr, &'a Message),
     NbrMsgTx(&'a IpAddr, &'a Message),
     NbrAttrError(AttrType, AttrError),
@@ -74,10 +76,17 @@ impl Debug<'_> {
                     })
                 });
             }
-            Debug::NbrFastExternalFailover(addr) => {
+            Debug::NbrFastExternalFailover(addr)
+            | Debug::NbrConnCollision(addr) => {
                 // Parent span(s): bgp-instance
                 debug_span!("neighbor", %addr).in_scope(|| {
                     debug!("{}", self);
+                });
+            }
+            Debug::NbrConnCollisionResolved(addr, kept) => {
+                // Parent span(s): bgp-instance
+                debug_span!("neighbor", %addr).in_scope(|| {
+                    debug!(?kept, "{}", self);
                 });
             }
             Debug::NbrMsgRx(addr, msg) => {
@@ -157,6 +166,12 @@ impl std::fmt::Display for Debug<'_> {
                     f,
                     "directly connected subnet lost, bringing session down"
                 )
+            }
+            Debug::NbrConnCollision(..) => {
+                write!(f, "connection collision detected")
+            }
+            Debug::NbrConnCollisionResolved(..) => {
+                write!(f, "connection collision resolved")
             }
             Debug::NbrMsgRx(..) | Debug::NbrMsgTx(..) => {
                 write!(f, "message")

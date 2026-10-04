@@ -7,7 +7,9 @@
 use std::sync::{Arc, atomic};
 use std::time::Duration;
 
-use holo_utils::socket::{OwnedReadHalf, OwnedWriteHalf, TcpListener};
+use holo_utils::socket::{
+    OwnedReadHalf, OwnedWriteHalf, TcpConnInfo, TcpListener,
+};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 use tokio::time::sleep;
@@ -100,6 +102,11 @@ pub mod messages {
         #[derive(Debug, Deserialize, Serialize)]
         pub struct NbrRxMsg {
             pub nbr_addr: IpAddr,
+            // Connection the message arrived on. Test inputs that leave it
+            // out are taken as having arrived on the neighbor's current
+            // connection.
+            #[serde(default, skip_serializing_if = "Option::is_none")]
+            pub conn_info: Option<TcpConnInfo>,
             pub msg: Result<Message, NbrRxError>,
         }
 
@@ -293,6 +300,7 @@ pub(crate) fn tcp_connect(
 // Neighbor TCP Rx task.
 pub(crate) fn nbr_rx(
     nbr: &Neighbor,
+    conn_info: &TcpConnInfo,
     cxt: DecodeCxt,
     read_half: OwnedReadHalf,
     nbr_msg_rxp: &Sender<messages::input::NbrRxMsg>,
@@ -305,6 +313,7 @@ pub(crate) fn nbr_rx(
         let _span2_guard = span2.enter();
 
         let nbr_addr = nbr.remote_addr;
+        let conn_info = conn_info.clone();
         let nbr_msg_rxp = nbr_msg_rxp.clone();
 
         // Spawn a supervised task for this neighbor.
@@ -317,10 +326,12 @@ pub(crate) fn nbr_rx(
             async move {
                 let worker_task = {
                     let nbr_msg_rxp = nbr_msg_rxp.clone();
+                    let conn_info = conn_info.clone();
                     Task::spawn(async move {
                         let _ = network::nbr_read_loop(
                             read_half,
                             nbr_addr,
+                            conn_info,
                             cxt,
                             nbr_msg_rxp,
                         )
@@ -333,6 +344,7 @@ pub(crate) fn nbr_rx(
                     error!(%error, "task panicked");
                     let msg = messages::input::NbrRxMsg {
                         nbr_addr,
+                        conn_info: Some(conn_info),
                         msg: Err(NbrRxError::TcpConnClosed),
                     };
                     let _ = nbr_msg_rxp.send(msg).await;

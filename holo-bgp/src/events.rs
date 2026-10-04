@@ -22,11 +22,12 @@ use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
 use crate::error::{Error, IoError, NbrRxError};
 use crate::instance::{InstanceUpView, PolicyApplyTasks};
-use crate::neighbor::{Neighbor, Neighbors, PeerType, fsm};
+use crate::neighbor::{ConnOrigin, Neighbor, Neighbors, PeerType, fsm};
 use crate::packet::attribute::Attrs;
-use crate::packet::iana::{Afi, Safi};
+use crate::packet::iana::{Afi, ErrorCode, FsmErrorSubcode, Safi};
 use crate::packet::message::{
-    Capability, Message, MpReachNlri, MpUnreachNlri, RouteRefreshMsg, UpdateMsg,
+    Capability, Message, MpReachNlri, MpUnreachNlri, NotificationMsg,
+    RouteRefreshMsg, UpdateMsg,
 };
 use crate::policy::{POLICY_APPLY_BATCH_SIZE_MAX, RoutePolicyInfo};
 use crate::rib::{
@@ -49,12 +50,6 @@ pub(crate) fn process_tcp_accept(
         return Ok(());
     };
 
-    // Workaround to prevent connection collision until collision resolution
-    // is implemented.
-    if nbr.conn_info.is_some() {
-        return Ok(());
-    }
-
     // Initialize the accepted stream.
     network::accepted_stream_init(
         &stream,
@@ -65,8 +60,7 @@ pub(crate) fn process_tcp_accept(
     )
     .map_err(IoError::TcpSocketError)?;
 
-    // Invoke FSM event.
-    nbr.fsm_event(instance, fsm::Event::Connected(stream, conn_info));
+    nbr.connection_new(instance, stream, conn_info, ConnOrigin::Remote);
 
     Ok(())
 }
@@ -85,14 +79,7 @@ pub(crate) fn process_tcp_connect(
     };
     nbr.tasks.connect = None;
 
-    // Workaround to prevent connection collision until collision resolution
-    // is implemented.
-    if nbr.conn_info.is_some() {
-        return Ok(());
-    }
-
-    // Invoke FSM event.
-    nbr.fsm_event(instance, fsm::Event::Connected(stream, conn_info));
+    nbr.connection_new(instance, stream, conn_info, ConnOrigin::Local);
 
     Ok(())
 }
@@ -103,6 +90,7 @@ pub(crate) fn process_nbr_msg(
     instance: &mut InstanceUpView<'_>,
     neighbors: &mut Neighbors,
     nbr_addr: IpAddr,
+    conn_info: Option<TcpConnInfo>,
     msg: Result<Message, NbrRxError>,
 ) -> Result<(), Error> {
     // Lookup neighbor.
@@ -110,7 +98,26 @@ pub(crate) fn process_nbr_msg(
         return Ok(());
     };
 
+    // Tell apart what arrives on a connection colliding with the neighbor's,
+    // and drop what is left over from a connection since closed.
+    if let Some(conn_info) = &conn_info {
+        if nbr
+            .colliding
+            .as_ref()
+            .is_some_and(|colliding| colliding.conn_info == *conn_info)
+        {
+            process_nbr_colliding_msg(instance, nbr, msg);
+            return Ok(());
+        }
+        if nbr.conn_info.as_ref() != Some(conn_info) {
+            return Ok(());
+        }
+    }
+
     // Process received message.
+    //
+    // A connection that fails while another collides with it gives way to
+    // that one, rather than bringing the session down.
     match msg {
         Ok(msg) => {
             if nbr.config.trace_opts.packets_resolved.load().rx(&msg) {
@@ -122,7 +129,11 @@ pub(crate) fn process_nbr_msg(
 
             match msg {
                 Message::Open(msg) => {
-                    nbr.fsm_event(instance, fsm::Event::RcvdOpen(msg));
+                    // The neighbor's BGP Identifier resolves any collision
+                    // first, which may leave this connection.
+                    if !nbr.collision_resolve(instance, msg.identifier) {
+                        nbr.fsm_event(instance, fsm::Event::RcvdOpen(msg));
+                    }
                 }
                 Message::Update(msg) => {
                     nbr.fsm_event(instance, fsm::Event::RcvdUpdate);
@@ -131,7 +142,12 @@ pub(crate) fn process_nbr_msg(
                     }
                 }
                 Message::Notification(msg) => {
-                    nbr.fsm_event(instance, fsm::Event::RcvdNotif(msg.clone()));
+                    if nbr.colliding.is_some() {
+                        nbr.colliding_promote(instance);
+                    } else {
+                        let event = fsm::Event::RcvdNotif(msg.clone());
+                        nbr.fsm_event(instance, event);
+                    }
                     // Keep track of the last received notification.
                     nbr.notification_rcvd = Some((Utc::now(), msg));
                 }
@@ -148,15 +164,67 @@ pub(crate) fn process_nbr_msg(
         }
         Err(error) => match error {
             NbrRxError::TcpConnClosed => {
-                nbr.fsm_event(instance, fsm::Event::ConnFail);
+                if nbr.colliding.is_some() {
+                    nbr.colliding_promote(instance);
+                } else {
+                    nbr.fsm_event(instance, fsm::Event::ConnFail);
+                }
             }
             NbrRxError::MsgDecodeError(error) => {
-                nbr.fsm_event(instance, fsm::Event::RcvdError(error));
+                if nbr.colliding.is_some() {
+                    let msg = NotificationMsg::from(error);
+                    nbr.message_send(Message::Notification(msg));
+                    nbr.colliding_promote(instance);
+                } else {
+                    nbr.fsm_event(instance, fsm::Event::RcvdError(error));
+                }
             }
         },
     }
 
     Ok(())
+}
+
+// Processes what arrives on a connection colliding with the neighbor's.
+//
+// The neighbor's OPEN resolves the collision, and when the connection it
+// arrived on is the one kept, it is processed as it would be on any other.
+// Anything else arriving before it leaves the connection: the neighbor
+// closing it, as it would when it resolved the collision first, or sending
+// what it had no business sending before its OPEN.
+fn process_nbr_colliding_msg(
+    instance: &mut InstanceUpView<'_>,
+    nbr: &mut Neighbor,
+    msg: Result<Message, NbrRxError>,
+) {
+    match msg {
+        Ok(msg) => {
+            if nbr.config.trace_opts.packets_resolved.load().rx(&msg) {
+                Debug::NbrMsgRx(&nbr.remote_addr, &msg).log();
+            }
+            nbr.statistics.msgs_rcvd.update(&msg);
+
+            match msg {
+                Message::Open(msg) => {
+                    if nbr.collision_resolve(instance, msg.identifier) {
+                        nbr.fsm_event(instance, fsm::Event::RcvdOpen(msg));
+                    }
+                }
+                Message::Notification(_) => nbr.colliding_close(None),
+                _ => {
+                    let msg = NotificationMsg::new(
+                        ErrorCode::FiniteStateMachineError,
+                        FsmErrorSubcode::UnexpectedMessageInOpenSent,
+                    );
+                    nbr.colliding_close(Some(msg));
+                }
+            }
+        }
+        Err(NbrRxError::TcpConnClosed) => nbr.colliding_close(None),
+        Err(NbrRxError::MsgDecodeError(error)) => {
+            nbr.colliding_close(Some(NotificationMsg::from(error)));
+        }
+    }
 }
 
 fn process_nbr_update(
@@ -441,6 +509,15 @@ pub(crate) fn process_nbr_timer(
     let Some(nbr) = neighbors.get_mut(&nbr_addr) else {
         return Ok(());
     };
+
+    // A connection whose hold timer expires while another collides with it
+    // gives way to that one, rather than bringing the session down.
+    if timer == fsm::Timer::Hold && nbr.colliding.is_some() {
+        let msg = NotificationMsg::new(ErrorCode::HoldTimerExpired, 0);
+        nbr.message_send(Message::Notification(msg));
+        nbr.colliding_promote(instance);
+        return Ok(());
+    }
 
     // Invoke FSM event.
     nbr.fsm_event(instance, fsm::Event::Timer(timer));

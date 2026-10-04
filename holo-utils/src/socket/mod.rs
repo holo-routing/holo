@@ -24,7 +24,7 @@ pub use crate::socket::null::*;
 pub const TTL_MAX: u8 = 255;
 
 // TCP connection information.
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[derive(Deserialize, Serialize)]
 pub struct TcpConnInfo {
     pub local_addr: IpAddr,

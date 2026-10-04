@@ -55,6 +55,8 @@ pub struct Neighbor {
     pub state: fsm::State,
     pub peer_type: PeerType,
     pub conn_info: Option<TcpConnInfo>,
+    pub conn_origin: Option<ConnOrigin>,
+    pub colliding: Option<CollidingConn>,
     pub shared_subnet: bool,
     pub identifier: Option<Ipv4Addr>,
     pub holdtime_nego: Option<u16>,
@@ -68,6 +70,24 @@ pub struct Neighbor {
     pub tasks: NeighborTasks,
     pub update_queues: NeighborUpdateQueues,
     pub msg_txp: Option<UnboundedSender<NbrTxMsg>>,
+}
+
+// Which end of a TCP connection opened it.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConnOrigin {
+    Local,
+    Remote,
+}
+
+// A second TCP connection to the neighbor, opened by the other end while the
+// first was still being set up. Both are kept until the collision between
+// them is resolved, as RFC 4271 section 6.8 describes.
+#[derive(Debug)]
+pub struct CollidingConn {
+    pub conn_info: TcpConnInfo,
+    pub origin: ConnOrigin,
+    pub msg_txp: UnboundedSender<NbrTxMsg>,
+    pub tcp_rx: Task<()>,
 }
 
 // BGP peer type.
@@ -192,6 +212,7 @@ pub mod fsm {
     use holo_utils::socket::{TcpConnInfo, TcpStream};
     use serde::{Deserialize, Serialize};
 
+    use super::ConnOrigin;
     use crate::packet::error::DecodeError;
     use crate::packet::message::{NotificationMsg, OpenMsg};
 
@@ -218,7 +239,7 @@ pub mod fsm {
         Stop(Option<NotificationMsg>),
         // Tcp_CR_Acked
         // TcpConnectionConfirmed
-        Connected(TcpStream, TcpConnInfo),
+        Connected(TcpStream, TcpConnInfo, ConnOrigin),
         // TcpConnectionFails
         ConnFail,
         // BGPHeaderErr
@@ -270,6 +291,8 @@ impl Neighbor {
             state: fsm::State::Idle,
             peer_type,
             conn_info: None,
+            conn_origin: None,
+            colliding: None,
             shared_subnet: false,
             identifier: None,
             holdtime_nego: None,
@@ -322,9 +345,9 @@ impl Neighbor {
                     self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
-                fsm::Event::Connected(stream, conn_info) => {
+                fsm::Event::Connected(stream, conn_info, origin) => {
                     self.connect_retry_stop();
-                    self.connection_setup(stream, conn_info, instance);
+                    self.connection_setup(stream, conn_info, origin, instance);
                     self.open_send(instance.config, instance.state.router_id);
                     self.holdtime_start(
                         LARGE_HOLDTIME,
@@ -361,9 +384,9 @@ impl Neighbor {
                     self.session_close(rib, instance.tx, None);
                     Some(fsm::State::Idle)
                 }
-                fsm::Event::Connected(stream, conn_info) => {
+                fsm::Event::Connected(stream, conn_info, origin) => {
                     self.connect_retry_stop();
-                    self.connection_setup(stream, conn_info, instance);
+                    self.connection_setup(stream, conn_info, origin, instance);
                     self.open_send(instance.config, instance.state.router_id);
                     self.holdtime_start(
                         LARGE_HOLDTIME,
@@ -450,7 +473,6 @@ impl Neighbor {
                     Some(fsm::State::Idle)
                 }
                 fsm::Event::RcvdOpen(_msg) => {
-                    // TODO: collision detection
                     let error_code = ErrorCode::FiniteStateMachineError;
                     let error_subcode =
                         FsmErrorSubcode::UnexpectedMessageInOpenConfirm;
@@ -591,11 +613,34 @@ impl Neighbor {
         &mut self,
         stream: TcpStream,
         conn_info: TcpConnInfo,
+        origin: ConnOrigin,
         instance: &mut InstanceUpView<'_>,
     ) {
+        // A connection the neighbor opened replaces the one being opened to
+        // it, which would only collide with it.
+        if origin == ConnOrigin::Remote {
+            self.tasks.connect = None;
+        }
+
+        let (msg_txp, tcp_rx_task) =
+            self.connection_tasks(stream, &conn_info, instance);
+
         // Store TCP connection information.
         self.conn_info = Some(conn_info);
+        self.conn_origin = Some(origin);
+        self.msg_txp = Some(msg_txp);
+        self.tasks.tcp_rx = Some(tcp_rx_task);
+    }
 
+    // Spawns the tasks that send and receive BGP messages over a TCP
+    // connection, returning the channel messages are sent through and the
+    // task receiving them.
+    fn connection_tasks(
+        &self,
+        stream: TcpStream,
+        conn_info: &TcpConnInfo,
+        instance: &mut InstanceUpView<'_>,
+    ) -> (UnboundedSender<NbrTxMsg>, Task<()>) {
         // Split TCP stream into two halves.
         let (read_half, write_half) = stream.into_split();
 
@@ -612,7 +657,6 @@ impl Neighbor {
             #[cfg(feature = "testing")]
             &instance.tx.protocol_output,
         );
-        self.msg_txp = Some(msg_txp);
 
         // Spawn neighbor TCP Rx task.
         let cxt = DecodeCxt {
@@ -623,16 +667,152 @@ impl Neighbor {
         };
         let tcp_rx_task = tasks::nbr_rx(
             self,
+            conn_info,
             cxt,
             read_half,
             &instance.tx.protocol_input.nbr_msg_rx,
         );
-        self.tasks.tcp_rx = Some(tcp_rx_task);
 
         // No need to keep track of the Tx task since it gracefully exits as
         // soon as the tx end of its mpsc channel is dropped. This ensures that
         // messages sent during neighbor shutdown will be delivered.
         tx_task.detach();
+
+        (msg_txp, tcp_rx_task)
+    }
+
+    // Takes a new TCP connection to the neighbor, whichever end opened it.
+    //
+    // A connection the other end opens while the neighbor's own is still
+    // being set up collides with it, and both are kept until the collision
+    // is resolved. Any other connection is refused while the neighbor has
+    // one: RFC 4271 has a connection that collides with an established
+    // session closed, and no end opens more than one at a time.
+    pub(crate) fn connection_new(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+        stream: TcpStream,
+        conn_info: TcpConnInfo,
+        origin: ConnOrigin,
+    ) {
+        if self.conn_info.is_none() {
+            let event = fsm::Event::Connected(stream, conn_info, origin);
+            self.fsm_event(instance, event);
+        } else if matches!(
+            self.state,
+            fsm::State::OpenSent | fsm::State::OpenConfirm
+        ) && self.colliding.is_none()
+            && self.conn_origin != Some(origin)
+        {
+            self.collision_start(instance, stream, conn_info, origin);
+        }
+    }
+
+    // Keeps a connection colliding with the neighbor's, opening the session
+    // over it too, as over any connection being set up.
+    fn collision_start(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+        stream: TcpStream,
+        conn_info: TcpConnInfo,
+        origin: ConnOrigin,
+    ) {
+        Debug::NbrConnCollision(&self.remote_addr).log();
+
+        let (msg_txp, tcp_rx) =
+            self.connection_tasks(stream, &conn_info, instance);
+        self.colliding = Some(CollidingConn {
+            conn_info,
+            origin,
+            msg_txp,
+            tcp_rx,
+        });
+        let msg = self.open_build(instance.config, instance.state.router_id);
+        self.colliding_send(msg);
+
+        // In the OpenConfirm state, the neighbor's BGP Identifier is known
+        // already, which is all it takes to resolve the collision.
+        if let Some(identifier) = self.identifier {
+            self.collision_resolve(instance, identifier);
+        }
+    }
+
+    // Resolves the collision between the neighbor's connection and the one
+    // colliding with it, now that the neighbor's BGP Identifier is known.
+    //
+    // The connection kept is the one opened by the end with the higher BGP
+    // Identifier, or with the higher AS number when both have the same one
+    // (RFC 6286), so that both ends keep the same one. The other is closed.
+    //
+    // Returns whether the connection kept is the one that was colliding,
+    // which then replaces the neighbor's.
+    pub(crate) fn collision_resolve(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+        identifier: Ipv4Addr,
+    ) -> bool {
+        let Some(colliding) = &self.colliding else {
+            return false;
+        };
+
+        let local = (u32::from(instance.state.router_id), instance.config.asn);
+        let remote = (u32::from(identifier), self.config.peer_as);
+        let kept = if local > remote {
+            ConnOrigin::Local
+        } else {
+            ConnOrigin::Remote
+        };
+        Debug::NbrConnCollisionResolved(&self.remote_addr, kept).log();
+
+        let msg = NotificationMsg::new(
+            ErrorCode::Cease,
+            CeaseSubcode::ConnectionCollisionResolution,
+        );
+        if colliding.origin != kept {
+            self.colliding_close(Some(msg));
+            return false;
+        }
+        self.message_send(Message::Notification(msg));
+        self.colliding_promote(instance);
+        true
+    }
+
+    // Makes the connection colliding with the neighbor's its own, leaving
+    // the one it had to close, and starts the session over from the OPEN
+    // already sent over it.
+    pub(crate) fn colliding_promote(
+        &mut self,
+        instance: &mut InstanceUpView<'_>,
+    ) {
+        let Some(colliding) = self.colliding.take() else {
+            return;
+        };
+        self.conn_info = Some(colliding.conn_info);
+        self.conn_origin = Some(colliding.origin);
+        self.msg_txp = Some(colliding.msg_txp);
+        self.tasks.tcp_rx = Some(colliding.tcp_rx);
+
+        // Forget what was learned over the connection left.
+        self.identifier = None;
+        self.holdtime_nego = None;
+        self.capabilities_rcvd.clear();
+        self.tasks.keepalive = None;
+        self.holdtime_start(
+            LARGE_HOLDTIME,
+            &instance.tx.protocol_input.nbr_timer,
+        );
+        if self.state != fsm::State::OpenSent {
+            self.fsm_state_change(instance, fsm::State::OpenSent);
+        }
+    }
+
+    // Closes the connection colliding with the neighbor's, sending it the
+    // given notification first.
+    pub(crate) fn colliding_close(&mut self, msg: Option<NotificationMsg>) {
+        if let Some(msg) = msg {
+            self.colliding_send(Message::Notification(msg));
+        }
+        self.colliding = None;
     }
 
     // Initializes the BGP session.
@@ -681,6 +861,8 @@ impl Neighbor {
 
         // Release all resources.
         self.conn_info = None;
+        self.conn_origin = None;
+        self.colliding = None;
         self.identifier = None;
         self.holdtime_nego = None;
         self.capabilities_adv.clear();
@@ -697,17 +879,7 @@ impl Neighbor {
 
     // Enqueues a single BGP message for transmission.
     pub(crate) fn message_send(&mut self, msg: Message) {
-        if self.config.trace_opts.packets_resolved.load().tx(&msg) {
-            Debug::NbrMsgTx(&self.remote_addr, &msg).log();
-        }
-
-        // Update statistics.
-        self.statistics.msgs_sent.update(&msg);
-
-        // Keep track of the last sent notification.
-        if let Message::Notification(msg) = &msg {
-            self.notification_sent = Some((Utc::now(), msg.clone()));
-        }
+        self.message_sent(&msg);
 
         // Ignore any possible error as the connection might have gone down
         // already.
@@ -716,23 +888,44 @@ impl Neighbor {
         let _ = self.msg_txp.as_ref().unwrap().send(msg);
     }
 
+    // Enqueues a single BGP message for transmission over the connection
+    // colliding with the neighbor's.
+    fn colliding_send(&mut self, msg: Message) {
+        let Some(colliding) = &self.colliding else {
+            return;
+        };
+        let msg_txp = colliding.msg_txp.clone();
+        self.message_sent(&msg);
+
+        // Ignore any possible error as the connection might have gone down
+        // already.
+        let nbr_addr = self.remote_addr;
+        let msg = NbrTxMsg::SendMessage { nbr_addr, msg };
+        let _ = msg_txp.send(msg);
+    }
+
+    // Logs and accounts for a BGP message enqueued for transmission.
+    fn message_sent(&mut self, msg: &Message) {
+        if self.config.trace_opts.packets_resolved.load().tx(msg) {
+            Debug::NbrMsgTx(&self.remote_addr, msg).log();
+        }
+
+        // Update statistics.
+        self.statistics.msgs_sent.update(msg);
+
+        // Keep track of the last sent notification.
+        if let Message::Notification(msg) = &msg {
+            self.notification_sent = Some((Utc::now(), msg.clone()));
+        }
+    }
+
     // Enqueues a list of BGP messages for transmission.
     //
     // This method is more efficient for handling a large number of messages,
     // as they are sent all at once.
     pub(crate) fn message_list_send(&mut self, msg_list: Vec<Message>) {
         for msg in &msg_list {
-            if self.config.trace_opts.packets_resolved.load().tx(msg) {
-                Debug::NbrMsgTx(&self.remote_addr, msg).log();
-            }
-
-            // Update statistics.
-            self.statistics.msgs_sent.update(msg);
-
-            // Keep track of the last sent notification.
-            if let Message::Notification(msg) = &msg {
-                self.notification_sent = Some((Utc::now(), msg.clone()));
-            }
+            self.message_sent(msg);
         }
 
         // Ignore any possible error as the connection might have gone down
@@ -744,6 +937,16 @@ impl Neighbor {
 
     // Sends a BGP OPEN message based on the local configuration.
     fn open_send(&mut self, instance_cfg: &InstanceCfg, identifier: Ipv4Addr) {
+        let msg = self.open_build(instance_cfg, identifier);
+        self.message_send(msg);
+    }
+
+    // Builds a BGP OPEN message based on the local configuration.
+    fn open_build(
+        &mut self,
+        instance_cfg: &InstanceCfg,
+        identifier: Ipv4Addr,
+    ) -> Message {
         // Base capabilities.
         let mut capabilities: BTreeSet<_> = [
             Capability::RouteRefresh,
@@ -774,15 +977,14 @@ impl Neighbor {
         // Keep track of the advertised capabilities.
         self.capabilities_adv.clone_from(&capabilities);
 
-        // Fill-in and send message.
-        let msg = Message::Open(OpenMsg {
+        // Fill-in message.
+        Message::Open(OpenMsg {
             version: OpenMsg::VERSION,
             my_as: instance_cfg.asn.try_into().unwrap_or(AS_TRANS),
             holdtime: self.config.timers.holdtime,
             identifier,
             capabilities,
-        });
-        self.message_send(msg);
+        })
     }
 
     // Processes the received OPEN message while in the OpenSent state.
@@ -844,8 +1046,6 @@ impl Neighbor {
         self.identifier = Some(msg.identifier);
         self.holdtime_nego = (holdtime_nego != 0).then_some(holdtime_nego);
         self.capabilities_rcvd = msg.capabilities;
-
-        // TODO: collision detection
 
         // Transition to the OpenConfirm state.
         fsm::State::OpenConfirm

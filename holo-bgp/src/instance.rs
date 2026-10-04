@@ -580,6 +580,7 @@ fn process_protocol_msg(
                 instance,
                 neighbors,
                 msg.nbr_addr,
+                msg.conn_info,
                 msg.msg,
             )?;
         }

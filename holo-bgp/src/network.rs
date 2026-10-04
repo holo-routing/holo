@@ -260,6 +260,7 @@ pub(crate) async fn nbr_write_loop(
 pub(crate) async fn nbr_read_loop(
     stream: OwnedReadHalf,
     nbr_addr: IpAddr,
+    conn_info: TcpConnInfo,
     cxt: DecodeCxt,
     nbr_msg_rxp: Sender<NbrRxMsg>,
 ) -> Result<(), SendError<NbrRxMsg>> {
@@ -276,6 +277,7 @@ pub(crate) async fn nbr_read_loop(
                     // Notify that the connection was closed by the remote end.
                     let msg = NbrRxMsg {
                         nbr_addr,
+                        conn_info: Some(conn_info),
                         msg: Err(NbrRxError::TcpConnClosed),
                     };
                     nbr_msg_rxp.send(msg).await?;
@@ -306,7 +308,11 @@ pub(crate) async fn nbr_read_loop(
                 }
 
                 // Notify that the BGP message was received.
-                let msg = NbrRxMsg { nbr_addr, msg };
+                let msg = NbrRxMsg {
+                    nbr_addr,
+                    conn_info: Some(conn_info.clone()),
+                    msg,
+                };
                 nbr_msg_rxp.send(msg).await?;
             }
         }

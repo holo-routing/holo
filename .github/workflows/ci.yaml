@@ -2,10 +2,17 @@ name: CI
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
 env:
   CARGO_TERM_COLOR: always
   # Make sure CI fails on all warnings, including Clippy lints
   RUSTFLAGS: "-Dwarnings"
+  RUST_VERSION: "1.97"
+  # rustfmt and cargo-fuzz need nightly
+  RUST_NIGHTLY_VERSION: nightly-2026-04-01
+  TEST_PACKAGES: -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-utils -p holo-vrrp
 
 jobs:
   fmt:
@@ -13,9 +20,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2026-04-01
+          toolchain: ${{ env.RUST_NIGHTLY_VERSION }}
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
       - name: "rustfmt --check"
@@ -30,13 +37,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ env.RUST_VERSION }}
           components: clippy
       - name: Install Protocol Buffers Compiler
         run: sudo apt-get install -y protobuf-compiler
-      - name: Set PROTOC Environment Variable
-        run: export PROTOC=/path/to/protoc
       - name: Run Clippy
         run: cargo clippy
       - name: Run Clippy
@@ -47,16 +53,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
       - name: Generate code coverage
-        run: cargo llvm-cov --all-features --codecov --output-path codecov.json -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-utils -p holo-vrrp
+        run: cargo llvm-cov --all-features --codecov --output-path codecov.json $TEST_PACKAGES
       - name: Upload to Codecov
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         if: github.ref == 'refs/heads/master' && github.repository_owner == 'holo-routing'
         with:
-          files: ./lcov.info
+          files: ./codecov.json
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
 
@@ -65,9 +73,11 @@ jobs:
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
       - name: Run tests
-        run: cargo test --all-features -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-utils -p holo-vrrp 
+        run: cargo test --all-features $TEST_PACKAGES
 
   tests_wasm:
     name: Tests (Wasm)
@@ -87,8 +97,9 @@ jobs:
       RUSTFLAGS: "-Dwarnings -Clink-self-contained=no"
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91
+      - uses: dtolnay/rust-toolchain@master
         with:
+          toolchain: ${{ env.RUST_VERSION }}
           targets: wasm32-wasip1
       - uses: Swatinem/rust-cache@v2
       - name: Install WASI toolchain
@@ -103,7 +114,7 @@ jobs:
           cmake -S "pcre2-${PCRE2_VERSION}" -B pcre2-build -DCMAKE_TOOLCHAIN_FILE="$WASI_SDK_PATH/share/cmake/wasi-sdk-p1.cmake" -DWASI_SDK_PREFIX="$WASI_SDK_PATH" -DCMAKE_INSTALL_PREFIX="$WASI_DIR" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DPCRE2_BUILD_PCRE2GREP=OFF -DPCRE2_BUILD_TESTS=OFF -DPCRE2_SUPPORT_JIT=OFF
           cmake --build pcre2-build --target install -j"$(nproc)"
       - name: Run tests
-        run: cargo test --target wasm32-wasip1 -p holo-bfd -p holo-bgp -p holo-isis -p holo-ldp -p holo-ospf -p holo-rip -p holo-utils -p holo-vrrp
+        run: cargo test --target wasm32-wasip1 $TEST_PACKAGES
 
   fuzz-build-check:
     name: Fuzz Targets Build Check
@@ -111,44 +122,24 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       # cargo-fuzz requires nightly Rust due to LLVM sanitizer support
-      - uses: dtolnay/rust-toolchain@nightly
+      - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly-2026-01-01
+          toolchain: ${{ env.RUST_NIGHTLY_VERSION }}
       - name: Install cargo-fuzz
-        run: cargo install cargo-fuzz
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+      # The prebuilt cargo-fuzz defaults to the musl target, which the sanitizers don't support
       - name: Check fuzz targets
-        run: cargo fuzz check
+        run: cargo fuzz check --target x86_64-unknown-linux-gnu
 
   bench-build-check:
     name: Benchmark Build Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: dtolnay/rust-toolchain@1.91
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
       - name: Check benchmark builds
         run: cargo bench --no-run -p holo-bgp -p holo-ldp -p holo-ospf
-
-  docker-build-holod:
-    name: "Docker Build: holod"
-    uses: ./.github/workflows/docker-build-and-attest.yml
-    if: github.ref == 'refs/heads/master' && github.repository_owner == 'holo-routing'
-    with:
-      image-name: holod
-      dockerfile: docker/Dockerfile.holod
-    permissions:
-      id-token: write
-      attestations: write
-      packages: write
-
-  docker-build-holo-bundle:
-    name: "Docker Build: holo-bundle"
-    needs: docker-build-holod
-    uses: ./.github/workflows/docker-build-and-attest.yml
-    if: github.ref == 'refs/heads/master' && github.repository_owner == 'holo-routing'
-    with:
-      image-name: holo-bundle
-      dockerfile: docker/Dockerfile.holo-bundle
-    permissions:
-      id-token: write
-      attestations: write
-      packages: write

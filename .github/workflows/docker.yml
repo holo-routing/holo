@@ -1,0 +1,31 @@
+name: Docker
+
+on:
+  push:
+    branches: [master]
+
+jobs:
+  docker-build-holod:
+    name: "Docker Build: holod"
+    uses: ./.github/workflows/docker-build-and-attest.yml
+    if: github.repository_owner == 'holo-routing'
+    with:
+      image-name: holod
+      dockerfile: docker/Dockerfile.holod
+    permissions:
+      id-token: write
+      attestations: write
+      packages: write
+
+  docker-build-holo-bundle:
+    name: "Docker Build: holo-bundle"
+    needs: docker-build-holod
+    uses: ./.github/workflows/docker-build-and-attest.yml
+    if: github.repository_owner == 'holo-routing'
+    with:
+      image-name: holo-bundle
+      dockerfile: docker/Dockerfile.holo-bundle
+    permissions:
+      id-token: write
+      attestations: write
+      packages: write

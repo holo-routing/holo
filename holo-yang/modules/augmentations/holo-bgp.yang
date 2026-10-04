@@ -40,6 +40,15 @@ module holo-bgp {
       "Route was ineligible due to unresolvable next-hop";
   }
 
+  identity cluster-list-longer {
+    base brt:bgp-not-selected-bestpath;
+    description
+      "Route has a longer CLUSTER_LIST than the current best path";
+    reference
+      "RFC 4456: BGP Route Reflection: An Alternative to Full Mesh
+       Internal BGP (IBGP), Section 9.";
+  }
+
   identity unknown-error {
     base bn:bgp-notification;
     description

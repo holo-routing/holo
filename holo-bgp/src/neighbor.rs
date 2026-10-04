@@ -36,7 +36,7 @@ use crate::packet::message::{
     Capability, DecodeCxt, EncodeCxt, KeepaliveMsg, Message,
     NegotiatedCapability, NotificationMsg, OpenMsg, RouteRefreshMsg,
 };
-use crate::rib::{BestRoute, Rib};
+use crate::rib::{BestRoute, Rib, RouteOrigin};
 #[cfg(feature = "testing")]
 use crate::tasks::messages::ProtocolOutputMsg;
 use crate::tasks::messages::input::{NbrTimerMsg, TcpConnectMsg};
@@ -1094,6 +1094,28 @@ impl Neighbor {
                 .is_none_or(|hops| hops == 1)
     }
 
+    // Returns the CLUSTER_ID the local router uses with the neighbor: the one
+    // configured for it, or else the local BGP Identifier, which identifies a
+    // cluster with a single route reflector (RFC 4456 - Section 7).
+    pub(crate) fn cluster_id(&self, router_id: Ipv4Addr) -> Ipv4Addr {
+        self.config.route_reflector.cluster_id.unwrap_or(router_id)
+    }
+
+    // Returns the CLUSTER_ID of the cluster the neighbor is in, if it's a
+    // route reflection client.
+    pub(crate) fn client_cluster_id(
+        &self,
+        router_id: Ipv4Addr,
+    ) -> Option<Ipv4Addr> {
+        if self.peer_type != PeerType::Internal
+            || !self.config.route_reflector.client
+        {
+            return None;
+        }
+
+        Some(self.cluster_id(router_id))
+    }
+
     // Returns the neighbor's Tx-TTL value based on the peer type and
     // configuration.
     pub(crate) fn tx_ttl(&self) -> u8 {
@@ -1205,6 +1227,7 @@ impl Neighbor {
                     let route = BestRoute {
                         origin: route.origin,
                         route_type: route.route_type,
+                        client_cluster_id: route.client_cluster_id,
                         attrs: route.attrs.clone(),
                         last_modified: route.last_modified,
                         igp_cost: None,
@@ -1224,6 +1247,7 @@ impl Neighbor {
                 .map(|(prefix, route)| (*prefix, route))
                 .collect(),
             &mut instance.state.rib.attr_sets,
+            instance.state.router_id,
             instance.shared,
             &instance.state.policy_apply_tasks,
         );
@@ -1372,11 +1396,27 @@ impl Neighbor {
         // peer, the receiving BGP speaker SHALL NOT re-distribute the
         // routing information contained in that UPDATE message to other
         // internal peers".
+        //
+        // RFC 4456 - Section 6 makes an exception of route reflection:
+        // "1) A route from a Non-Client IBGP peer:
+        //     Reflect to all the Clients.
+        //  2) A route from a Client peer:
+        //     Reflect to all the Non-Client peers and also to the Client
+        //     peers".
+        //
+        // A route isn't reflected back to the client it was learned from,
+        // which would ignore it for carrying its own ORIGINATOR_ID.
         if route.route_type == RouteType::Internal
-            && !route.origin.is_local()
+            && let RouteOrigin::Neighbor { remote_addr, .. } = route.origin
             && self.peer_type == PeerType::Internal
         {
-            return false;
+            let reflect = match route.client_cluster_id {
+                Some(_) => remote_addr != self.remote_addr,
+                None => self.config.route_reflector.client,
+            };
+            if !reflect {
+                return false;
+            }
         }
 
         // Handle well-known communities.

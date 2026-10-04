@@ -118,6 +118,7 @@ pub struct NeighborCfg {
     pub timers: NeighborTimersCfg,
     pub transport: NeighborTransportCfg,
     pub log_neighbor_state_changes: bool,
+    pub route_reflector: RouteReflectorCfg,
     pub as_path_options: AsPathOptions,
     pub apply_policy: ApplyPolicyCfg,
     pub prefix_limit: PrefixLimitCfg,
@@ -193,6 +194,17 @@ pub struct PrefixLimitCfg {
 
 #[derive(Debug, Default)]
 pub struct RedistributionCfg {}
+
+#[derive(Debug)]
+pub struct RouteReflectorCfg {
+    pub client: bool,
+    pub cluster_id: Option<Ipv4Addr>,
+}
+
+// Route reflection CLUSTER_ID, configured either as a 4-octet number or in
+// dotted-quad notation.
+#[derive(Clone, Copy, Debug)]
+pub struct ClusterId(pub Ipv4Addr);
 
 #[derive(Debug)]
 pub struct AsPathOptions {
@@ -605,6 +617,18 @@ fn apply_neighbor(instance: &mut Instance, nbr_addr: IpAddr, change: NeighborCha
                 }
                 NeighborEntryChange::LoggingOptionsLogNeighborStateChanges(log) => {
                     nbr.config.log_neighbor_state_changes = log;
+                }
+                NeighborEntryChange::RouteReflectorClusterId(cluster_id) => {
+                    nbr.config.route_reflector.cluster_id = cluster_id.map(|cluster_id| cluster_id.0);
+
+                    let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
+                    event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
+                }
+                NeighborEntryChange::RouteReflectorClient(client) => {
+                    nbr.config.route_reflector.client = client;
+
+                    let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
+                    event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
                 }
                 NeighborEntryChange::AsPathOptionsAllowOwnAs(allow) => {
                     nbr.config.as_path_options.allow_own_as = allow;
@@ -1062,6 +1086,7 @@ impl Default for NeighborCfg {
             timers: Default::default(),
             transport: Default::default(),
             log_neighbor_state_changes,
+            route_reflector: Default::default(),
             as_path_options: Default::default(),
             apply_policy: Default::default(),
             prefix_limit: Default::default(),
@@ -1139,6 +1164,17 @@ impl Default for PrefixLimitCfg {
             warning_threshold_pct: None,
             teardown: false,
             idle_time: None,
+        }
+    }
+}
+
+impl Default for RouteReflectorCfg {
+    fn default() -> RouteReflectorCfg {
+        let client = bgp::neighbors::neighbor::route_reflector::client::DFLT;
+
+        RouteReflectorCfg {
+            client,
+            cluster_id: None,
         }
     }
 }

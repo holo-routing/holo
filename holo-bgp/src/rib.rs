@@ -20,12 +20,13 @@ use serde::{Deserialize, Serialize};
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
 use crate::ibus;
-use crate::neighbor::{Neighbor, PeerIndex, PeerType};
+use crate::neighbor::{Neighbor, Neighbors, PeerIndex, PeerType};
 use crate::northbound::configuration::{
     DistanceCfg, InstanceTraceOptions, MultipathCfg, RouteSelectionCfg,
 };
 use crate::packet::attribute::{
-    Attrs, BaseAttrs, Comms, ExtComms, Extv6Comms, LargeComms, UnknownAttr,
+    Attrs, BaseAttrs, ClusterList, Comms, ExtComms, Extv6Comms, LargeComms,
+    UnknownAttr,
 };
 
 // Default values.
@@ -117,6 +118,9 @@ struct Candidate<'a> {
 pub struct BestRoute {
     pub origin: RouteOrigin,
     pub route_type: RouteType,
+    // CLUSTER_ID of the route reflection client the route was learned from,
+    // if any.
+    pub client_cluster_id: Option<Ipv4Addr>,
     pub attrs: Arc<RouteAttrs>,
     pub last_modified: Instant,
     pub igp_cost: Option<u32>,
@@ -127,6 +131,9 @@ pub struct LocalRoute {
     pub origin: RouteOrigin,
     pub attrs: Arc<RouteAttrs>,
     pub route_type: RouteType,
+    // CLUSTER_ID of the route reflection client the route was learned from,
+    // if any.
+    pub client_cluster_id: Option<Ipv4Addr>,
     pub last_modified: Instant,
     pub nexthops: Option<Box<[IpAddr]>>,
 }
@@ -155,7 +162,7 @@ struct RouteRef<'a> {
     igp_cost: Option<u32>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 #[derive(Deserialize, Serialize)]
 pub enum RouteOrigin {
     // Route learned from a neighbor.
@@ -241,6 +248,7 @@ pub enum RouteRejectReason {
     PreferExternal,
     NexthopCostHigher,
     HigherRouterId,
+    ClusterListLonger,
     HigherPeerAddress,
     RejectedImportPolicy,
 }
@@ -619,14 +627,21 @@ impl RouteRef<'_> {
         }
 
         // Compare peer BGP identifiers.
+        //
+        // RFC 4456 - Section 9:
+        // "If a route carries the ORIGINATOR_ID attribute, then in Step f)
+        // the ORIGINATOR_ID SHOULD be treated as the BGP Identifier of the
+        // BGP speaker that has advertised the route".
         if selection_cfg.external_compare_router_id
             && let (
                 RouteOrigin::Neighbor { identifier: a, .. },
                 RouteOrigin::Neighbor { identifier: b, .. },
             ) = (&self.origin, &other.origin)
         {
+            let a = self.attrs.base.value.originator_id.unwrap_or(*a);
+            let b = other.attrs.base.value.originator_id.unwrap_or(*b);
             let reason = RouteRejectReason::HigherRouterId;
-            match a.cmp(b) {
+            match a.cmp(&b) {
                 Ordering::Less => {
                     return RouteCompare::Preferred(reason);
                 }
@@ -636,6 +651,30 @@ impl RouteRef<'_> {
                 Ordering::Equal => {
                     // Move to next tie-breaker.
                 }
+            }
+        }
+
+        // Compare CLUSTER_LIST lengths.
+        //
+        // RFC 4456 - Section 9:
+        // "In addition, the following rule SHOULD be inserted between Steps
+        // f) and g): a BGP Speaker SHOULD prefer a route with the shorter
+        // CLUSTER_LIST length.  The CLUSTER_LIST length is zero if a route
+        // does not carry the CLUSTER_LIST attribute".
+        let a = self.attrs.base.value.cluster_list.as_ref();
+        let b = other.attrs.base.value.cluster_list.as_ref();
+        let a = a.map_or(0, |cluster_list| cluster_list.0.len());
+        let b = b.map_or(0, |cluster_list| cluster_list.0.len());
+        let reason = RouteRejectReason::ClusterListLonger;
+        match a.cmp(&b) {
+            Ordering::Less => {
+                return RouteCompare::Preferred(reason);
+            }
+            Ordering::Greater => {
+                return RouteCompare::LessPreferred(reason);
+            }
+            Ordering::Equal => {
+                // Move to next tie-breaker.
             }
         }
 
@@ -885,6 +924,8 @@ where
 pub(crate) fn best_path<A>(
     dest: &mut Destination,
     local_asn: u32,
+    router_id: Ipv4Addr,
+    neighbors: &Neighbors,
     nht: &HashMap<IpAddr, NhtEntry<A>>,
     selection_cfg: &RouteSelectionCfg,
 ) -> Option<Box<BestRoute>>
@@ -923,6 +964,29 @@ where
         if cand.attrs.base.value.as_path.contains(local_asn) {
             cand.selection.ineligible_reason =
                 Some(RouteIneligibleReason::AsLoop);
+            continue;
+        }
+
+        // RFC 4456 - Section 8:
+        // "A router that recognizes the ORIGINATOR_ID attribute SHOULD
+        // ignore a route received with its BGP Identifier as the
+        // ORIGINATOR_ID".
+        if cand.attrs.base.value.originator_id == Some(router_id) {
+            cand.selection.ineligible_reason =
+                Some(RouteIneligibleReason::Originator);
+            continue;
+        }
+
+        // RFC 4456 - Section 8:
+        // "If the local CLUSTER_ID is found in the CLUSTER_LIST, the
+        // advertisement received SHOULD be ignored".
+        if let Some(cluster_list) = &cand.attrs.base.value.cluster_list
+            && let RouteOrigin::Neighbor { remote_addr, .. } = cand.origin
+            && let Some(nbr) = neighbors.get(&remote_addr)
+            && cluster_list.0.contains(&nbr.cluster_id(router_id))
+        {
+            cand.selection.ineligible_reason =
+                Some(RouteIneligibleReason::ClusterLoop);
             continue;
         }
 
@@ -968,9 +1032,19 @@ where
 
     // Build the winning route, if any.
     best.map(|cand| {
+        // Keep track of the route reflection client the route was learned
+        // from, which decides who the route is reflected to.
+        let client_cluster_id = match cand.origin {
+            RouteOrigin::Neighbor { remote_addr, .. } => neighbors
+                .get(&remote_addr)
+                .and_then(|nbr| nbr.client_cluster_id(router_id)),
+            RouteOrigin::Protocol(_) => None,
+        };
+
         Box::new(BestRoute {
             origin: cand.origin,
             route_type: cand.route_type,
+            client_cluster_id,
             attrs: cand.attrs.clone(),
             last_modified: cand.last_modified,
             igp_cost: cand.selection.igp_cost,
@@ -1007,6 +1081,7 @@ where
             && local_route.origin == best_route.origin
             && local_route.attrs == best_route.attrs
             && local_route.route_type == best_route.route_type
+            && local_route.client_cluster_id == best_route.client_cluster_id
             && local_route.nexthops == nexthops
         {
             return false;
@@ -1017,6 +1092,7 @@ where
             origin: best_route.origin,
             attrs: best_route.attrs,
             route_type: best_route.route_type,
+            client_cluster_id: best_route.client_cluster_id,
             last_modified: best_route.last_modified,
             nexthops,
         };
@@ -1062,7 +1138,8 @@ where
 pub(crate) fn attrs_export_update<A>(
     attrs: &mut Attrs,
     nbr: &Neighbor,
-    local: bool,
+    route: &BestRoute,
+    router_id: Ipv4Addr,
 ) where
     A: AddressFamily,
 {
@@ -1072,6 +1149,41 @@ pub(crate) fn attrs_export_update<A>(
             if attrs.base.local_pref.is_none() {
                 attrs.base.local_pref = Some(DFLT_LOCAL_PREF);
             }
+
+            // A route learned from an internal peer reaches another one only
+            // by being reflected.
+            if route.route_type == RouteType::Internal
+                && let RouteOrigin::Neighbor { identifier, .. } = route.origin
+            {
+                // RFC 4456 - Section 8:
+                // "A BGP speaker SHOULD NOT create an ORIGINATOR_ID attribute
+                // if one already exists".
+                if attrs.base.originator_id.is_none() {
+                    attrs.base.originator_id = Some(identifier);
+                }
+
+                // RFC 4456 - Section 8:
+                // "When an RR reflects a route, it MUST prepend the local
+                // CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is
+                // empty, it MUST create a new one".
+                //
+                // The route leaves the cluster of the client it was learned
+                // from, and enters the cluster of the client it's reflected
+                // to, so the CLUSTER_ID of each is prepended, once if they're
+                // the same.
+                let cluster_list = attrs
+                    .base
+                    .cluster_list
+                    .get_or_insert_with(|| ClusterList(vec![]));
+                if let Some(cluster_id) = route.client_cluster_id {
+                    cluster_list.0.insert(0, cluster_id);
+                }
+                if let Some(cluster_id) = nbr.client_cluster_id(router_id)
+                    && route.client_cluster_id != Some(cluster_id)
+                {
+                    cluster_list.0.insert(0, cluster_id);
+                }
+            }
         }
         PeerType::External => {
             // Do not propagate the MULTI_EXIT_DISC attribute.
@@ -1079,11 +1191,16 @@ pub(crate) fn attrs_export_update<A>(
 
             // Remove the LOCAL_PREF attribute.
             attrs.base.local_pref = None;
+
+            // Remove the ORIGINATOR_ID and CLUSTER_LIST attributes, which
+            // only have meaning within the local AS.
+            attrs.base.originator_id = None;
+            attrs.base.cluster_list = None;
         }
     }
 
     // Update the next hop according to the route origin and the peer type.
-    A::nexthop_tx_change(nbr, local, &mut attrs.base);
+    A::nexthop_tx_change(nbr, route.origin.is_local(), &mut attrs.base);
 }
 
 // Updates route attributes at transmission time, after export policies were

@@ -5,12 +5,13 @@
 //
 
 use std::borrow::Cow;
+use std::net::Ipv4Addr;
 
 use holo_yang::{ToYang, TryFromYang};
 use num_traits::FromPrimitive;
 
 use crate::neighbor::{PeerType, fsm};
-use crate::northbound::configuration::{InstanceTraceOption, NeighborTraceOption, PrivateAsRemove};
+use crate::northbound::configuration::{ClusterId, InstanceTraceOption, NeighborTraceOption, PrivateAsRemove};
 use crate::packet::attribute::AsPathSegmentType;
 use crate::packet::iana::{CapabilityCode, CeaseSubcode, ErrorCode, FsmErrorSubcode, MessageHeaderErrorSubcode, OpenMessageErrorSubcode, RouteRefreshErrorSubcode, Safi, UpdateMessageErrorSubcode};
 use crate::packet::message::{AddPathMode, NotificationMsg};
@@ -222,6 +223,7 @@ impl ToYang for RouteRejectReason {
             RouteRejectReason::PreferExternal => "iana-bgp-rib-types:prefer-external".into(),
             RouteRejectReason::NexthopCostHigher => "iana-bgp-rib-types:nexthop-cost-higher".into(),
             RouteRejectReason::HigherRouterId => "iana-bgp-rib-types:higher-router-id".into(),
+            RouteRejectReason::ClusterListLonger => "holo-bgp:cluster-list-longer".into(),
             RouteRejectReason::HigherPeerAddress => "iana-bgp-rib-types:higher-peer-address".into(),
             RouteRejectReason::RejectedImportPolicy => "iana-bgp-rib-types:rejected-import-policy".into(),
         }
@@ -237,6 +239,13 @@ impl TryFromYang for PrivateAsRemove {
             "iana-bgp-types:private-as-replace-all" => Some(PrivateAsRemove::ReplaceAll),
             _ => None,
         }
+    }
+}
+
+impl TryFromYang for ClusterId {
+    fn try_from_yang(value: &str) -> Option<ClusterId> {
+        let cluster_id = value.parse::<Ipv4Addr>().or_else(|_| value.parse::<u32>().map(Ipv4Addr::from)).ok()?;
+        Some(ClusterId(cluster_id))
     }
 }
 

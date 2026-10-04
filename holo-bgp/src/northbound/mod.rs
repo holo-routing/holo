@@ -19,7 +19,7 @@ pub mod yang_gen {
     pub use routing::control_plane_protocols::control_plane_protocol::bgp;
 
     use crate::neighbor::{PeerType, fsm};
-    use crate::northbound::configuration::{InstanceTraceOption, NeighborTraceOption, PrivateAsRemove};
+    use crate::northbound::configuration::{ClusterId, InstanceTraceOption, NeighborTraceOption, PrivateAsRemove};
     use crate::packet::attribute::AsPathSegmentType;
     use crate::packet::iana::{Afi, CapabilityCode, Safi};
     use crate::packet::message::{AddPathMode, NotificationMsg};

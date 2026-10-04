@@ -5,7 +5,7 @@
 //
 
 use std::collections::{BTreeMap, HashMap};
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::time::Instant;
 
 use chrono::Utc;
@@ -815,6 +815,8 @@ where
         let best_route = rib::best_path::<A>(
             dest,
             instance.config.asn,
+            instance.state.router_id,
+            neighbors,
             &table.nht,
             selection_cfg,
         );
@@ -902,6 +904,7 @@ where
                     table,
                     nbr_reach,
                     &mut instance.state.rib.attr_sets,
+                    instance.state.router_id,
                     instance.shared,
                     &instance.state.policy_apply_tasks,
                 );
@@ -959,6 +962,7 @@ pub(crate) fn advertise_routes<A>(
     table: &mut RoutingTable<A>,
     routes: Vec<(A::IpNetwork, &BestRoute)>,
     attr_sets: &mut AttrSetsCxt,
+    router_id: Ipv4Addr,
     shared: &InstanceShared,
     policy_apply_tasks: &PolicyApplyTasks,
 ) where
@@ -980,12 +984,13 @@ pub(crate) fn advertise_routes<A>(
         BTreeMap::new();
     for (prefix, route) in routes {
         // Update route's attributes before the export policies are applied.
-        let local = route.origin.is_local();
         let route_attrs = updated_attrs
-            .entry((route.attrs.key(), local))
+            .entry((route.attrs.key(), route.origin))
             .or_insert_with(|| {
                 let mut attrs = route.attrs.get();
-                rib::attrs_export_update::<A>(&mut attrs, nbr, local);
+                rib::attrs_export_update::<A>(
+                    &mut attrs, nbr, route, router_id,
+                );
                 attr_sets.get_route_attr_sets(&attrs)
             })
             .clone();

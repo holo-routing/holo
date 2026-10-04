@@ -152,6 +152,7 @@ Holo supports the following Internet Standards:
 * RFC 2918 - Route Refresh Capability for BGP-4
 * RFC 4271 - A Border Gateway Protocol 4 (BGP-4)
 * RFC 4360 - BGP Extended Communities Attribute
+* RFC 4456 - BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP)
 * RFC 4486 - Subcodes for BGP Cease Notification Message
 * RFC 4760 - Multiprotocol Extensions for BGP-4
 * RFC 5082 - The Generalized TTL Security Mechanism (GTSM)

@@ -73,6 +73,13 @@ static TYPEDEFS: &[(&str, TypeSpec)] = &[
             copy_semantics: true,
         },
     ),
+    (
+        "rr-cluster-id-type",
+        TypeSpec {
+            rust_type: "ClusterId",
+            copy_semantics: true,
+        },
+    ),
 ];
 
 // BGP-specific YANG identity types.

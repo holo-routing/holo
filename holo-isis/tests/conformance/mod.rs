@@ -1425,6 +1425,19 @@ async fn timeout_adj1() {
 }
 
 // Input:
+//  * Northbound: disable the standard topology
+// Output:
+//  * Protocol: send an updated local LSP to all adjacencies, listing the IPv6
+//    unicast topology alone in the Multi-Topology TLV, IPv6 alone in the
+//    Protocols Supported TLV, and carrying no MT #0 IS or IP reachability
+//  * Northbound: send an "lsp-generation" YANG notification
+//    (lsp-id = 0000.0000.0003.00-00)
+#[tokio::test]
+async fn nb_config_topology1() {
+    run_test::<Instance>("nb-config-topology1", "topo2-4", "rt3").await;
+}
+
+// Input:
 //  * Protocol: LAN adjacency (0000.0000.0001) on eth-sw1 timed out
 // Output:
 //  * Protocol: send an updated local LSP to all other adjacencies

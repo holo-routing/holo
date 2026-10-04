@@ -235,7 +235,9 @@ impl Instance {
 
     // Stops the IS-IS instance.
     fn stop(&mut self, reason: InstanceInactiveReason) {
-        let (mut instance, arenas) = self.as_up().unwrap();
+        let Some((mut instance, arenas)) = self.as_up() else {
+            return;
+        };
 
         Debug::InstanceStop(reason).log();
 

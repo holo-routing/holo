@@ -277,19 +277,6 @@ module holo-ietf-isis-deviations {
   }
 
   /*
-   * Added constraints
-   */
-
-  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/isis:isis/isis:topologies/isis:topology/isis:name" {
-    deviate add {
-      must 'derived-from-or-self(., "holo-isis:mt-topology-ipv6-unicast")' {
-        error-message
-          "Unsupported topology.";
-      }
-    }
-  }
-
-  /*
    * Workarounds
    */
 

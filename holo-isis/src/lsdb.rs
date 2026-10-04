@@ -594,8 +594,21 @@ fn lsp_build_tlvs_is_reach(
     match iface.config.interface_type {
         InterfaceType::Broadcast => {
             if let Some(dis) = iface.state.dis.get(level) {
+                // RFC 5120 - Section 2.2:
+                // "The IS SHOULD NOT include the MT IS TLV in its LSP if none
+                // of the adjacencies on the LAN contain this MT".
+                let mt_id = MtId::Standard;
+                let standard_mt = instance.config.is_topology_enabled(mt_id)
+                    && iface.config.is_topology_enabled(mt_id)
+                    && iface
+                        .state
+                        .lan_adjacencies
+                        .get(level)
+                        .iter(adjacencies)
+                        .any(|adj| adj.topologies.contains(&(mt_id as u16)));
+
                 // Add legacy IS reachability.
-                if metric_type.is_standard_enabled() {
+                if metric_type.is_standard_enabled() && standard_mt {
                     is_reach.push(LegacyIsReach {
                         metric: std::cmp::min(metric, MAX_NARROW_METRIC) as u8,
                         metric_delay: None,
@@ -606,7 +619,7 @@ fn lsp_build_tlvs_is_reach(
                 }
 
                 // Add extended IS reachability.
-                if metric_type.is_wide_enabled() {
+                if metric_type.is_wide_enabled() && standard_mt {
                     let af = if instance
                         .config
                         .is_topology_enabled(MtId::Ipv6Unicast)
@@ -665,8 +678,18 @@ fn lsp_build_tlvs_is_reach(
             {
                 let neighbor = LanId::from((adj.system_id, 0));
 
+                // RFC 5120 - Section 2.1:
+                // "If an MT ID is not detected in the remote side's IIHs, the
+                // local router MUST NOT include that neighbor within its
+                // LSPs".
+                let mt_id = MtId::Standard;
+                let standard_mt = instance.config.is_topology_enabled(mt_id)
+                    && iface.config.is_topology_enabled(mt_id)
+                    && adj.topologies.contains(&(mt_id as u16));
+
                 // Add legacy IS reachability.
                 if metric_type.is_standard_enabled()
+                    && standard_mt
                     && adj.bfd.ipv4.as_ref().is_none_or(|bfd| bfd.is_up())
                     && adj.bfd.ipv6.as_ref().is_none_or(|bfd| bfd.is_up())
                 {
@@ -681,6 +704,7 @@ fn lsp_build_tlvs_is_reach(
 
                 // Add extended IS reachability.
                 if metric_type.is_wide_enabled()
+                    && standard_mt
                     && adj.bfd.ipv4.as_ref().is_none_or(|bfd| bfd.is_up())
                     && adj.bfd.ipv6.as_ref().is_none_or(|bfd| bfd.is_up())
                 {
@@ -792,8 +816,6 @@ fn lsp_build_tlvs_ip_local(
     if iface
         .config
         .is_af_enabled(AddressFamily::Ipv6, instance.config)
-        && (!instance.config.is_topology_enabled(MtId::Ipv6Unicast)
-            || iface.config.is_topology_enabled(MtId::Ipv6Unicast))
     {
         for addr in iface
             .system
@@ -1315,13 +1337,14 @@ fn lsp_propagate_l1_to_l2(
 
         // IPv6 unicast topology: get the distance to the corresponding L1
         // router from the SPT.
-        if let Some(l1_lsp_dist) = instance
-            .state
-            .spt
-            .ipv6_unicast
-            .get(LevelNumber::L1)
-            .get(&VertexId::from(l1_lsp.lsp_id.system_id))
-            .map(|vertex| vertex.distance)
+        if instance.config.is_af_enabled(AddressFamily::Ipv6)
+            && let Some(l1_lsp_dist) = instance
+                .state
+                .spt
+                .ipv6_unicast
+                .get(LevelNumber::L1)
+                .get(&VertexId::from(l1_lsp.lsp_id.system_id))
+                .map(|vertex| vertex.distance)
         {
             // Propagate MT-IPv6 reachability information.
             propagate_ip_reach(
@@ -1581,6 +1604,7 @@ pub(crate) fn install<'a>(
             topology_change = false;
         } else if old_lsp.tlvs.is_reach().eq(lsp.tlvs.is_reach())
             && old_lsp.tlvs.ext_is_reach().eq(lsp.tlvs.ext_is_reach())
+            && old_lsp.tlvs.mt_is_reach().eq(lsp.tlvs.mt_is_reach())
         {
             topology_change = false;
         }

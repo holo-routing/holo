@@ -1221,6 +1221,13 @@ fn process_event(instance: &mut Instance, event: Event) {
         }
         Event::InstanceTopologyUpdate => {
             if let Some((instance, arenas)) = instance.as_up() {
+                // Discard the SPT of disabled topologies.
+                for mt_id in MtId::ALL.into_iter().filter(|mt_id| !instance.config.is_topology_enabled(*mt_id)) {
+                    for level in LevelType::All {
+                        *instance.state.spt.get_mut(mt_id).get_mut(level) = Default::default();
+                    }
+                }
+
                 for iface in arenas.interfaces.iter_mut().filter(|iface| iface.state.active && !iface.is_passive()) {
                     iface.hello_interval_start(&instance, LevelType::All);
                 }
@@ -1435,8 +1442,13 @@ impl Provider for Instance {
 // ===== configuration helpers =====
 
 impl InstanceCfg {
-    // Checks if the specified address family is enabled.
+    // Checks if the specified address family and its carrying topology are
+    // both enabled.
     pub(crate) fn is_af_enabled(&self, af: AddressFamily) -> bool {
+        if !self.is_topology_enabled(self.af_topology(af)) {
+            return false;
+        }
+
         if let Some(af_cfg) = self.afs.get(&af) {
             return af_cfg.enabled;
         }
@@ -1444,17 +1456,27 @@ impl InstanceCfg {
         true
     }
 
-    // Checks if the specified topology is enabled.
-    pub(crate) fn is_topology_enabled(&self, mt_id: MtId) -> bool {
-        if mt_id == MtId::Standard {
-            return true;
+    // Returns the topology that carries the specified address family.
+    //
+    // IPv4 is always carried in the standard topology, whereas IPv6 moves to
+    // the IPv6 unicast topology whenever that topology is enabled.
+    pub(crate) fn af_topology(&self, af: AddressFamily) -> MtId {
+        if af == AddressFamily::Ipv6 && self.is_topology_enabled(MtId::Ipv6Unicast) {
+            return MtId::Ipv6Unicast;
         }
 
+        MtId::Standard
+    }
+
+    // Checks if the specified topology is enabled.
+    pub(crate) fn is_topology_enabled(&self, mt_id: MtId) -> bool {
         if let Some(mt_cfg) = self.mt.get(&mt_id) {
             return mt_cfg.enabled;
         }
 
-        false
+        // The standard topology is enabled unless configured otherwise, while
+        // the remaining topologies require explicit configuration.
+        mt_id == MtId::Standard
     }
 
     // Returns the levels supported by the instance.
@@ -1464,33 +1486,27 @@ impl InstanceCfg {
 
     // Returns the set of enabled topology IDs for the instance.
     pub(crate) fn topologies(&self) -> BTreeSet<MtId> {
-        let mut topologies = BTreeSet::new();
-        topologies.insert(MtId::Standard);
-        topologies.extend(self.mt.iter().filter_map(|(mt_id, mt_cfg)| mt_cfg.enabled.then_some(*mt_id)));
-        topologies
+        MtId::ALL.into_iter().filter(|mt_id| self.is_topology_enabled(*mt_id)).collect()
     }
 }
 
 impl InterfaceCfg {
-    // Checks if the specified address family is enabled.
+    // Checks if the specified address family and its carrying topology are
+    // both enabled, instance wide and on the interface.
     pub(crate) fn is_af_enabled(&self, af: AddressFamily, instance_cfg: &InstanceCfg) -> bool {
         if !self.afs.contains(&af) {
             return false;
         }
 
-        if let Some(af_cfg) = instance_cfg.afs.get(&af) {
-            return af_cfg.enabled;
+        if !self.is_topology_enabled(instance_cfg.af_topology(af)) {
+            return false;
         }
 
-        true
+        instance_cfg.is_af_enabled(af)
     }
 
     // Checks if the specified topology is enabled.
     pub(crate) fn is_topology_enabled(&self, mt_id: MtId) -> bool {
-        if mt_id == MtId::Standard {
-            return true;
-        }
-
         if let Some(mt_cfg) = self.mt.get(&mt_id) {
             return mt_cfg.enabled;
         }

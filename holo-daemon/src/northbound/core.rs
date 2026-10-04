@@ -342,7 +342,7 @@ impl Northbound {
         &mut self,
         notification: papi::provider::Notification,
     ) {
-        debug!(path = %notification.path, "received YANG notification");
+        trace!(path = %notification.path, "sending YANG notification");
 
         self.notification_subscribers.retain(|subscriber| {
             // Filter by path prefix if specified.

@@ -90,8 +90,15 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::Rib<'a> {
     type ParentListEntry = ();
     type ListEntry = RibAddressFamily;
 
-    fn iter(_master: &'a Master, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        let iter = [RibAddressFamily::Ipv4, RibAddressFamily::Ipv6, RibAddressFamily::Mpls].into_iter();
+    fn iter(master: &'a Master, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let iter = [RibAddressFamily::Ipv4, RibAddressFamily::Ipv6, RibAddressFamily::Mpls]
+            .into_iter()
+            // Skip routing tables that have no routes.
+            .filter(|af| match af {
+                RibAddressFamily::Ipv4 => master.rib.ip.ipv4().iter().any(|(_, routes)| routes.iter().any(|route| !route.flags.contains(RouteFlags::REMOVED))),
+                RibAddressFamily::Ipv6 => master.rib.ip.ipv6().iter().any(|(_, routes)| routes.iter().any(|route| !route.flags.contains(RouteFlags::REMOVED))),
+                RibAddressFamily::Mpls => master.rib.mpls.values().any(|route| !route.flags.contains(RouteFlags::REMOVED)),
+            });
         Some(iter)
     }
 

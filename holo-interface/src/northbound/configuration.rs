@@ -12,11 +12,12 @@ use holo_northbound::configuration::{ConfigChanges, Provider, YangConfigOps};
 use holo_northbound::error::{ApplyError, PrepareError};
 use ipnetwork::IpNetwork;
 
+use crate::Master;
+use crate::dataplane::Dataplane;
 use crate::interface::{Interface, Owner};
 use crate::northbound::REGEX_VRRP;
 use crate::northbound::yang_gen::config::{self, ConfigChange, InterfaceChange, InterfaceEntryChange, InterfaceIpv4AddressChange, InterfaceIpv4AddressEntryChange, InterfaceIpv6AddressChange, InterfaceIpv6AddressEntryChange};
 use crate::northbound::yang_gen::interfaces;
-use crate::{Master, netlink};
 
 #[derive(Debug)]
 pub enum Resource {}
@@ -179,54 +180,55 @@ fn apply_interface_ipv6_address(iface: &mut Interface, ifname: String, addr: IpA
 fn process_event(master: &mut Master, event: Event) {
     match event {
         Event::InterfaceDelete(ifname) => {
-            master.interfaces.remove(&ifname, Owner::CONFIG, &master.netlink_tx);
+            master.interfaces.remove(&ifname, Owner::CONFIG, &master.dataplane);
         }
         Event::AdminStatusChange(ifname, enabled) => {
             // If the interface is active, change its administrative status
-            // via netlink.
+            // in the dataplane.
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::admin_status_change(&master.netlink_tx, ifindex, enabled);
+                master.dataplane.admin_status_change(ifindex, enabled);
             }
         }
         Event::MtuChange(ifname, mtu) => {
-            // If the interface is active, change its MTU via netlink.
+            // If the interface is active, change its MTU in the dataplane.
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::mtu_change(&master.netlink_tx, ifindex, mtu);
+                master.dataplane.mtu_change(ifindex, mtu);
             }
         }
         Event::VlanCreate(ifname, vlan_id) => {
             // If the parent interface is active, create VLAN subinterface
-            // via netlink.
+            // in the dataplane.
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && iface.ifindex.is_none()
                 && let Some(parent) = &iface.config.parent
                 && let Some(parent) = master.interfaces.get_by_name(parent)
                 && let Some(parent_ifindex) = parent.ifindex
             {
-                netlink::vlan_create(&master.netlink_tx, iface.name.clone(), parent_ifindex, vlan_id);
+                master.dataplane.vlan_create(iface.name.clone(), parent_ifindex, vlan_id);
             }
         }
         Event::AddressInstall(ifname, addr, plen) => {
-            // If the interface is active, install the address via netlink.
+            // If the interface is active, install the address in the
+            // dataplane.
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
                 let addr = IpNetwork::new(addr, plen).unwrap();
-                netlink::addr_install(&master.netlink_tx, ifindex, &addr);
+                master.dataplane.addr_install(ifindex, &addr);
             }
         }
         Event::AddressUninstall(ifname, addr, plen) => {
-            // If the interface is active, uninstall the address via
-            // netlink.
+            // If the interface is active, uninstall the address from the
+            // dataplane.
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
                 let addr = IpNetwork::new(addr, plen).unwrap();
-                netlink::addr_uninstall(&master.netlink_tx, ifindex, &addr);
+                master.dataplane.addr_uninstall(ifindex, &addr);
             }
         }
         #[cfg(feature = "vrrp")]

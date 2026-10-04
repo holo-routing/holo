@@ -16,11 +16,10 @@ use holo_utils::ip::{AddressFamily, IpAddrKind, Ipv4NetworkExt};
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::southbound::{AddressFlags, InterfaceFlags};
 use ipnetwork::IpNetwork;
-use tokio::sync::mpsc::UnboundedSender;
 
-use crate::netlink::NetlinkRequest;
+use crate::dataplane::Dataplane;
+use crate::ibus;
 use crate::northbound::configuration::InterfaceCfg;
-use crate::{ibus, netlink};
 
 #[derive(Debug, Default)]
 pub struct Interfaces {
@@ -89,11 +88,11 @@ impl Interface {
     fn apply_config(
         &self,
         ifindex: u32,
-        netlink_tx: &UnboundedSender<NetlinkRequest>,
+        dataplane: &impl Dataplane,
         interfaces: &Interfaces,
     ) {
         // Set administrative status.
-        netlink::admin_status_change(netlink_tx, ifindex, self.config.enabled);
+        dataplane.admin_status_change(ifindex, self.config.enabled);
 
         // Create VLAN subinterface.
         if let Some(vlan_id) = self.config.vlan_id
@@ -102,23 +101,18 @@ impl Interface {
             && let Some(parent) = interfaces.get_by_name(parent)
             && let Some(parent_ifindex) = parent.ifindex
         {
-            netlink::vlan_create(
-                netlink_tx,
-                self.name.clone(),
-                parent_ifindex,
-                vlan_id,
-            );
+            dataplane.vlan_create(self.name.clone(), parent_ifindex, vlan_id);
         }
 
         // Set MTU.
         if let Some(mtu) = self.config.mtu {
-            netlink::mtu_change(netlink_tx, ifindex, mtu);
+            dataplane.mtu_change(ifindex, mtu);
         }
 
         // Install interface addresses.
         for (addr, plen) in &self.config.addr_list {
             let addr = IpNetwork::new(*addr, *plen).unwrap();
-            netlink::addr_install(netlink_tx, ifindex, &addr);
+            dataplane.addr_install(ifindex, &addr);
         }
     }
 }
@@ -159,7 +153,7 @@ impl Interfaces {
         mtu: u32,
         flags: InterfaceFlags,
         mac_address: MacAddr,
-        netlink_tx: &UnboundedSender<NetlinkRequest>,
+        dataplane: &impl Dataplane,
     ) {
         match self
             .ifindex_tree
@@ -206,7 +200,7 @@ impl Interfaces {
                     iface.ifindex = Some(ifindex);
 
                     let iface = &self.arena[iface_idx];
-                    iface.apply_config(ifindex, netlink_tx, self);
+                    iface.apply_config(ifindex, dataplane, self);
                 }
             }
             None => {
@@ -245,7 +239,7 @@ impl Interfaces {
         &mut self,
         ifname: &str,
         owner: Owner,
-        netlink_tx: &UnboundedSender<NetlinkRequest>,
+        dataplane: &impl Dataplane,
     ) {
         let Some(iface_idx) = self.name_tree.get(ifname).copied() else {
             return;
@@ -259,7 +253,7 @@ impl Interfaces {
         {
             for (addr, plen) in &iface.config.addr_list {
                 let addr = IpNetwork::new(*addr, *plen).unwrap();
-                netlink::addr_uninstall(netlink_tx, ifindex, &addr);
+                dataplane.addr_uninstall(ifindex, &addr);
             }
         }
 

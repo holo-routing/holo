@@ -4,9 +4,11 @@
 // SPDX-License-Identifier: MIT
 //
 
+#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+
+mod dataplane;
 mod ibus;
 mod interface;
-mod netlink;
 pub mod northbound;
 
 use futures::stream::{SelectAll, StreamExt};
@@ -19,15 +21,12 @@ use holo_utils::ibus::{
     IbusConnStream, IbusMsg, connection_stream,
 };
 use holo_utils::task::Task;
-use netlink_packet_core::NetlinkMessage;
-use netlink_packet_route::RouteNetlinkMessage;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::Sender;
 use tracing::debug_span;
 
+use crate::dataplane::{Dataplane, DataplaneMonitor};
 use crate::interface::Interfaces;
-use crate::mpsc::UnboundedSender;
-use crate::netlink::{NetlinkMonitor, NetlinkRequest};
 
 #[derive(Debug)]
 pub struct Master {
@@ -35,8 +34,8 @@ pub struct Master {
     pub nb_tx: NbProviderSender,
     // Internal bus Tx channels.
     pub ibus_tx: IbusChannelsTx,
-    // Netlink Tx channel.
-    pub netlink_tx: UnboundedSender<NetlinkRequest>,
+    // Dataplane handle.
+    pub dataplane: dataplane::Backend,
     // Shared data among all protocol instances.
     pub shared: InstanceShared,
     // List of interfaces.
@@ -44,11 +43,11 @@ pub struct Master {
 }
 
 #[derive(Debug)]
-pub enum EventMsg {
+pub(crate) enum EventMsg {
     Northbound(Option<holo_northbound::api::daemon::Request>),
     Ibus { client: IbusClient, msg: IbusMsg },
     IbusDisconnect { id: IbusClientId },
-    Netlink(NetlinkMessage<RouteNetlinkMessage>),
+    Dataplane(<dataplane::Backend as Dataplane>::Event),
 }
 
 // ===== impl Master =====
@@ -58,12 +57,12 @@ impl Master {
         &mut self,
         nb_rx: NbDaemonReceiver,
         ibus_conn_rx: IbusConnReceiver,
-        netlink_rx: NetlinkMonitor,
+        dataplane_rx: DataplaneMonitor,
     ) {
         // Spawn event aggregator task.
         let (agg_tx, mut agg_rx) = mpsc::channel(4);
         let _event_aggregator =
-            event_aggregator(nb_rx, ibus_conn_rx, netlink_rx, agg_tx);
+            event_aggregator(nb_rx, ibus_conn_rx, dataplane_rx, agg_tx);
 
         let mut pending_changes = vec![];
         loop {
@@ -88,8 +87,8 @@ impl Master {
                 EventMsg::IbusDisconnect { id } => {
                     ibus::disconnect(self, id);
                 }
-                EventMsg::Netlink(msg) => {
-                    netlink::process_msg(self, msg);
+                EventMsg::Dataplane(msg) => {
+                    dataplane::Backend::process_msg(self, msg);
                 }
             }
         }
@@ -101,7 +100,7 @@ impl Master {
 fn event_aggregator(
     mut nb_rx: NbDaemonReceiver,
     mut ibus_conn_rx: IbusConnReceiver,
-    mut netlink_rx: NetlinkMonitor,
+    mut dataplane_rx: DataplaneMonitor,
     agg_tx: Sender<EventMsg>,
 ) -> Task<()> {
     Task::spawn(async move {
@@ -129,8 +128,8 @@ fn event_aggregator(
                         }
                     }
                 }
-                Some((msg, _)) = netlink_rx.next() => {
-                    EventMsg::Netlink(msg)
+                Some(msg) = dataplane_rx.next() => {
+                    EventMsg::Dataplane(msg)
                 }
             };
             let _ = agg_tx.send(msg).await;
@@ -149,35 +148,30 @@ pub fn start(
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
     let (ibus_notif_tx, _) = mpsc::unbounded_channel();
     let ibus_tx = IbusChannelsTx::with_client(ibus_tx, ibus_notif_tx);
-    let (netlink_txp, mut netlink_txc) = mpsc::unbounded_channel();
 
     tokio::task::spawn(async move {
         let mut master = Master {
             nb_tx,
             ibus_tx,
-            netlink_tx: netlink_txp,
+            dataplane: dataplane::Backend::init(),
             shared,
             interfaces: Default::default(),
         };
 
-        // Initialize netlink socket.
-        let (netlink_handle, netlink_rx) = netlink::init();
+        // Start monitoring dataplane interface events.
+        let dataplane_rx = dataplane::Backend::monitor();
 
-        // Fetch interface information from the kernel.
-        netlink::start(&mut master, &netlink_handle).await;
-
-        // Start netlink Tx task.
-        tokio::task::spawn(async move {
-            while let Some(request) = netlink_txc.recv().await {
-                request.execute(&netlink_handle).await;
-            }
-        });
+        // Fetch interface information from the dataplane.
+        dataplane::Backend::interfaces_fetch(&mut master).await;
 
         tokio::task::spawn_blocking(move || {
             // Run task main loop.
             let span = debug_span!("interface");
             let _span_guard = span.enter();
-            master.run(nb_daemon_rx, ibus_conn_rx, netlink_rx);
+            master.run(nb_daemon_rx, ibus_conn_rx, dataplane_rx);
+
+            // Flush pending dataplane requests before exiting.
+            master.dataplane.flush();
         });
     });
 

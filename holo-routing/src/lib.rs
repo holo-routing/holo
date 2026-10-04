@@ -4,13 +4,14 @@
 // SPDX-License-Identifier: MIT
 //
 
+#![cfg_attr(not(target_os = "linux"), allow(dead_code))]
+
 mod birt;
+mod dataplane;
 mod ibus;
 mod interface;
-mod netlink;
 pub mod northbound;
 mod rib;
-mod sysctl;
 
 use std::collections::BTreeMap;
 
@@ -30,12 +31,12 @@ use holo_utils::sr::SrCfg;
 use holo_utils::task::Task;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
-use tracing::{debug_span, warn};
+use tokio::sync::mpsc::{Sender, UnboundedReceiver};
+use tracing::debug_span;
 
 use crate::birt::Birt;
+use crate::dataplane::Dataplane;
 use crate::interface::Interfaces;
-use crate::netlink::NetlinkRequest;
 use crate::northbound::configuration::StaticRoute;
 use crate::rib::Rib;
 
@@ -44,8 +45,8 @@ pub struct Master {
     pub nb_tx: NbProviderSender,
     // Internal bus Tx channels.
     pub ibus_tx: IbusChannelsTx,
-    // Netlink Tx channel.
-    pub netlink_tx: UnboundedSender<NetlinkRequest>,
+    // Dataplane handle.
+    pub dataplane: dataplane::Backend,
     // Shared data among all protocol instances.
     pub shared: InstanceShared,
     // List of interfaces.
@@ -139,7 +140,7 @@ impl Master {
                 EventMsg::RibUpdate => {
                     self.rib.process_rib_update_queue(
                         &self.interfaces,
-                        &self.netlink_tx,
+                        &self.dataplane,
                     );
                 }
                 EventMsg::BirtUpdate => {
@@ -211,7 +212,6 @@ pub fn start(
     let (nb_daemon_tx, nb_daemon_rx) = mpsc::channel(4);
     let (ibus_notif_tx, ibus_notif_rx) = mpsc::unbounded_channel();
     let ibus_tx = IbusChannelsTx::with_client(ibus_tx, ibus_notif_tx);
-    let (netlink_txp, mut netlink_txc) = mpsc::unbounded_channel();
     let (rib_update_queue_tx, rib_update_queue_rx) = mpsc::unbounded_channel();
     let (birt_update_queue_tx, birt_update_queue_rx) =
         mpsc::unbounded_channel();
@@ -220,7 +220,7 @@ pub fn start(
         let mut master = Master {
             nb_tx,
             ibus_tx,
-            netlink_tx: netlink_txp,
+            dataplane: dataplane::Backend::init(),
             shared: shared.clone(),
             interfaces: Default::default(),
             rib: Rib::new(rib_update_queue_tx),
@@ -234,32 +234,9 @@ pub fn start(
         // Request information about all interfaces addresses.
         ibus::request_addresses(&master.ibus_tx);
 
-        // Enable IPv4 and IPv6 forwarding in the kernel.
-        if let Err(error) = sysctl::ipv4_forwarding("1") {
-            warn!(%error, "failed to enable IPv4 forwarding");
-        }
-        if let Err(error) = sysctl::ipv6_forwarding("1") {
-            warn!(%error, "failed to enable IPv6 forwarding");
-        }
-
-        // Set the maximum number of MPLS labels available for forwarding.
-        if let Err(error) = sysctl::mpls_platform_labels("1048575") {
-            warn!(%error, "failed to set MPLS platform labels");
-        }
-
-        // Initialize netlink socket.
-        let netlink_handle = netlink::init();
-
         // Purge stale routes potentially left behind by a previous Holo
         // instance.
-        netlink::purge_stale_routes(&netlink_handle).await;
-
-        // Start netlink Tx task.
-        let netlink_tx_task = tokio::task::spawn(async move {
-            while let Some(request) = netlink_txc.recv().await {
-                request.execute(&netlink_handle).await;
-            }
-        });
+        master.dataplane.purge_stale_routes().await;
 
         // Start BFD task.
         #[cfg(feature = "bfd")]
@@ -296,9 +273,8 @@ pub fn start(
             );
 
             // Uninstall all routes before exiting.
-            master.rib.route_uninstall_all(&master.netlink_tx);
-            drop(master.netlink_tx);
-            let _ = tokio::runtime::Handle::current().block_on(netlink_tx_task);
+            master.rib.route_uninstall_all(&master.dataplane);
+            master.dataplane.flush();
         });
     });
 

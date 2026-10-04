@@ -12,8 +12,9 @@ use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::southbound::{AddressFlags, AddressMsg, InterfaceUpdateMsg};
 use ipnetwork::IpNetwork;
 
+use crate::Master;
+use crate::dataplane::Dataplane;
 use crate::interface::{Interface, InterfaceSub};
-use crate::{Master, netlink};
 
 // ===== global functions =====
 
@@ -96,33 +97,28 @@ pub(crate) fn process_msg(
             if let Some(iface) = master.interfaces.get_by_name(&parent_ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::macvlan_create(
-                    &master.netlink_tx,
-                    ifname,
-                    mac_addr,
-                    ifindex,
-                );
+                master.dataplane.macvlan_create(ifname, mac_addr, ifindex);
             }
         }
         IbusMsg::MacvlanDel { ifname } => {
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::iface_delete(&master.netlink_tx, ifindex);
+                master.dataplane.iface_delete(ifindex);
             }
         }
         IbusMsg::InterfaceIpAddRequest { ifname, addr } => {
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::addr_install(&master.netlink_tx, ifindex, &addr);
+                master.dataplane.addr_install(ifindex, &addr);
             }
         }
         IbusMsg::InterfaceIpDelRequest { ifname, addr } => {
             if let Some(iface) = master.interfaces.get_by_name(&ifname)
                 && let Some(ifindex) = iface.ifindex
             {
-                netlink::addr_uninstall(&master.netlink_tx, ifindex, &addr);
+                master.dataplane.addr_uninstall(ifindex, &addr);
             }
         }
         // Ignore other events.

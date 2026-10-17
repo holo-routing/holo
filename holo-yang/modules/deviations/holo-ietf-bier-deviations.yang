@@ -69,7 +69,10 @@ module holo-ietf-bier-deviations {
 
   deviation "/rt:routing/bier:bier/bier:sub-domain/bier:address-family" {
     deviate replace {
-      type iana-rt-types:address-family;
+      type iana-rt-types:address-family {
+        enum ipv4;
+        enum ipv6;
+      }
     }
   }
 

@@ -15,6 +15,10 @@ module holo-ietf-ospf-deviations {
     prefix key-chain;
   }
 
+  import iana-routing-types {
+    prefix iana-rt-types;
+  }
+
   organization
     "Holo Routing Stack";
 
@@ -179,6 +183,19 @@ module holo-ietf-ospf-deviations {
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:interfaces/ospf:interface/ospf:lls" {
     deviate add {
       default "false";
+    }
+  }
+
+  /*
+   * Type changes
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:address-family" {
+    deviate replace {
+      type iana-rt-types:address-family {
+        enum ipv4;
+        enum ipv6;
+      }
     }
   }
 

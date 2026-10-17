@@ -1,0 +1,38 @@
+module holo-ietf-bgp-policy-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-bgp-policy-deviations";
+  prefix holo-ietf-bgp-policy-deviations;
+
+  import ietf-routing-policy {
+    prefix rt-pol;
+  }
+
+  import ietf-bgp-policy {
+    prefix bp;
+  }
+
+  import iana-bgp-types {
+    prefix bt;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-bgp-policy
+     module.";
+
+  /*
+   * Added constraints
+   */
+
+  deviation "/rt-pol:routing-policy/rt-pol:policy-definitions/rt-pol:policy-definition/rt-pol:statements/rt-pol:statement/rt-pol:conditions/bp:bgp-conditions/bp:match-afi-safi/bp:afi-safi-in" {
+    deviate add {
+      must 'derived-from-or-self(., "bt:ipv4-unicast")'
+         + ' or derived-from-or-self(., "bt:ipv6-unicast")' {
+        error-message
+          "Unsupported AFI-SAFI.";
+      }
+    }
+  }
+}

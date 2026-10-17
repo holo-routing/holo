@@ -185,6 +185,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/deviations/holo-ietf-access-control-list-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-bgp-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-bgp-deviations.yang"),
+        EmbeddedModuleKey::new("holo-ietf-bfd-deviations", None, None, None) =>
+            include_str!("../modules/deviations/holo-ietf-bfd-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-bfd-ip-mh-deviations", None, None, None) =>
             include_str!("../modules/deviations/holo-ietf-bfd-ip-mh-deviations.yang"),
         EmbeddedModuleKey::new("holo-ietf-bfd-ip-sh-deviations", None, None, None) =>

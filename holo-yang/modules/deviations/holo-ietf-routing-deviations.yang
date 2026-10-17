@@ -7,10 +7,6 @@ module holo-ietf-routing-deviations {
     prefix rt;
   }
 
-  import ietf-bfd-types {
-    prefix bfd-types;
-  }
-
   organization
     "Holo Routing Stack";
 
@@ -27,10 +23,6 @@ module holo-ietf-routing-deviations {
       must 'not(derived-from-or-self(rt:type, "rt:direct"))' {
         error-message
           "The direct protocol isn't configurable.";
-      }
-      must 'not(derived-from-or-self(rt:type, "bfd-types:bfdv1")) or rt:name = "main"' {
-        error-message
-          "The BFD protocol instance must be named \"main\".";
       }
     }
   }

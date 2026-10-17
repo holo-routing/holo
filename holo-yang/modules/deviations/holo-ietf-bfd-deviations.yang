@@ -1,0 +1,33 @@
+module holo-ietf-bfd-deviations {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-ietf-bfd-deviations";
+  prefix holo-ietf-bfd-deviations;
+
+  import ietf-routing {
+    prefix rt;
+  }
+
+  import ietf-bfd-types {
+    prefix bfd-types;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  description
+    "This module defines deviation statements for the ietf-bfd
+     module.";
+
+  /*
+   * Added constraints
+   */
+
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol" {
+    deviate add {
+      must 'not(derived-from-or-self(rt:type, "bfd-types:bfdv1")) or rt:name = "main"' {
+        error-message
+          "The BFD protocol instance must be named \"main\".";
+      }
+    }
+  }
+}

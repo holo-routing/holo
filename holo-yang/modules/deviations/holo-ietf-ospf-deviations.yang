@@ -186,6 +186,16 @@ module holo-ietf-ospf-deviations {
    * Added constraints
    */
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rt:type" {
+    deviate add {
+      must 'derived-from(., "ospf:ospf")'
+         + ' or not(derived-from-or-self(., "ospf:ospf"))' {
+        error-message
+          "Invalid protocol type.";
+      }
+    }
+  }
+
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/ospf:ospf/ospf:areas/ospf:area/ospf:area-type" {
     deviate add {
       must 'derived-from-or-self(., "ospf:normal-area") or derived-from-or-self(., "ospf:stub-area")' {

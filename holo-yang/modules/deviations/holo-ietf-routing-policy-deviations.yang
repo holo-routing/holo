@@ -31,6 +31,26 @@ module holo-ietf-routing-policy-deviations {
   }
 
   /*
+   * Added constraints
+   */
+
+  deviation "/rt-pol:routing-policy/rt-pol:policy-definitions/rt-pol:policy-definition/rt-pol:statements/rt-pol:statement/rt-pol:conditions/rt-pol:source-protocol" {
+    deviate add {
+      must ". = 'ietf-routing:direct'"
+         + " or . = 'ietf-routing:static'"
+         + " or . = 'ietf-bgp:bgp'"
+         + " or . = 'ietf-isis:isis'"
+         + " or . = 'ietf-ospf:ospfv2'"
+         + " or . = 'ietf-ospf:ospfv3'"
+         + " or . = 'ietf-rip:ripv2'"
+         + " or . = 'ietf-rip:ripng'" {
+        error-message
+          "Invalid protocol type.";
+      }
+    }
+  }
+
+  /*
    * Not supported nodes
    */
 

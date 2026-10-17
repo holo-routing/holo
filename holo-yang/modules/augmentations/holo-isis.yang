@@ -281,6 +281,17 @@ module holo-isis {
         type identityref {
           base rt:control-plane-protocol;
         }
+        must ". = 'ietf-routing:direct'"
+           + " or . = 'ietf-routing:static'"
+           + " or . = 'ietf-bgp:bgp'"
+           + " or . = 'ietf-isis:isis'"
+           + " or . = 'ietf-ospf:ospfv2'"
+           + " or . = 'ietf-ospf:ospfv3'"
+           + " or . = 'ietf-rip:ripv2'"
+           + " or . = 'ietf-rip:ripng'" {
+          error-message
+            "Invalid protocol type.";
+        }
         description
           "Type of the control-plane protocol -- an identity
            derived from the 'control-plane-protocol'

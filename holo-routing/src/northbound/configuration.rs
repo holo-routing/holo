@@ -818,8 +818,15 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
 }
 
 fn static_nexthop_get(interfaces: &Interfaces, nexthop: &StaticRouteNexthop) -> Option<Nexthop> {
-    let ifname = nexthop.ifname.as_ref()?;
-    let iface = interfaces.get_by_name(ifname)?;
+    let iface = match &nexthop.ifname {
+        Some(ifname) => interfaces.get_by_name(ifname)?,
+        // No outgoing interface configured: resolve the nexthop address
+        // against the connected prefixes.
+        None => {
+            let addr = nexthop.addr?;
+            interfaces.iter().find(|iface| iface.addresses.keys().any(|prefix| prefix.contains(addr)))?
+        }
+    };
     let ifindex = iface.ifindex;
     let nexthop = match nexthop.addr {
         Some(addr) => Nexthop::Address {

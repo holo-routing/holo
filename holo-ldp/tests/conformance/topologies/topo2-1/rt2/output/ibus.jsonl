@@ -1,3 +1,4 @@
+{"RouterIdSub":{}}
 {"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}
 {"RouteRedistributeSub":{"protocol":"isis","af":"Ipv4"}}
 {"RouteRedistributeSub":{"protocol":"ldp","af":"Ipv4"}}
@@ -6,7 +7,6 @@
 {"RouteRedistributeSub":{"protocol":"ripv2","af":"Ipv4"}}
 {"RouteRedistributeSub":{"protocol":"ripng","af":"Ipv4"}}
 {"RouteRedistributeSub":{"protocol":"static","af":"Ipv4"}}
-{"RouterIdSub":{}}
 {"InterfaceSub":{"ifname":"eth-rt4-1","af":"Ipv4"}}
 {"InterfaceSub":{"ifname":"eth-rt4-2","af":"Ipv4"}}
 {"InterfaceSub":{"ifname":"eth-sw1","af":"Ipv4"}}

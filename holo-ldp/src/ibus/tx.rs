@@ -25,6 +25,14 @@ pub(crate) fn route_redistribute_sub(ibus_tx: &IbusChannelsTx) {
     }
 }
 
+pub(crate) fn route_redistribute_unsub(ibus_tx: &IbusChannelsTx) {
+    for protocol in
+        Protocol::route_types().filter(|protocol| *protocol != Protocol::BGP)
+    {
+        ibus_tx.route_redistribute_unsub(protocol, Some(AddressFamily::Ipv4));
+    }
+}
+
 pub(crate) fn label_install(
     ibus_tx: &IbusChannelsTx,
     fec: &FecInner,

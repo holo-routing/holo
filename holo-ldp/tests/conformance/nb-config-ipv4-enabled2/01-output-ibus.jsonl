@@ -16,3 +16,11 @@
 {"RouteMplsDel":{"protocol":"ldp","label":22,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.1.3","labels":[3]}}],"route":["ospfv2","10.0.4.0/24"]}}
 {"RouteMplsDel":{"protocol":"ldp","label":23,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.1.3","labels":[3]}}],"route":["ospfv2","10.0.5.0/24"]}}
 {"RouteMplsDel":{"protocol":"ldp","label":24,"nexthops":[{"Address":{"ifindex":3,"addr":"10.0.1.3","labels":[24]}}],"route":["ospfv2","10.0.8.0/24"]}}
+{"RouteRedistributeUnsub":{"protocol":"direct","af":"Ipv4"}}
+{"RouteRedistributeUnsub":{"protocol":"isis","af":"Ipv4"}}
+{"RouteRedistributeUnsub":{"protocol":"ldp","af":"Ipv4"}}
+{"RouteRedistributeUnsub":{"protocol":"ospfv2","af":"Ipv4"}}
+{"RouteRedistributeUnsub":{"protocol":"ospfv3","af":"Ipv4"}}
+{"RouteRedistributeUnsub":{"protocol":"ripv2","af":"Ipv4"}}
+{"RouteRedistributeUnsub":{"protocol":"ripng","af":"Ipv4"}}
+{"RouteRedistributeUnsub":{"protocol":"static","af":"Ipv4"}}

@@ -176,6 +176,9 @@ impl Instance {
                 // Store instance initial state.
                 self.state = Some(state);
 
+                // Subscribe for the redistribution of all non-BGP routes.
+                ibus::tx::route_redistribute_sub(&self.tx.ibus);
+
                 // Try to start interfaces and targeted neighbors.
                 let (mut instance, interfaces, tneighbors) =
                     self.as_up().unwrap();
@@ -212,6 +215,9 @@ impl Instance {
                 tnbr.stop(&mut instance, true);
             }
         }
+
+        // Unsubscribe from the redistribution of all non-BGP routes.
+        ibus::tx::route_redistribute_unsub(&self.tx.ibus);
 
         // Clear instance state.
         self.state = None;
@@ -292,9 +298,6 @@ impl ProtocolInstance for Instance {
     fn init(&mut self) {
         // Request information about the system Router ID.
         ibus::tx::router_id_sub(&self.tx.ibus);
-
-        // Subscribe for the redistribution of all non-BGP routes.
-        ibus::tx::route_redistribute_sub(&self.tx.ibus);
     }
 
     fn shutdown(mut self) {

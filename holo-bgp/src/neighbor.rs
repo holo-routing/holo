@@ -15,17 +15,22 @@ use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::bgp::{RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusChannelsTx;
-use holo_utils::socket::{TTL_MAX, TcpConnInfo, TransportStream};
+use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream, TransportStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use num_traits::{FromPrimitive, ToPrimitive};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Sender, UnboundedSender};
+use tokio_rustls::rustls::RootCertStore;
+use tokio_rustls::rustls::pki_types::pem::PemObject;
+use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
-use crate::error::Error;
+use crate::error::{Error, NbrTlsError, TlsIoError};
 use crate::instance::{Instance, InstanceUpView};
-use crate::northbound::configuration::{InstanceCfg, NeighborCfg};
+use crate::northbound::configuration::{
+    InstanceCfg, NeighborCfg, NeighborTlsCfg,
+};
 use crate::northbound::notification;
 use crate::northbound::rpc::ClearType;
 use crate::packet::attribute::{AS_TRANS, Attrs};
@@ -39,12 +44,21 @@ use crate::packet::message::{
 use crate::rib::{BestRoute, Rib, RouteOrigin};
 #[cfg(feature = "testing")]
 use crate::tasks::messages::ProtocolOutputMsg;
-use crate::tasks::messages::input::{NbrTimerMsg, TcpConnectMsg};
+use crate::tasks::messages::input::{
+    NbrTimerMsg, TcpConnectMsg, TlsAcceptMsg, TlsConnectMsg,
+};
 use crate::tasks::messages::output::NbrTxMsg;
 use crate::{events, rib, tasks};
 
 // Large hold-time used during session initialization.
 const LARGE_HOLDTIME: u16 = 240;
+
+#[derive(Debug, Clone)]
+pub struct NeighborTlsState {
+    pub root_store: RootCertStore,
+    pub certs: Vec<CertificateDer<'static>>,
+    pub pkey: Arc<PrivateKeyDer<'static>>,
+}
 
 // BGP neighbor.
 #[derive(Debug)]
@@ -70,6 +84,7 @@ pub struct Neighbor {
     pub tasks: NeighborTasks,
     pub update_queues: NeighborUpdateQueues,
     pub msg_txp: Option<UnboundedSender<NbrTxMsg>>,
+    pub tls: Option<NeighborTlsState>,
 }
 
 // Which end of a TCP connection opened it.
@@ -123,6 +138,7 @@ pub struct MessageStatistics {
 pub struct NeighborTasks {
     pub autostart: Option<TimeoutTask>,
     pub connect: Option<Task<()>>,
+    pub accept: Option<Task<()>>,
     pub connect_retry: Option<TimeoutTask>,
     pub tcp_rx: Option<Task<()>>,
     pub keepalive: Option<IntervalTask>,
@@ -306,7 +322,71 @@ impl Neighbor {
             tasks: Default::default(),
             update_queues: Default::default(),
             msg_txp: None,
+            tls: None,
         }
+    }
+
+    fn tls(&mut self) -> Result<(), NbrTlsError> {
+        let tls_cfg: &NeighborTlsCfg =
+            self.config
+                .transport
+                .tls_cfg
+                .as_ref()
+                .ok_or(NbrTlsError::InvalidTlsCfg(self.remote_addr))?;
+
+        // For now, draft-wirtgen-bgp-tls-05 does not specify how to handle certificate rotation.
+        // We ban it completely for this first implementation.
+        // FIXME: Handle TLS certificate rotation when specified.
+        if self.tls.is_some() {
+            return Ok(());
+        }
+
+        let ca_chain = &tls_cfg.ca_chain;
+        let cert = &tls_cfg.cert;
+        let privkey = &tls_cfg.privkey;
+
+        let chain = CertificateDer::pem_file_iter(ca_chain).map_err(|e| {
+            NbrTlsError::TlsIoError(self.remote_addr, TlsIoError::CaChain(e))
+        })?;
+        let certs = CertificateDer::pem_file_iter(cert).map_err(|e| {
+            NbrTlsError::TlsIoError(self.remote_addr, TlsIoError::Cert(e))
+        })?;
+        let pkey = PrivateKeyDer::from_pem_file(privkey).map_err(|e| {
+            NbrTlsError::TlsIoError(self.remote_addr, TlsIoError::PrivKey(e))
+        })?;
+
+        // Load own certificate chain.
+        let mut my_certs: Vec<CertificateDer<'static>> = Default::default();
+        for cert in certs {
+            let cert = cert.map_err(|e| {
+                NbrTlsError::TlsIoError(self.remote_addr, TlsIoError::Cert(e))
+            })?;
+            my_certs.push(cert);
+        }
+
+        // Fill CertStore
+        let mut root_store = RootCertStore::empty();
+        for ca_cert in chain {
+            let cert = ca_cert.map_err(|e| {
+                NbrTlsError::TlsIoError(
+                    self.remote_addr,
+                    TlsIoError::CaChain(e),
+                )
+            })?;
+            root_store
+                .add(cert)
+                .map_err(|e| NbrTlsError::CertStore(self.remote_addr, e))?;
+        }
+
+        // TODO: Build ServerConfig here and wrap it in arc, if needed.
+
+        self.tls = Some(NeighborTlsState {
+            root_store,
+            certs: my_certs,
+            pkey: Arc::new(pkey),
+        });
+
+        Ok(())
     }
 
     // Injects an event into the neighbor's FSM.
@@ -632,8 +712,8 @@ impl Neighbor {
         self.tasks.tcp_rx = Some(tcp_rx_task);
     }
 
-    // Spawns the tasks that send and receive BGP messages over a TCP
-    // connection, returning the channel messages are sent through and the
+    // Spawns the tasks that send and receive BGP messages over a Transport
+    // stream, returning the channel messages are sent through and the
     // task receiving them.
     fn connection_tasks(
         &self,
@@ -681,7 +761,7 @@ impl Neighbor {
         (msg_txp, tcp_rx_task)
     }
 
-    // Takes a new TCP connection to the neighbor, whichever end opened it.
+    // Takes a new Transport stream to the neighbor, whichever end opened it.
     //
     // A connection the other end opens while the neighbor's own is still
     // being set up collides with it, and both are kept until the collision
@@ -1170,6 +1250,46 @@ impl Neighbor {
     fn connect(&mut self, tcp_connectp: &Sender<TcpConnectMsg>) {
         let task = tasks::tcp_connect(self, tcp_connectp);
         self.tasks.connect = Some(task);
+    }
+
+    pub(crate) fn tls_connect(
+        &mut self,
+        tcp_stream: TcpStream,
+        conn_info: &TcpConnInfo,
+        tls_connectp: &Sender<TlsConnectMsg>,
+    ) {
+        if let Err(e) = self.tls() {
+            e.log();
+        } else if let Some(tls) = &self.tls {
+            let task = tasks::tls_connect(
+                self,
+                tls.clone(),
+                tls_connectp,
+                tcp_stream,
+                conn_info,
+            );
+            self.tasks.connect = Some(task);
+        }
+    }
+
+    pub(crate) fn tls_accept(
+        &mut self,
+        stream: TcpStream,
+        conn_info: &TcpConnInfo,
+        tls_acceptp: &Sender<TlsAcceptMsg>,
+    ) {
+        if let Err(e) = self.tls() {
+            e.log();
+        } else if let Some(tls) = &self.tls {
+            let task = tasks::tls_accept(
+                self,
+                tls.clone(),
+                tls_acceptp,
+                stream,
+                conn_info,
+            );
+            self.tasks.accept = Some(task);
+        }
     }
 
     // Starts the Keepalive Tx interval.

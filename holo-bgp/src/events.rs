@@ -14,7 +14,7 @@ use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::policy::{PolicyResult, PolicyType};
-use holo_utils::socket::{TcpConnInfo, TcpStream, TransportStream};
+use holo_utils::socket::{TcpConnInfo, TcpStream, TlsStream, TransportStream};
 use ipnetwork::IpNetwork;
 use num_traits::FromPrimitive;
 
@@ -60,12 +60,21 @@ pub(crate) fn process_tcp_accept(
     )
     .map_err(IoError::TcpSocketError)?;
 
-    nbr.connection_new(
-        instance,
-        TransportStream::TcpStream(stream),
-        conn_info,
-        ConnOrigin::Remote,
-    );
+    // If BoT, init TLS connection.
+    if nbr.config.transport.tls_cfg.is_some() {
+        nbr.tls_accept(
+            stream,
+            &conn_info,
+            &instance.tx.protocol_input.tls_accept,
+        );
+    } else {
+        nbr.connection_new(
+            instance,
+            TransportStream::TcpStream(stream),
+            conn_info,
+            ConnOrigin::Remote,
+        );
+    }
 
     Ok(())
 }
@@ -84,11 +93,62 @@ pub(crate) fn process_tcp_connect(
     };
     nbr.tasks.connect = None;
 
+    // If BoT, init TLS connection.
+    if nbr.config.transport.tls_cfg.is_some() {
+        nbr.tls_connect(
+            stream,
+            &conn_info,
+            &instance.tx.protocol_input.tls_connect,
+        );
+    } else {
+        nbr.connection_new(
+            instance,
+            TransportStream::TcpStream(stream),
+            conn_info,
+            ConnOrigin::Local,
+        );
+    }
+
+    Ok(())
+}
+
+pub(crate) fn process_tls_connect(
+    instance: &mut InstanceUpView<'_>,
+    neighbors: &mut Neighbors,
+    stream: TlsStream<TcpStream>,
+    conn_info: TcpConnInfo,
+) -> Result<(), Error> {
+    let Some(nbr) = neighbors.get_mut(&conn_info.remote_addr) else {
+        return Ok(());
+    };
+    nbr.tasks.connect = None;
+
     nbr.connection_new(
         instance,
-        TransportStream::TcpStream(stream),
+        TransportStream::TlsStream(Box::new(stream)),
         conn_info,
         ConnOrigin::Local,
+    );
+
+    Ok(())
+}
+
+pub(crate) fn process_tls_accept(
+    instance: &mut InstanceUpView<'_>,
+    neighbors: &mut Neighbors,
+    stream: TlsStream<TcpStream>,
+    conn_info: TcpConnInfo,
+) -> Result<(), Error> {
+    let Some(nbr) = neighbors.get_mut(&conn_info.remote_addr) else {
+        return Ok(());
+    };
+    nbr.tasks.accept = None;
+
+    nbr.connection_new(
+        instance,
+        TransportStream::TlsStream(Box::new(stream)),
+        conn_info,
+        ConnOrigin::Remote,
     );
 
     Ok(())

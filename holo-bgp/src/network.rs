@@ -13,13 +13,16 @@ use holo_utils::capabilities;
 use holo_utils::ip::{AddressFamily, IpAddrExt, IpAddrKind};
 use holo_utils::socket::{
     SocketExt, TTL_MAX, TcpConnInfo, TcpListener, TcpSocket, TcpSocketExt,
-    TcpStream, TcpStreamExt,
+    TcpStream, TcpStreamExt, TlsStream,
 };
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufWriter};
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
+use tokio_rustls::rustls::pki_types::ServerName;
+use tokio_rustls::rustls::{ClientConfig, ServerConfig};
+use tokio_rustls::{TlsAcceptor, TlsConnector};
 
-use crate::error::{Error, IoError, NbrRxError};
+use crate::error::{Error, IoError, NbrRxError, TlsIoError};
 use crate::packet::message::{DecodeCxt, EncodeCxt, Message};
 use crate::tasks::messages::input::{NbrRxMsg, TcpAcceptMsg};
 use crate::tasks::messages::output::NbrTxMsg;
@@ -75,7 +78,7 @@ pub(crate) fn listen_socket_md5sig_update(
     }
 }
 
-pub(crate) async fn listen_loop(
+pub(crate) async fn tcp_listen_loop(
     listener: Arc<TcpListener>,
     tcp_acceptp: Sender<TcpAcceptMsg>,
 ) -> Result<(), SendError<TcpAcceptMsg>> {
@@ -207,6 +210,47 @@ pub(crate) async fn connect(
         let conn_info = stream.conn_info().map_err(IoError::TcpInfoError)?;
 
         Ok((stream, conn_info))
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
+}
+
+pub(crate) async fn tls_accept(
+    config: Arc<ServerConfig>,
+    tcp_stream: TcpStream,
+) -> Result<TlsStream<TcpStream>, TlsIoError> {
+    #[cfg(network_backend = "linux")]
+    {
+        let acceptor = TlsAcceptor::from(config);
+        // TODO: Wrap in timer
+        let stream = acceptor
+            .accept(tcp_stream)
+            .await
+            .map_err(TlsIoError::AcceptError)?;
+        Ok(TlsStream::Server(stream))
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
+}
+
+pub(crate) async fn tls_connect(
+    config: Arc<ClientConfig>,
+    tcp_stream: TcpStream,
+    sni: ServerName<'static>,
+) -> Result<TlsStream<TcpStream>, TlsIoError> {
+    #[cfg(network_backend = "linux")]
+    {
+        // TODO: Add timer
+        let connector = TlsConnector::from(config);
+        let tls = connector
+            .connect(sni, tcp_stream)
+            .await
+            .map_err(TlsIoError::ConnectError)?;
+        Ok(TlsStream::Client(tls))
     }
     #[cfg(network_backend = "null")]
     {

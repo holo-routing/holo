@@ -14,7 +14,7 @@ use holo_utils::bgp::RouteType;
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::ip::{IpAddrKind, IpNetworkKind};
 use holo_utils::policy::{PolicyResult, PolicyType};
-use holo_utils::socket::{TcpConnInfo, TcpStream};
+use holo_utils::socket::{TcpConnInfo, TcpStream, TlsStream, TransportStream};
 use ipnetwork::IpNetwork;
 use num_traits::FromPrimitive;
 
@@ -60,7 +60,12 @@ pub(crate) fn process_tcp_accept(
     )
     .map_err(IoError::TcpSocketError)?;
 
-    nbr.connection_new(instance, stream, conn_info, ConnOrigin::Remote);
+    nbr.connection_new(
+        instance,
+        TransportStream::TcpStream(stream),
+        conn_info,
+        ConnOrigin::Remote,
+    );
 
     Ok(())
 }
@@ -79,7 +84,12 @@ pub(crate) fn process_tcp_connect(
     };
     nbr.tasks.connect = None;
 
-    nbr.connection_new(instance, stream, conn_info, ConnOrigin::Local);
+    nbr.connection_new(
+        instance,
+        TransportStream::TcpStream(stream),
+        conn_info,
+        ConnOrigin::Local,
+    );
 
     Ok(())
 }

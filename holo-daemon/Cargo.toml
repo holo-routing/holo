@@ -50,6 +50,7 @@ holo-system = { path = "../holo-system", optional = true }
 holo-utils = { path = "../holo-utils" }
 holo-vrrp = { path = "../holo-vrrp", optional = true  }
 holo-yang = { path = "../holo-yang" }
+tokio-rustls = "0.26.6"
 
 [build-dependencies]
 rustc_tools_util.workspace = true

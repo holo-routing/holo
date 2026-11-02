@@ -18,6 +18,7 @@ pub use {
         TcpListener, TcpSocket, TcpStream, UdpSocket, tcp::OwnedReadHalf,
         tcp::OwnedWriteHalf,
     },
+    tokio_rustls::TlsStream,
 };
 
 // FFI struct used to set the TCP_MD5SIG socket option.

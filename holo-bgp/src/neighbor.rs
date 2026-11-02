@@ -15,7 +15,7 @@ use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusChannelsTx;
-use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
+use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream, TransportStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use num_traits::{FromPrimitive, ToPrimitive};
 use tokio::sync::mpsc;
@@ -209,7 +209,7 @@ impl Neighbors {
 
 // Finite State Machine.
 pub mod fsm {
-    use holo_utils::socket::{TcpConnInfo, TcpStream};
+    use holo_utils::socket::{TcpConnInfo, TransportStream};
     use serde::{Deserialize, Serialize};
 
     use super::ConnOrigin;
@@ -239,7 +239,7 @@ pub mod fsm {
         Stop(Option<NotificationMsg>),
         // Tcp_CR_Acked
         // TcpConnectionConfirmed
-        Connected(TcpStream, TcpConnInfo, ConnOrigin),
+        Connected(TransportStream, TcpConnInfo, ConnOrigin),
         // TcpConnectionFails
         ConnFail,
         // BGPHeaderErr
@@ -611,7 +611,7 @@ impl Neighbor {
     // TCP communication.
     fn connection_setup(
         &mut self,
-        stream: TcpStream,
+        stream: TransportStream,
         conn_info: TcpConnInfo,
         origin: ConnOrigin,
         instance: &mut InstanceUpView<'_>,
@@ -637,7 +637,7 @@ impl Neighbor {
     // task receiving them.
     fn connection_tasks(
         &self,
-        stream: TcpStream,
+        stream: TransportStream,
         conn_info: &TcpConnInfo,
         instance: &mut InstanceUpView<'_>,
     ) -> (UnboundedSender<NbrTxMsg>, Task<()>) {
@@ -691,7 +691,7 @@ impl Neighbor {
     pub(crate) fn connection_new(
         &mut self,
         instance: &mut InstanceUpView<'_>,
-        stream: TcpStream,
+        stream: TransportStream,
         conn_info: TcpConnInfo,
         origin: ConnOrigin,
     ) {
@@ -713,7 +713,7 @@ impl Neighbor {
     fn collision_start(
         &mut self,
         instance: &mut InstanceUpView<'_>,
-        stream: TcpStream,
+        stream: TransportStream,
         conn_info: TcpConnInfo,
         origin: ConnOrigin,
     ) {

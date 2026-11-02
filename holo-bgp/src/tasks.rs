@@ -11,6 +11,7 @@ use holo_utils::socket::{
     OwnedReadHalf, OwnedWriteHalf, TcpConnInfo, TcpListener,
 };
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
+use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 use tokio::time::sleep;
 use tracing::{Instrument, debug_span, error};
@@ -298,13 +299,16 @@ pub(crate) fn tcp_connect(
 }
 
 // Neighbor TCP Rx task.
-pub(crate) fn nbr_rx(
+pub(crate) fn nbr_rx<T>(
     nbr: &Neighbor,
     conn_info: &TcpConnInfo,
     cxt: DecodeCxt,
-    read_half: OwnedReadHalf,
+    read_half: T,
     nbr_msg_rxp: &Sender<messages::input::NbrRxMsg>,
-) -> Task<()> {
+) -> Task<()>
+where
+    T: AsyncRead + Unpin + Send + 'static,
+{
     #[cfg(not(feature = "testing"))]
     {
         let span1 = debug_span!("neighbor", addr = %nbr.remote_addr);
@@ -361,15 +365,18 @@ pub(crate) fn nbr_rx(
 
 // Neighbor TCP Tx task.
 #[cfg_attr(not(feature = "testing"), allow(unused_mut))]
-pub(crate) fn nbr_tx(
+pub(crate) fn nbr_tx<T>(
     nbr: &Neighbor,
     cxt: EncodeCxt,
-    write_half: OwnedWriteHalf,
+    write_half: T,
     mut msg_txc: UnboundedReceiver<messages::output::NbrTxMsg>,
     #[cfg(feature = "testing")] proto_output_tx: &Sender<
         messages::ProtocolOutputMsg,
     >,
-) -> Task<()> {
+) -> Task<()>
+where
+    T: AsyncWrite + Unpin + Send + 'static,
+{
     #[cfg(not(feature = "testing"))]
     {
         let span1 = debug_span!("neighbor", addr = %nbr.remote_addr);

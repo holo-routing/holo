@@ -32,6 +32,7 @@ use crate::packet::message::NotificationMsg;
 use crate::rib::Rib;
 use crate::tasks::messages::input::{
     NbrRxMsg, NbrTimerMsg, PolicyResultMsg, TcpAcceptMsg, TcpConnectMsg,
+    TlsAcceptMsg, TlsConnectMsg,
 };
 use crate::tasks::messages::output::PolicyApplyMsg;
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
@@ -105,6 +106,10 @@ pub struct ProtocolInputChannelsTx {
     pub tcp_accept: Sender<TcpAcceptMsg>,
     // TCP connect event.
     pub tcp_connect: Sender<TcpConnectMsg>,
+    // TLS accept event.
+    pub tls_accept: Sender<TlsAcceptMsg>,
+    // TLS connect event.
+    pub tls_connect: Sender<TlsConnectMsg>,
     // TCP neighbor message.
     pub nbr_msg_rx: Sender<NbrRxMsg>,
     // Neighbor timeout event.
@@ -121,6 +126,10 @@ pub struct ProtocolInputChannelsRx {
     pub tcp_accept: Receiver<TcpAcceptMsg>,
     // TCP connect event.
     pub tcp_connect: Receiver<TcpConnectMsg>,
+    // TLS accept event.
+    pub tls_accept: Receiver<TlsAcceptMsg>,
+    // TLS connect event.
+    pub tls_connect: Receiver<TlsConnectMsg>,
     // TCP neighbor message.
     pub nbr_msg_rx: Receiver<NbrRxMsg>,
     // Neighbor timeout event.
@@ -330,6 +339,8 @@ impl ProtocolInstance for Instance {
     -> (ProtocolInputChannelsTx, ProtocolInputChannelsRx) {
         let (tcp_acceptp, tcp_acceptc) = mpsc::channel(4);
         let (tcp_connectp, tcp_connectc) = mpsc::channel(4);
+        let (tls_acceptp, tls_acceptc) = mpsc::channel(4);
+        let (tls_connectp, tls_connectc) = mpsc::channel(4);
         let (nbr_msg_rxp, nbr_msg_rxc) = mpsc::channel(4);
         let (nbr_timerp, nbr_timerc) = mpsc::channel(4);
         let (policy_resultp, policy_resultc) = mpsc::unbounded_channel();
@@ -342,6 +353,8 @@ impl ProtocolInstance for Instance {
             nbr_timer: nbr_timerp,
             policy_result: policy_resultp,
             decision_process: decision_processp,
+            tls_accept: tls_acceptp,
+            tls_connect: tls_connectp,
         };
         let rx = ProtocolInputChannelsRx {
             tcp_accept: tcp_acceptc,
@@ -350,6 +363,8 @@ impl ProtocolInstance for Instance {
             nbr_timer: nbr_timerc,
             policy_result: policy_resultc,
             decision_process: decision_processc,
+            tls_accept: tls_acceptc,
+            tls_connect: tls_connectc,
         };
 
         (tx, rx)
@@ -461,6 +476,12 @@ impl MessageReceiver<ProtocolInputMsg> for ProtocolInputChannelsRx {
             msg = self.tcp_connect.recv() => {
                 msg.map(ProtocolInputMsg::TcpConnect)
             }
+            msg = self.tls_accept.recv() => {
+                msg.map(ProtocolInputMsg::TlsAccept)
+            }
+            msg = self.tls_connect.recv() => {
+                msg.map(ProtocolInputMsg::TlsConnect)
+            }
             msg = self.nbr_msg_rx.recv() => {
                 msg.map(ProtocolInputMsg::NbrRx)
             }
@@ -568,6 +589,22 @@ fn process_protocol_msg(
         // Established TCP connection.
         ProtocolInputMsg::TcpConnect(mut msg) => {
             events::process_tcp_connect(
+                instance,
+                neighbors,
+                msg.stream(),
+                msg.conn_info,
+            )?;
+        }
+        tasks::messages::input::ProtocolMsg::TlsAccept(mut msg) => {
+            events::process_tls_connect(
+                instance,
+                neighbors,
+                msg.stream(),
+                msg.conn_info,
+            )?;
+        }
+        tasks::messages::input::ProtocolMsg::TlsConnect(mut msg) => {
+            events::process_tls_connect(
                 instance,
                 neighbors,
                 msg.stream(),

@@ -7,18 +7,20 @@
 use std::sync::{Arc, atomic};
 use std::time::Duration;
 
-use holo_utils::socket::{
-    OwnedReadHalf, OwnedWriteHalf, TcpConnInfo, TcpListener,
-};
+use holo_utils::socket::{TcpConnInfo, TcpListener, TcpStream, TlsStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 use tokio::time::sleep;
+use tokio_rustls::rustls::crypto::aws_lc_rs::default_provider;
+use tokio_rustls::rustls::pki_types::ServerName;
+use tokio_rustls::rustls::{ClientConfig, DEFAULT_VERSIONS, ServerConfig};
+use tokio_rustls::{TlsAcceptor, TlsConnector};
 use tracing::{Instrument, debug_span, error};
 
 use crate::debug::Debug;
 use crate::error::NbrRxError;
-use crate::neighbor::{Neighbor, fsm};
+use crate::neighbor::{Neighbor, NeighborTlsState, fsm};
 use crate::packet::message::{DecodeCxt, EncodeCxt, KeepaliveMsg, Message};
 use crate::{network, policy};
 
@@ -59,7 +61,7 @@ pub mod messages {
     use holo_utils::policy::{
         DefaultPolicyType, MatchSets, Policy, PolicyResult, PolicyType,
     };
-    use holo_utils::socket::{TcpConnInfo, TcpStream};
+    use holo_utils::socket::{TcpConnInfo, TcpStream, TlsStream};
     use ipnetwork::IpNetwork;
     use serde::{Deserialize, Serialize};
 
@@ -74,12 +76,15 @@ pub mod messages {
 
     // Input messages (child task -> main task).
     pub mod input {
+
         use super::*;
 
         #[derive(Debug, Deserialize, Serialize)]
         pub enum ProtocolMsg {
             TcpAccept(TcpAcceptMsg),
+            TlsAccept(TlsAcceptMsg),
             TcpConnect(TcpConnectMsg),
+            TlsConnect(TlsConnectMsg),
             NbrRx(NbrRxMsg),
             NbrTimer(NbrTimerMsg),
             PolicyResult(PolicyResultMsg),
@@ -97,6 +102,20 @@ pub mod messages {
         pub struct TcpConnectMsg {
             #[serde(skip)]
             pub stream: Option<TcpStream>,
+            pub conn_info: TcpConnInfo,
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        pub struct TlsConnectMsg {
+            #[serde(skip)]
+            pub stream: Option<TlsStream<TcpStream>>,
+            pub conn_info: TcpConnInfo,
+        }
+
+        #[derive(Debug, Deserialize, Serialize)]
+        pub struct TlsAcceptMsg {
+            #[serde(skip)]
+            pub stream: Option<TlsStream<TcpStream>>,
             pub conn_info: TcpConnInfo,
         }
 
@@ -147,6 +166,32 @@ pub mod messages {
 
         impl TcpConnectMsg {
             pub(crate) fn stream(&mut self) -> TcpStream {
+                #[cfg(not(feature = "testing"))]
+                {
+                    self.stream.take().unwrap()
+                }
+                #[cfg(feature = "testing")]
+                {
+                    Default::default()
+                }
+            }
+        }
+
+        impl TlsConnectMsg {
+            pub(crate) fn stream(&mut self) -> TlsStream<TcpStream> {
+                #[cfg(not(feature = "testing"))]
+                {
+                    self.stream.take().unwrap()
+                }
+                #[cfg(feature = "testing")]
+                {
+                    Default::default()
+                }
+            }
+        }
+
+        impl TlsAcceptMsg {
+            pub(crate) fn stream(&mut self) -> TlsStream<TcpStream> {
                 #[cfg(not(feature = "testing"))]
                 {
                     self.stream.take().unwrap()
@@ -241,6 +286,114 @@ pub(crate) fn tcp_listener(
     }
 }
 
+// TLS accept task.
+pub(crate) fn tls_accept(
+    nbr: &Neighbor,
+    tls: NeighborTlsState,
+    tls_accept: &Sender<messages::input::TlsAcceptMsg>,
+    stream: TcpStream,
+    conn_info: &TcpConnInfo,
+) -> Task<()> {
+    #[cfg(not(feature = "testing"))]
+    {
+        let span = debug_span!("neighbor", addr = %nbr.remote_addr);
+        let _span_guard = span.enter();
+
+        let tls = tls.clone();
+        let tls_accept = tls_accept.clone();
+        let conn_info = conn_info.clone();
+
+        Task::spawn(async move {
+            if let Ok(builder) = ServerConfig::builder_with_provider(Arc::new(
+                default_provider(),
+            ))
+            .with_protocol_versions(DEFAULT_VERSIONS)
+                && let Ok(config) =
+                    builder.with_no_client_auth().with_single_cert(
+                        vec![tls.cert.clone()],
+                        tls.pkey.clone_key(),
+                    )
+            {
+                let config = Arc::new(config);
+                let acceptor = TlsAcceptor::from(config);
+                match acceptor.accept(stream).await {
+                    Ok(stream) => {
+                        let _ = tls_accept
+                            .send(messages::input::TlsAcceptMsg {
+                                stream: Some(TlsStream::Server(stream)),
+                                conn_info,
+                            })
+                            .await;
+                    }
+                    Err(_e) => {
+                        // TODO: Emit
+                    }
+                }
+            }
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        Task::spawn(async move { std::future::pending().await })
+    }
+}
+
+// TLS connect task.
+pub(crate) fn tls_connect(
+    nbr: &Neighbor,
+    tls_state: NeighborTlsState,
+    tls_connect: &Sender<messages::input::TlsConnectMsg>,
+    tcp_stream: TcpStream,
+    conn_info: &TcpConnInfo,
+) -> Task<()> {
+    #[cfg(not(feature = "testing"))]
+    {
+        let span = debug_span!("neighbor", addr = %nbr.remote_addr);
+        let _span_guard = span.enter();
+
+        let tls_cfg = nbr.config.transport.tls_cfg.clone();
+        let tls_connect = tls_connect.clone();
+        let conn_info = conn_info.clone();
+        let tls_state = tls_state.clone();
+
+        Task::spawn(async move {
+            if let Some(tls_cfg) = tls_cfg
+                && let Ok(sni) = ServerName::try_from(tls_cfg.sni.as_str())
+                    .map(|s| s.to_owned())
+                && let Ok(builder) = ClientConfig::builder_with_provider(
+                    Arc::new(default_provider()),
+                )
+                .with_protocol_versions(DEFAULT_VERSIONS)
+            {
+                // TODO: Enable mutual TLS
+                let config = builder
+                    .with_root_certificates(tls_state.root_store.clone())
+                    .with_no_client_auth();
+                let config = Arc::new(config);
+                let connector = TlsConnector::from(config);
+                let tls = connector.connect(sni, tcp_stream).await;
+                match tls {
+                    Ok(stream) => {
+                        let _ = tls_connect
+                            .send(messages::input::TlsConnectMsg {
+                                stream: Some(TlsStream::Client(stream)),
+                                conn_info,
+                            })
+                            .await;
+                    }
+                    Err(_e) => {
+                        // TODO: Debug
+                    }
+                }
+            }
+        })
+    }
+    #[cfg(feature = "testing")]
+    {
+        Task::spawn(async move { std::future::pending().await })
+    }
+}
+
 // TCP connect task.
 pub(crate) fn tcp_connect(
     nbr: &Neighbor,
@@ -261,6 +414,7 @@ pub(crate) fn tcp_connect(
         Task::spawn(
             async move {
                 loop {
+                    // TODO: Extend with TCP-AO parameters.
                     let result = network::connect(
                         remote_addr,
                         local_addr,

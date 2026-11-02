@@ -14,7 +14,7 @@ use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::keychain::{Key, Keychains};
-use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::socket::{AsyncFd, AsyncFdExt, Socket};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use ipnetwork::{Ipv4Network, Ipv6Network};
@@ -1031,7 +1031,7 @@ where
         let socket = V::socket(ifname)
             .map_err(IoError::SocketError)
             .and_then(|socket| {
-                AsyncFd::new(socket).map_err(IoError::SocketError)
+                AsyncFd::from_socket(socket).map_err(IoError::SocketError)
             })
             .map(Arc::new)?;
 

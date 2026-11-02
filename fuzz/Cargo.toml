@@ -8,9 +8,9 @@ edition = "2024"
 cargo-fuzz = true
 
 [dependencies]
-const-addrs = { version = "0.1", features = ["ipnet"] }
+const-addrs = { version = "0.2", features = ["ipnet"] }
 libfuzzer-sys = "0.4"
-yang5 = { version = "0.1", features = ["bundled"] }
+yang5 = { version = "0.5", features = ["bundled"] }
 
 holo-bfd = { path = "../holo-bfd/" }
 holo-bgp = { path = "../holo-bgp/" }

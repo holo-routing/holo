@@ -29,9 +29,9 @@ impl<'a> YangContainer<'a, Master> for system_state::platform::Platform<'a> {
 
     fn new(_master: &'a Master, _: &Self::ParentListEntry) -> Option<Self> {
         Some(Self {
-            os_name: System::name().map(Cow::Owned),
-            os_release: System::kernel_version().map(Cow::Owned),
-            os_version: System::os_version().map(Cow::Owned),
+            os_name: System::name().ok().map(Cow::Owned),
+            os_release: System::kernel_version().ok().map(Cow::Owned),
+            os_version: System::os_version().ok().map(Cow::Owned),
             machine: Some(Cow::Owned(System::cpu_arch())),
         })
     }
@@ -42,7 +42,7 @@ impl<'a> YangContainer<'a, Master> for system_state::clock::Clock {
 
     fn new(_master: &'a Master, _: &Self::ParentListEntry) -> Option<Self> {
         let time_now = Utc::now();
-        let time_boot = DateTime::from_timestamp(System::boot_time() as i64, 0);
+        let time_boot = System::boot_time().ok().and_then(|secs| DateTime::from_timestamp(secs as i64, 0));
         Some(Self {
             current_datetime: Some(time_now),
             boot_datetime: time_boot,

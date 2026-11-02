@@ -16,7 +16,7 @@ use chrono::{DateTime, Utc};
 use enum_as_inner::EnumAsInner;
 use holo_utils::ip::{AddressFamily, IpAddrKind, IpNetworkKind};
 use holo_utils::mac_addr::MacAddr;
-use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::socket::{AsyncFd, AsyncFdExt, Socket};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use ipnetwork::IpNetwork;
@@ -589,7 +589,9 @@ impl InstanceNet {
             AddressFamily::Ipv6 => network::socket_vrrp_rx6(parent_iface),
         }
         .map_err(IoError::SocketError)
-        .and_then(|socket| AsyncFd::new(socket).map_err(IoError::SocketError))
+        .and_then(|socket| {
+            AsyncFd::from_socket(socket).map_err(IoError::SocketError)
+        })
         .map(Arc::new)?;
 
         let socket_vrrp_tx = match af {
@@ -597,7 +599,9 @@ impl InstanceNet {
             AddressFamily::Ipv6 => network::socket_vrrp_tx6(mvlan),
         }
         .map_err(IoError::SocketError)
-        .and_then(|socket| AsyncFd::new(socket).map_err(IoError::SocketError))
+        .and_then(|socket| {
+            AsyncFd::from_socket(socket).map_err(IoError::SocketError)
+        })
         .map(Arc::new)?;
 
         let socket_arp = match af {
@@ -605,7 +609,9 @@ impl InstanceNet {
             AddressFamily::Ipv6 => network::socket_nadv(mvlan),
         }
         .map_err(IoError::SocketError)
-        .and_then(|socket| AsyncFd::new(socket).map_err(IoError::SocketError))
+        .and_then(|socket| {
+            AsyncFd::from_socket(socket).map_err(IoError::SocketError)
+        })
         .map(Arc::new)?;
 
         // Start network Tx/Rx tasks.

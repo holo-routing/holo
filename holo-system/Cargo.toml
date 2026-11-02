@@ -6,7 +6,7 @@ license.workspace = true
 edition.workspace = true
 
 [dependencies]
-sysinfo = "0.38"
+sysinfo = "0.40"
 
 chrono.workspace = true
 derive-new.workspace = true

@@ -34,7 +34,7 @@ edition = "2024"
 repository = "https://github.com/holo-routing/holo"
 
 [workspace.dependencies]
-arbitrary = { version = "1.4", features = ["derive"] }
+arbitrary = { version = "1.5", features = ["derive"] }
 arc-swap = "1.9"
 base64 = "0.23"
 bitflags = { version = "2.13", features = ["serde"] }
@@ -75,7 +75,7 @@ rtnetlink = "0.23"
 rustc_tools_util = "0.4.2"
 serde = { version = "1.0", features = ["derive", "rc"] }
 serde_json = "1.0"
-serde_with = "3.22"
+serde_with = "3.24"
 sha-crypt = "0.6"
 sha1 = "0.11"
 sha2 = "0.11"
@@ -83,13 +83,13 @@ similar = "3.2"
 smallvec = { version = "1.16", features = ["serde"] }
 socket2 = { version = "0.6", features = ["all"] }
 sysctl = "0.7"
-tokio = { version = "1.53", features = ["io-util", "macros", "rt", "sync", "time"] }
+tokio = { version = "1.54", features = ["io-util", "macros", "rt", "sync", "time"] }
 tonic = { version = "0.14", features = ["tls-ring"] }
 tonic-prost = "0.14"
 tonic-prost-build = "0.14"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-yang5 = { version = "0.4" }
+yang5 = { version = "0.6" }
 
 [workspace.lints.rust]
 rust_2018_idioms = { level = "warn", priority = -1 }

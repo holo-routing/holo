@@ -402,6 +402,23 @@ pub trait LinkAddrExt {
     fn new(protocol: u16, ifindex: u32, addr: Option<[u8; 6]>) -> Self;
 }
 
+// Extension methods for AsyncFd.
+pub trait AsyncFdExt: Sized {
+    // Register a socket with the Tokio reactor.
+    fn from_socket(socket: Socket) -> Result<Self>;
+}
+
+// ===== impl AsyncFd =====
+
+impl AsyncFdExt for AsyncFd<Socket> {
+    fn from_socket(socket: Socket) -> Result<Self> {
+        // SAFETY: the socket owns its file descriptor, which stays open until
+        // it is dropped along with the `AsyncFd`. Callers must not replace the
+        // socket through `AsyncFd::get_mut`.
+        Ok(unsafe { AsyncFd::register(socket) }?)
+    }
+}
+
 // ===== impl UdpSocket =====
 
 impl SocketExt for UdpSocket {}

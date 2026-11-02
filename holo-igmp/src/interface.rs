@@ -9,7 +9,9 @@ use std::net::Ipv4Addr;
 use std::sync::Arc;
 
 use const_addrs::ip4;
-use holo_utils::socket::{AsyncFd, RawSocketExt, Socket, SocketExt};
+use holo_utils::socket::{
+    AsyncFd, AsyncFdExt, RawSocketExt, Socket, SocketExt,
+};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::task::Task;
 use tokio::sync::mpsc;
@@ -117,7 +119,8 @@ impl Interface {
         // Create raw socket.
         let socket =
             network::socket_tx(&self.name).map_err(IoError::SocketError)?;
-        let socket = AsyncFd::new(socket).map_err(IoError::SocketError)?;
+        let socket =
+            AsyncFd::from_socket(socket).map_err(IoError::SocketError)?;
         let socket = Arc::new(socket);
 
         // TODO: join multicast addresses?

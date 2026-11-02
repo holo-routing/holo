@@ -14,7 +14,7 @@ use std::sync::atomic::{self, AtomicU32};
 use chrono::{DateTime, Utc};
 use holo_utils::ip::{AddrList, AddressFamily};
 use holo_utils::mac_addr::MacAddr;
-use holo_utils::socket::{AsyncFd, Socket, SocketExt};
+use holo_utils::socket::{AsyncFd, AsyncFdExt, Socket, SocketExt};
 use holo_utils::southbound::InterfaceFlags;
 use holo_utils::sr::MsdType;
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
@@ -216,7 +216,8 @@ impl Interface {
                 self.system.join_multicast(&socket, MulticastAddr::AllL1Iss);
                 self.system.join_multicast(&socket, MulticastAddr::AllL2Iss);
             }
-            let socket = AsyncFd::new(socket).map_err(IoError::SocketError)?;
+            let socket =
+                AsyncFd::from_socket(socket).map_err(IoError::SocketError)?;
             let socket = Arc::new(socket);
 
             // Start network Tx/Rx tasks.

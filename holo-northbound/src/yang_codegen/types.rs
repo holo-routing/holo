@@ -91,10 +91,7 @@ pub fn register_identity_types(
     identity_types: &[(&'static str, TypeSpec)],
 ) {
     let mut bases = HashSet::new();
-    for snode in yang_ctx.traverse() {
-        let Some(ltype) = snode.leaf_type() else {
-            continue;
-        };
+    for ltype in yang_ctx.traverse().filter_map(|snode| snode.leaf_type()) {
         bases.extend(ltype.identityref_bases());
         if let Some(real_type) = ltype.leafref_real_type() {
             bases.extend(real_type.identityref_bases());

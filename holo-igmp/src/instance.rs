@@ -13,7 +13,7 @@ use holo_protocol::{
 };
 use holo_utils::ibus::IbusMsg;
 use holo_utils::protocol::Protocol;
-use holo_utils::socket::{AsyncFd, Socket};
+use holo_utils::socket::{AsyncFd, AsyncFdExt, Socket};
 use holo_utils::task::{Task, protocol_select};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Receiver, Sender};
@@ -156,7 +156,7 @@ impl ProtocolInstance for Instance {
         let socket_rx = network::socket_rx()
             .map_err(IoError::SocketError)
             .and_then(|socket| {
-                AsyncFd::new(socket).map_err(IoError::SocketError)
+                AsyncFd::from_socket(socket).map_err(IoError::SocketError)
             })
             .map(Arc::new)
             .expect("failed to create Rx socket");

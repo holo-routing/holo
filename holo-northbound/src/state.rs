@@ -310,10 +310,7 @@ where
 {
     // Target reached - populate the full subtree.
     let Some((resolved, rest)) = remaining.split_first() else {
-        let yang_ctx = YANG_CTX.get().unwrap();
-        let snode = yang_ctx
-            .find_path(&parent_dnode.schema().data_path())
-            .unwrap();
+        let snode = parent_dnode.schema();
         let module = snode.module();
         if let Some(child_nb_tx) = list_entry.child_task(module.name()) {
             let path = Path::from_dnode(parent_dnode);

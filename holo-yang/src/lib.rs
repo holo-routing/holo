@@ -164,6 +164,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
         // IETF Holo augmentations
         EmbeddedModuleKey::new("holo-bgp", None, None, None) =>
             include_str!("../modules/augmentations/holo-bgp.yang"),
+        EmbeddedModuleKey::new("holo-bgp-tls", None, None, None) =>
+            include_str!("../modules/augmentations/holo-bgp-tls.yang"),
         EmbeddedModuleKey::new("holo-isis", None, None, None) =>
             include_str!("../modules/augmentations/holo-isis.yang"),
         EmbeddedModuleKey::new("holo-isis-dev", None, None, None) =>
@@ -261,6 +263,7 @@ pub mod implemented_modules {
         "ietf-bgp",
         // IETF Holo augmentations
         "holo-bgp",
+        "holo-bgp-tls",
     ];
     pub const IGMP: &[&str] = &[
         // IETF modules

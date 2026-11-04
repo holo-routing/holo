@@ -34,6 +34,7 @@ holo-northbound = { path = "../holo-northbound", features = ["bgp"] }
 holo-protocol = { path = "../holo-protocol" }
 holo-utils = { path = "../holo-utils" }
 holo-yang = { path = "../holo-yang" }
+tokio-rustls = "0.26.6"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libc.workspace = true

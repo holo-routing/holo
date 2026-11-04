@@ -12,10 +12,10 @@ use holo_utils::bytes::BytesMut;
 use holo_utils::capabilities;
 use holo_utils::ip::{AddressFamily, IpAddrExt, IpAddrKind};
 use holo_utils::socket::{
-    OwnedReadHalf, OwnedWriteHalf, SocketExt, TTL_MAX, TcpConnInfo,
-    TcpListener, TcpSocket, TcpSocketExt, TcpStream, TcpStreamExt,
+    SocketExt, TTL_MAX, TcpConnInfo, TcpListener, TcpSocket, TcpSocketExt,
+    TcpStream, TcpStreamExt,
 };
-use tokio::io::{AsyncWriteExt, BufWriter};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufWriter};
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
@@ -214,11 +214,13 @@ pub(crate) async fn connect(
     }
 }
 
-pub(crate) async fn nbr_write_loop(
-    stream: OwnedWriteHalf,
+pub(crate) async fn nbr_write_loop<T>(
+    stream: T,
     cxt: EncodeCxt,
     mut nbr_msg_txc: UnboundedReceiver<NbrTxMsg>,
-) {
+) where
+    T: AsyncWrite + Unpin,
+{
     #[cfg(network_backend = "linux")]
     {
         let mut cxt = cxt;
@@ -257,13 +259,16 @@ pub(crate) async fn nbr_write_loop(
     }
 }
 
-pub(crate) async fn nbr_read_loop(
-    stream: OwnedReadHalf,
+pub(crate) async fn nbr_read_loop<T>(
+    stream: T,
     nbr_addr: IpAddr,
     conn_info: TcpConnInfo,
     cxt: DecodeCxt,
     nbr_msg_rxp: Sender<NbrRxMsg>,
-) -> Result<(), SendError<NbrRxMsg>> {
+) -> Result<(), SendError<NbrRxMsg>>
+where
+    T: AsyncRead + Unpin,
+{
     #[cfg(network_backend = "linux")]
     {
         let (mut stream, mut cxt) = (stream, cxt);

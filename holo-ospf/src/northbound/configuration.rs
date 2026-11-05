@@ -159,6 +159,14 @@ pub struct RangeCfg {
 }
 
 #[derive(Debug)]
+pub struct ReverseMetricCfg {
+    pub receive: bool,
+    pub metric: Option<u16>,
+    pub higher: bool,
+    pub offset: bool,
+}
+
+#[derive(Debug)]
 pub struct InterfaceCfg<V: Version> {
     pub instance_id: InheritableConfig<u8>,
     pub if_type: InterfaceType,
@@ -182,6 +190,7 @@ pub struct InterfaceCfg<V: Version> {
     pub bfd_params: bfd::ClientCfg,
     pub trace_opts: InterfaceTraceOptions,
     pub lls_enabled: bool,
+    pub reverse_metric: ReverseMetricCfg,
 }
 
 #[derive(Debug)]
@@ -354,6 +363,11 @@ where
         ConfigChange::TraceOptionsFlag(keys, change) => {
             apply_trace_options(instance, keys.name, change, event_queue)?;
         }
+        ConfigChange::ReverseMetricEnableReceive(receive) => {
+            instance.arenas.interfaces.iter_mut().for_each(|(_, iface)| {
+                iface.config.reverse_metric.receive = receive;
+            });
+        }
     }
 
     Ok(())
@@ -498,6 +512,11 @@ where
                         return Ok(());
                     };
                     apply_area_range(area, prefix, change, event_queue)?;
+                }
+                AreaEntryChange::ReverseMetricEnableReceive(receive) => {
+                    instance.arenas.interfaces.iter_mut().filter(|(area, _)| area == &area_idx).for_each(|(_, iface)| {
+                        iface.config.reverse_metric.receive = receive;
+                    });
                 }
             }
         }
@@ -714,6 +733,7 @@ where
                 }
                 AreaInterfaceEntryChange::Cost(cost) => {
                     iface.config.cost = cost;
+                    iface.state.cost = cost;
                     event_queue.insert(Event::InterfaceCostChange(area_idx));
                 }
                 AreaInterfaceEntryChange::MtuIgnore(mtu_ignore) => {
@@ -754,6 +774,21 @@ where
                 }
                 AreaInterfaceEntryChange::TraceOptionsFlag(keys, change) => {
                     apply_interface_trace_options(iface, iface_idx, keys.name, change, event_queue)?;
+                }
+                AreaInterfaceEntryChange::ReverseMetricEnableReceive(receive) => {
+                    iface.config.reverse_metric.receive = receive;
+                }
+                AreaInterfaceEntryChange::ReverseMetricMetric(metric) => {
+                    iface.config.reverse_metric.metric = metric;
+                    event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+                }
+                AreaInterfaceEntryChange::ReverseMetricFlagsHigher(higher) => {
+                    iface.config.reverse_metric.higher = higher;
+                    event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
+                }
+                AreaInterfaceEntryChange::ReverseMetricFlagsOffset(offset) => {
+                    iface.config.reverse_metric.offset = offset;
+                    event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
                 }
             }
         }
@@ -1347,6 +1382,21 @@ impl Default for RangeCfg {
     }
 }
 
+impl Default for ReverseMetricCfg {
+    fn default() -> Self {
+        let receive = ospf::areas::area::interfaces::interface::reverse_metric::enable_receive::DFLT;
+        let metric = None;
+        let higher = ospf::areas::area::interfaces::interface::reverse_metric::flags::higher::DFLT;
+        let offset = ospf::areas::area::interfaces::interface::reverse_metric::flags::offset::DFLT;
+        Self {
+            receive,
+            metric,
+            higher,
+            offset,
+        }
+    }
+}
+
 impl<V> Default for InterfaceCfg<V>
 where
     V: Version,
@@ -1392,6 +1442,7 @@ where
             bfd_params: Default::default(),
             trace_opts: Default::default(),
             lls_enabled,
+            reverse_metric: Default::default(),
         }
     }
 }

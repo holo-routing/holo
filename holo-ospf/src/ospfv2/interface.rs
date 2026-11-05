@@ -23,6 +23,7 @@ use crate::ospfv2::packet::{Hello, PacketHdr};
 use crate::packet::Packet;
 use crate::packet::auth::AuthMethod;
 use crate::packet::iana::PacketType;
+use crate::packet::lls::{LlsHelloData, ReverseMetricFlags};
 use crate::version::Ospfv2;
 
 // ===== impl Ospfv2 =====
@@ -63,12 +64,25 @@ impl InterfaceVersion<Self> for Ospfv2 {
             iface.system.primary_addr.unwrap().mask()
         };
 
-        let lls = if iface.config.lls_enabled {
-            // TODO: Get LLS configuration
-            None
-        } else {
-            None
-        };
+        let advertise_rm = iface.config.reverse_metric.metric.is_some();
+        let lls = (iface.config.lls_enabled & advertise_rm).then(|| {
+            let mut lls_data: LlsHelloData = Default::default();
+
+            // Handle Reverse Metric (RFC 9339).
+            if let Some(metric) = iface.config.reverse_metric.metric {
+                let cfg = &iface.config.reverse_metric;
+                let mut flags = ReverseMetricFlags::empty();
+                if cfg.higher {
+                    flags |= ReverseMetricFlags::H;
+                }
+                if cfg.offset {
+                    flags |= ReverseMetricFlags::O;
+                }
+                lls_data.reverse_metric.insert(0, (flags, metric));
+            }
+
+            lls_data
+        });
 
         Packet::Hello(Hello {
             hdr,

@@ -5,7 +5,7 @@
 //
 
 use std::cmp::Ordering;
-use std::collections::btree_map;
+use std::collections::btree_map::{self};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 
@@ -30,6 +30,7 @@ use crate::neighbor::{LastDbDesc, Neighbor, RxmtPacketType, nsm};
 use crate::northbound::notification;
 use crate::packet::error::DecodeResult;
 use crate::packet::iana::PacketType;
+use crate::packet::lls::ReverseMetricFlags;
 use crate::packet::lsa::{
     Lsa, LsaBodyVersion, LsaHdrVersion, LsaKey, LsaScope, LsaTypeVersion,
 };
@@ -431,9 +432,59 @@ where
     // Examine LLS data block if enabled and present in the packet.
     if iface.config.lls_enabled
         && hello.options().l_bit()
-        && let Some(_lls) = hello.lls()
+        && let Some(lls) = hello.lls()
     {
-        // TODO: Handle LLS data
+        // Handle Reverse Metric (RFC 9339).
+        if iface.config.reverse_metric.receive {
+            let mut originate: bool = false;
+
+            // Ignore mtid for now, until RFC4915 is implemented.
+            if iface.state.rms.is_some() && lls.reverse_metric.get(&0).is_none()
+            {
+                // The RM TLV has been removed, we need to restore the configured metric.
+                iface.state.cost = iface.config.cost;
+                iface.state.rms = None;
+                originate = true;
+            }
+            // We have to recall the latest configuration we have received.
+            // If it has not changed, we do not update the metric nor we
+            // originate a new Router LSA.
+            // If the Reverse Metric from the neighbor has been updated since
+            // the last one we received, then we propagate the information.
+            else if let Some((new_flags, new_metric)) =
+                lls.reverse_metric.get(&0)
+                && let Some((flags, metric)) = iface.state.rms.map_or(
+                    // This is the first time we see the RM.
+                    Some((*new_flags, *new_metric)),
+                    |(old_flags, old_metric)| {
+                        // Has the RM changed?
+                        (old_metric != *new_metric || old_flags != *new_flags)
+                            .then(|| (*new_flags, *new_metric))
+                    },
+                )
+            {
+                iface.state.rms = Some((flags, metric));
+
+                // Update metric.
+                // RFC 9339 Section 6 : "The H and O flags are mutually
+                // exclusive; the H flag is ignored when the O flag is set."
+                let higher = flags.contains(ReverseMetricFlags::H);
+                let offset = flags.contains(ReverseMetricFlags::O);
+                if offset {
+                    iface.state.cost = iface.state.cost.saturating_add(metric);
+                } else if !higher || iface.state.cost < metric {
+                    iface.state.cost = metric;
+                }
+                originate = true;
+            }
+
+            // Trigger Router LSA origination.
+            if originate {
+                instance.tx.protocol_input.lsa_orig_event(
+                    LsaOriginateEvent::InterfaceCostChange { area_id: area.id },
+                );
+            }
+        }
     }
 
     Ok(())

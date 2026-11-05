@@ -106,11 +106,15 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$WASI_DIR" && cd "$WASI_DIR"
+          # Release downloads occasionally fail with transient errors.
+          fetch() { curl -sSfL --retry 5 --retry-delay 10 "$1"; }
           # Later SDKs no longer ship the emulated pthread library libyang links against.
-          curl -sSfL "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_SDK_VERSION}/wasi-sdk-${WASI_SDK_VERSION}.0-x86_64-linux.tar.gz" | tar xz && mv "wasi-sdk-${WASI_SDK_VERSION}.0-x86_64-linux" sdk
-          curl -sSfL "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz" | tar xJ && mv "wasmtime-v${WASMTIME_VERSION}-x86_64-linux/wasmtime" wasmtime
+          fetch "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_SDK_VERSION}/wasi-sdk-${WASI_SDK_VERSION}.0-x86_64-linux.tar.gz" | tar xz
+          mv "wasi-sdk-${WASI_SDK_VERSION}.0-x86_64-linux" sdk
+          fetch "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-x86_64-linux.tar.xz" | tar xJ
+          mv "wasmtime-v${WASMTIME_VERSION}-x86_64-linux/wasmtime" wasmtime
           # libyang is built from source and needs a PCRE2 for the same target; its JIT has no wasm backend.
-          curl -sSfL "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz" | tar xz
+          fetch "https://github.com/PCRE2Project/pcre2/releases/download/pcre2-${PCRE2_VERSION}/pcre2-${PCRE2_VERSION}.tar.gz" | tar xz
           cmake -S "pcre2-${PCRE2_VERSION}" -B pcre2-build -DCMAKE_TOOLCHAIN_FILE="$WASI_SDK_PATH/share/cmake/wasi-sdk-p1.cmake" -DWASI_SDK_PREFIX="$WASI_SDK_PATH" -DCMAKE_INSTALL_PREFIX="$WASI_DIR" -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF -DPCRE2_BUILD_PCRE2GREP=OFF -DPCRE2_BUILD_TESTS=OFF -DPCRE2_SUPPORT_JIT=OFF
           cmake --build pcre2-build --target install -j"$(nproc)"
       - name: Run tests

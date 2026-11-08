@@ -45,7 +45,7 @@ pub struct Lsa<V: Version> {
 // such as iterating over LSDBs.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, new)]
 #[derive(Deserialize, Serialize)]
-pub struct LsaKey<T: LsaTypeVersion> {
+pub struct LsaKey<T> {
     // LSA type.
     #[serde(bound = "T: LsaTypeVersion")]
     pub lsa_type: T,
@@ -87,11 +87,8 @@ pub trait LsaVersion<V: Version> {
 pub trait LsaTypeVersion
 where
     Self: Send
-        + Sync
-        + Clone
         + Copy
         + Ord
-        + PartialOrd
         + std::fmt::Debug
         + std::fmt::Display
         + std::hash::Hash
@@ -111,13 +108,7 @@ where
 // OSPF version-specific code.
 pub trait LsaHdrVersion<V: Version>
 where
-    Self: Send
-        + Sync
-        + Clone
-        + Copy
-        + std::fmt::Debug
-        + Serialize
-        + DeserializeOwned,
+    Self: Send + Sync + Copy + std::fmt::Debug,
 {
     const LENGTH: u16;
 
@@ -204,13 +195,7 @@ pub trait LsaKind<V: Version> {
 // OSPF version-specific code.
 pub trait LsaRouterFlagsVersion
 where
-    Self: Send
-        + Sync
-        + Clone
-        + Copy
-        + std::fmt::Debug
-        + Serialize
-        + DeserializeOwned,
+    Self: Send + Copy + std::fmt::Debug,
 {
     fn is_abr(&self) -> bool;
     fn is_asbr(&self) -> bool;
@@ -220,23 +205,14 @@ where
 // OSPF version-specific code.
 pub trait PrefixOptionsVersion
 where
-    Self: Send
-        + Sync
-        + Clone
-        + Copy
-        + Default
-        + Eq
-        + PartialEq
-        + std::fmt::Debug
-        + Serialize
-        + DeserializeOwned,
+    Self: Send + Copy + Default + PartialEq + std::fmt::Debug,
 {
 }
 
 // OSPF version-specific code.
 pub trait PrefixSidVersion
 where
-    Self: Send + Sync + Clone + Copy + Eq + PartialEq + std::fmt::Debug,
+    Self: Send + Copy + PartialEq + std::fmt::Debug,
 {
     fn flags(&self) -> PrefixSidFlags;
 
@@ -248,7 +224,7 @@ where
 // OSPF version-specific code.
 pub trait AdjSidVersion
 where
-    Self: Send + Sync + Clone + Copy + Eq + PartialEq + std::fmt::Debug,
+    Self: Send + std::fmt::Debug,
 {
     fn new(label: Label, weight: u8, nbr_router_id: Option<Ipv4Addr>) -> Self;
 

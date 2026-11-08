@@ -47,7 +47,7 @@ pub trait NetworkVersion<V: Version> {
     #[cfg(network_backend = "linux")]
     type SocketAddr: SockaddrLike + Send + Sync;
     #[cfg(network_backend = "linux")]
-    type Pktinfo: Send + Sync;
+    type Pktinfo: Send;
 
     // Create OSPF socket.
     //

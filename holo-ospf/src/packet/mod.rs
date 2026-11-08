@@ -136,7 +136,7 @@ where
 // OSPF version-specific code.
 pub trait PacketBase<V: Version>
 where
-    Self: Send + Sync + Clone + std::fmt::Debug + Serialize + DeserializeOwned,
+    Self: Send + Clone + std::fmt::Debug + Serialize + DeserializeOwned,
 {
     // Decode OSPF packet body from a bytes buffer.
     fn decode(
@@ -159,14 +159,11 @@ where
 }
 
 // OSPF version-specific code.
-pub trait OptionsVersion<V: Version>
+pub trait OptionsVersion<V>
 where
     Self: Send
-        + Sync
-        + Clone
         + Copy
         + std::fmt::Debug
-        + Eq
         + PartialEq
         + Serialize
         + DeserializeOwned,

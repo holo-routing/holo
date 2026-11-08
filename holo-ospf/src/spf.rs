@@ -238,15 +238,7 @@ pub trait SpfVersion<V: Version> {
 // the SPF algorithm to find all equal-cost paths.
 pub trait VertexIdVersion
 where
-    Self: Send
-        + Sync
-        + Clone
-        + Copy
-        + std::fmt::Debug
-        + Eq
-        + Ord
-        + PartialEq
-        + PartialOrd,
+    Self: Send + Copy + std::fmt::Debug + Ord,
 {
     // Create root SPF vertex.
     fn new_root(router_id: Ipv4Addr) -> Self;
@@ -255,7 +247,7 @@ where
 // OSPF version-specific code.
 pub trait VertexLsaVersion<V: Version>
 where
-    Self: Send + Sync + std::fmt::Debug,
+    Self: Send + std::fmt::Debug,
 {
     // Return whether this is a router vertex.
     fn is_router(&self) -> bool;

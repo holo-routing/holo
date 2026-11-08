@@ -11,7 +11,6 @@ use std::net::Ipv4Addr;
 use bitflags::bitflags;
 use derive_new::new;
 use holo_utils::bier::BierInfo;
-use holo_utils::ip::IpAddrKind;
 use holo_utils::mpls::Label;
 use holo_utils::southbound::OspfRouteType;
 use holo_utils::sr::PrefixSidAlgo;
@@ -90,7 +89,7 @@ pub struct SummaryRtr<V: Version> {
 
 // Route nexthop key.
 #[derive(Clone, Copy, Debug, Eq, new, Ord, PartialEq, PartialOrd)]
-pub struct NexthopKey<I: IpAddrKind> {
+pub struct NexthopKey<I> {
     // Nexthop interface.
     pub iface_idx: InterfaceIndex,
     // Nexthop address (`None` for connected routes).
@@ -99,7 +98,7 @@ pub struct NexthopKey<I: IpAddrKind> {
 
 // Route nexthop.
 #[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
-pub struct Nexthop<I: IpAddrKind> {
+pub struct Nexthop<I> {
     // Nexthop interface.
     pub iface_idx: InterfaceIndex,
     // Nexthop address (`None` for connected routes).
@@ -112,7 +111,7 @@ pub struct Nexthop<I: IpAddrKind> {
 }
 
 // Type aliases.
-pub type Nexthops<I: IpAddrKind> = BTreeMap<NexthopKey<I>, Nexthop<I>>;
+pub type Nexthops<I> = BTreeMap<NexthopKey<I>, Nexthop<I>>;
 pub type PathType = OspfRouteType;
 
 // ===== impl RouteNet =====

@@ -100,7 +100,7 @@ pub enum OptionsLocation {
 // OSPF version-specific code.
 pub trait AreaVersion<V: Version> {
     // Version-specific area state data.
-    type State: Send + Sync + Default + std::fmt::Debug;
+    type State: Send + Default + std::fmt::Debug;
 
     // Return the options associated to the provided area.
     //

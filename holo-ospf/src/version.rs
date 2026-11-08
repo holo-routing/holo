@@ -28,10 +28,8 @@ pub trait Version
 where
     Self: 'static
         + Send
-        + Sync
         + Clone
         + Default
-        + Eq
         + PartialEq
         + std::fmt::Debug
         + AreaVersion<Self>

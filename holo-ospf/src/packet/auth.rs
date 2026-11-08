@@ -60,10 +60,7 @@ fn hmac_sha_digest<H: EagerHash>(
     key: &[u8],
     proto_id: Option<CryptoProtocolId>,
     src: Option<&IpAddr>,
-) -> Vec<u8>
-where
-    <H as EagerHash>::Core: OutputSizeUser,
-{
+) -> Vec<u8> {
     let mut key = key;
     let key_proto: Vec<u8>;
 

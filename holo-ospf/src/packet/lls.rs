@@ -20,9 +20,7 @@ use crate::version::Version;
 pub const LLS_HDR_SIZE: u16 = 4;
 
 pub trait LlsVersion<V: Version> {
-    type LlsDataBlock: From<LlsHelloData>
-        + From<LlsDbDescData>
-        + std::fmt::Debug;
+    type LlsDataBlock: From<LlsHelloData> + From<LlsDbDescData>;
 
     fn encode_lls_block(
         buf: &mut BytesMut,

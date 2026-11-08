@@ -744,56 +744,63 @@ impl AslaStlvs {
 
         while buf.remaining() >= TLV_HDR_SIZE {
             let stlv_type = buf.try_get_u8()?;
-            let stlv_etype = AslaStlvType::from_u8(stlv_type);
             let stlv_len = buf.try_get_u8()?;
             if stlv_len as usize > buf.remaining() {
                 break;
             }
             let mut buf_stlv = buf.try_copy_to_bytes(stlv_len as usize)?;
+            let Some(stlv_etype) = AslaStlvType::from_u8(stlv_type) else {
+                sub_tlvs.unknown.push(UnknownTlv {
+                    tlv_type: stlv_type,
+                    length: stlv_len,
+                    value: buf_stlv,
+                });
+                continue;
+            };
             match stlv_etype {
-                Some(AslaStlvType::AdminGroup) => {
+                AslaStlvType::AdminGroup => {
                     match AdminGroupStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.admin_group = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::ExtendedAdminGroup) => {
+                AslaStlvType::ExtendedAdminGroup => {
                     match ExtAdminGroupStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.ext_admin_group = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::MaxLinkBandwidth) => {
+                AslaStlvType::MaxLinkBandwidth => {
                     match MaxLinkBwStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.max_link_bw = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::MaxResvLinkBandwidth) => {
+                AslaStlvType::MaxResvLinkBandwidth => {
                     match MaxResvLinkBwStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.max_resv_link_bw = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::UnreservedBandwidth) => {
+                AslaStlvType::UnreservedBandwidth => {
                     match UnreservedBwStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.unreserved_bw = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::TeDefaultMetric) => {
+                AslaStlvType::TeDefaultMetric => {
                     match TeDefaultMetricStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.te_default_metric = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::UniLinkDelay) => {
+                AslaStlvType::UniLinkDelay => {
                     match UniLinkDelayStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.uni_link_delay = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::MinMaxUniLinkDelay) => {
+                AslaStlvType::MinMaxUniLinkDelay => {
                     match MinMaxUniLinkDelayStlv::decode(
                         stlv_len,
                         &mut buf_stlv,
@@ -804,43 +811,36 @@ impl AslaStlvs {
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::UniDelayVariation) => {
+                AslaStlvType::UniDelayVariation => {
                     match UniDelayVariationStlv::decode(stlv_len, &mut buf_stlv)
                     {
                         Ok(stlv) => sub_tlvs.uni_delay_variation = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::UniLinkLoss) => {
+                AslaStlvType::UniLinkLoss => {
                     match UniLinkLossStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.uni_link_loss = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::UniResidualBw) => {
+                AslaStlvType::UniResidualBw => {
                     match UniResidualBwStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.uni_resid_bw = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::UniAvailBw) => {
+                AslaStlvType::UniAvailBw => {
                     match UniAvailBwStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.uni_avail_bw = Some(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(AslaStlvType::UniUtilBw) => {
+                AslaStlvType::UniUtilBw => {
                     match UniUtilBwStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.uni_util_bw = Some(stlv),
                         Err(error) => error.log(),
                     }
-                }
-                None => {
-                    sub_tlvs.unknown.push(UnknownTlv {
-                        tlv_type: stlv_type,
-                        length: stlv_len,
-                        value: buf_stlv,
-                    });
                 }
             }
         }

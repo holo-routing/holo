@@ -1420,11 +1420,10 @@ impl IsReachTlv {
             }
             let mut buf_stlvs = buf.try_copy_to_bytes(sub_tlvs_len as usize)?;
             while buf_stlvs.remaining() >= TLV_HDR_SIZE {
-                // Parse TLV type.
+                // Parse Sub-TLV type.
                 let stlv_type = buf_stlvs.try_get_u8()?;
-                let stlv_etype = NeighborStlvType::from_u8(stlv_type);
 
-                // Parse and validate TLV length.
+                // Parse and validate Sub-TLV length.
                 let stlv_len = buf_stlvs.try_get_u8()?;
                 if stlv_len as usize > buf_stlvs.remaining() {
                     return Err(TlvDecodeError::InvalidLength(stlv_len));
@@ -1439,21 +1438,29 @@ impl IsReachTlv {
                 let _span_guard = span.enter();
                 let mut buf_stlv =
                     buf_stlvs.try_copy_to_bytes(stlv_len as usize)?;
+                let Some(stlv_etype) = NeighborStlvType::from_u8(stlv_type)
+                else {
+                    // Save unknown Sub-TLV.
+                    sub_tlvs
+                        .unknown
+                        .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
+                    continue;
+                };
                 match stlv_etype {
-                    Some(NeighborStlvType::AdminGroup) => {
+                    NeighborStlvType::AdminGroup => {
                         match AdminGroupStlv::decode(stlv_len, &mut buf_stlv) {
                             Ok(stlv) => sub_tlvs.admin_group = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::ExtendedAdminGroup) => {
+                    NeighborStlvType::ExtendedAdminGroup => {
                         match ExtAdminGroupStlv::decode(stlv_len, &mut buf_stlv)
                         {
                             Ok(stlv) => sub_tlvs.ext_admin_group = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::Ipv4InterfaceAddress) => {
+                    NeighborStlvType::Ipv4InterfaceAddress => {
                         match Ipv4InterfaceAddrStlv::decode(
                             stlv_len,
                             &mut buf_stlv,
@@ -1462,7 +1469,7 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::Ipv4NeighborAddress) => {
+                    NeighborStlvType::Ipv4NeighborAddress => {
                         match Ipv4NeighborAddrStlv::decode(
                             stlv_len,
                             &mut buf_stlv,
@@ -1471,27 +1478,27 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::MaxLinkBandwidth) => {
+                    NeighborStlvType::MaxLinkBandwidth => {
                         match MaxLinkBwStlv::decode(stlv_len, &mut buf_stlv) {
                             Ok(stlv) => sub_tlvs.max_link_bw = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::MaxResvLinkBandwidth) => {
+                    NeighborStlvType::MaxResvLinkBandwidth => {
                         match MaxResvLinkBwStlv::decode(stlv_len, &mut buf_stlv)
                         {
                             Ok(stlv) => sub_tlvs.max_resv_link_bw = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::UnreservedBandwidth) => {
+                    NeighborStlvType::UnreservedBandwidth => {
                         match UnreservedBwStlv::decode(stlv_len, &mut buf_stlv)
                         {
                             Ok(stlv) => sub_tlvs.unreserved_bw = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::TeDefaultMetric) => {
+                    NeighborStlvType::TeDefaultMetric => {
                         match TeDefaultMetricStlv::decode(
                             stlv_len,
                             &mut buf_stlv,
@@ -1500,14 +1507,14 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::UniLinkDelay) => {
+                    NeighborStlvType::UniLinkDelay => {
                         match UniLinkDelayStlv::decode(stlv_len, &mut buf_stlv)
                         {
                             Ok(stlv) => sub_tlvs.uni_link_delay = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::MinMaxUniLinkDelay) => {
+                    NeighborStlvType::MinMaxUniLinkDelay => {
                         match MinMaxUniLinkDelayStlv::decode(
                             stlv_len,
                             &mut buf_stlv,
@@ -1518,7 +1525,7 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::UniDelayVariation) => {
+                    NeighborStlvType::UniDelayVariation => {
                         match UniDelayVariationStlv::decode(
                             stlv_len,
                             &mut buf_stlv,
@@ -1529,32 +1536,32 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::UniLinkLoss) => {
+                    NeighborStlvType::UniLinkLoss => {
                         match UniLinkLossStlv::decode(stlv_len, &mut buf_stlv) {
                             Ok(stlv) => sub_tlvs.uni_link_loss = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::UniResidualBw) => {
+                    NeighborStlvType::UniResidualBw => {
                         match UniResidualBwStlv::decode(stlv_len, &mut buf_stlv)
                         {
                             Ok(stlv) => sub_tlvs.uni_resid_bw = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::UniAvailBw) => {
+                    NeighborStlvType::UniAvailBw => {
                         match UniAvailBwStlv::decode(stlv_len, &mut buf_stlv) {
                             Ok(stlv) => sub_tlvs.uni_avail_bw = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::UniUtilBw) => {
+                    NeighborStlvType::UniUtilBw => {
                         match UniUtilBwStlv::decode(stlv_len, &mut buf_stlv) {
                             Ok(stlv) => sub_tlvs.uni_util_bw = Some(stlv),
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::AdjacencySid) => {
+                    NeighborStlvType::AdjacencySid => {
                         match AdjSidStlv::decode(stlv_len, false, &mut buf_stlv)
                         {
                             Ok(stlv) => {
@@ -1565,7 +1572,7 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::LanAdjacencySid) => {
+                    NeighborStlvType::LanAdjacencySid => {
                         match AdjSidStlv::decode(stlv_len, true, &mut buf_stlv)
                         {
                             Ok(stlv) => {
@@ -1576,7 +1583,7 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::LinkMsd) => {
+                    NeighborStlvType::LinkMsd => {
                         if sub_tlvs.link_msd.is_some() {
                             continue;
                         }
@@ -1585,18 +1592,12 @@ impl IsReachTlv {
                             Err(error) => error.log(),
                         }
                     }
-                    Some(NeighborStlvType::AppSpecificLinkAttr) => {
+                    NeighborStlvType::AppSpecificLinkAttr => {
                         match AslaStlv::decode(stlv_len, &mut buf_stlv) {
                             Ok(Some(stlv)) => sub_tlvs.asla.push(stlv),
                             Ok(None) => {}
                             Err(error) => error.log(),
                         }
-                    }
-                    _ => {
-                        // Save unknown Sub-TLV.
-                        sub_tlvs.unknown.push(UnknownTlv::new(
-                            stlv_type, stlv_len, buf_stlv,
-                        ));
                     }
                 }
             }
@@ -2248,7 +2249,6 @@ impl Ipv6ReachTlv {
                 while buf_stlvs.remaining() >= TLV_HDR_SIZE {
                     // Parse TLV type.
                     let stlv_type = buf_stlvs.try_get_u8()?;
-                    let stlv_etype = PrefixStlvType::from_u8(stlv_type);
 
                     // Parse and validate TLV length.
                     let stlv_len = buf_stlvs.try_get_u8()?;
@@ -2265,8 +2265,16 @@ impl Ipv6ReachTlv {
                     let _span_guard = span.enter();
                     let mut buf_stlv =
                         buf_stlvs.try_copy_to_bytes(stlv_len as usize)?;
+                    let Some(stlv_etype) = PrefixStlvType::from_u8(stlv_type)
+                    else {
+                        // Save unknown Sub-TLV.
+                        sub_tlvs.unknown.push(UnknownTlv::new(
+                            stlv_type, stlv_len, buf_stlv,
+                        ));
+                        continue;
+                    };
                     match stlv_etype {
-                        Some(PrefixStlvType::PrefixAttributeFlags) => {
+                        PrefixStlvType::PrefixAttributeFlags => {
                             match PrefixAttrFlagsStlv::decode(
                                 stlv_len,
                                 &mut buf_stlv,
@@ -2277,7 +2285,7 @@ impl Ipv6ReachTlv {
                                 Err(error) => error.log(),
                             }
                         }
-                        Some(PrefixStlvType::Ipv4SourceRouterId) => {
+                        PrefixStlvType::Ipv4SourceRouterId => {
                             match Ipv4SourceRidStlv::decode(
                                 stlv_len,
                                 &mut buf_stlv,
@@ -2288,7 +2296,7 @@ impl Ipv6ReachTlv {
                                 Err(error) => error.log(),
                             }
                         }
-                        Some(PrefixStlvType::Ipv6SourceRouterId) => {
+                        PrefixStlvType::Ipv6SourceRouterId => {
                             match Ipv6SourceRidStlv::decode(
                                 stlv_len,
                                 &mut buf_stlv,
@@ -2299,7 +2307,7 @@ impl Ipv6ReachTlv {
                                 Err(error) => error.log(),
                             }
                         }
-                        Some(PrefixStlvType::PrefixSid) => {
+                        PrefixStlvType::PrefixSid => {
                             match PrefixSidStlv::decode(stlv_len, &mut buf_stlv)
                             {
                                 Ok(stlv) => {
@@ -2312,7 +2320,7 @@ impl Ipv6ReachTlv {
                                 Err(error) => error.log(),
                             }
                         }
-                        Some(PrefixStlvType::FlexAlgoPrefixMetric) => {
+                        PrefixStlvType::FlexAlgoPrefixMetric => {
                             match FapmStlv::decode(stlv_len, &mut buf_stlv) {
                                 Ok(stlv) => {
                                     sub_tlvs
@@ -2323,18 +2331,12 @@ impl Ipv6ReachTlv {
                                 Err(error) => error.log(),
                             }
                         }
-                        Some(PrefixStlvType::BierInfo) => {
+                        PrefixStlvType::BierInfo => {
                             match BierInfoStlv::decode(stlv_len, &mut buf_stlv)
                             {
                                 Ok(stlv) => sub_tlvs.bier.push(stlv),
                                 Err(error) => error.log(),
                             }
-                        }
-                        _ => {
-                            // Save unknown Sub-TLV.
-                            sub_tlvs.unknown.push(UnknownTlv::new(
-                                stlv_type, stlv_len, buf_stlv,
-                            ));
                         }
                     }
                 }
@@ -2636,7 +2638,6 @@ impl RouterCapTlv {
         while buf.remaining() >= TLV_HDR_SIZE {
             // Parse TLV type.
             let stlv_type = buf.try_get_u8()?;
-            let stlv_etype = RouterCapStlvType::from_u8(stlv_type);
 
             // Parse and validate TLV length.
             let stlv_len = buf.try_get_u8()?;
@@ -2649,8 +2650,15 @@ impl RouterCapTlv {
                 debug_span!("sub-TLV", r#type = stlv_type, length = stlv_len);
             let _span_guard = span.enter();
             let mut buf_stlv = buf.try_copy_to_bytes(stlv_len as usize)?;
+            let Some(stlv_etype) = RouterCapStlvType::from_u8(stlv_type) else {
+                // Save unknown Sub-TLV.
+                sub_tlvs
+                    .unknown
+                    .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
+                continue;
+            };
             match stlv_etype {
-                Some(RouterCapStlvType::SrCapability) => {
+                RouterCapStlvType::SrCapability => {
                     if sub_tlvs.sr_cap.is_some() {
                         continue;
                     }
@@ -2659,7 +2667,7 @@ impl RouterCapTlv {
                         Err(error) => error.log(),
                     }
                 }
-                Some(RouterCapStlvType::SrAlgorithm) => {
+                RouterCapStlvType::SrAlgorithm => {
                     if sub_tlvs.sr_algo.is_some() {
                         continue;
                     }
@@ -2668,7 +2676,7 @@ impl RouterCapTlv {
                         Err(error) => error.log(),
                     }
                 }
-                Some(RouterCapStlvType::SrLocalBlock) => {
+                RouterCapStlvType::SrLocalBlock => {
                     if sub_tlvs.srlb.is_some() {
                         continue;
                     }
@@ -2677,7 +2685,7 @@ impl RouterCapTlv {
                         Err(error) => error.log(),
                     }
                 }
-                Some(RouterCapStlvType::NodeMsd) => {
+                RouterCapStlvType::NodeMsd => {
                     if sub_tlvs.node_msd.is_some() {
                         continue;
                     }
@@ -2686,19 +2694,19 @@ impl RouterCapTlv {
                         Err(error) => error.log(),
                     }
                 }
-                Some(RouterCapStlvType::NodeAdminTag) => {
+                RouterCapStlvType::NodeAdminTag => {
                     match NodeAdminTagStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.node_tags.push(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(RouterCapStlvType::FlexAlgoDefinition) => {
+                RouterCapStlvType::FlexAlgoDefinition => {
                     match FadStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.fad.push(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(RouterCapStlvType::FloodingAlgo) => {
+                RouterCapStlvType::FloodingAlgo => {
                     if sub_tlvs.flooding_algo.is_some() {
                         continue;
                     }
@@ -2706,12 +2714,6 @@ impl RouterCapTlv {
                         Ok(stlv) => sub_tlvs.flooding_algo = Some(stlv),
                         Err(error) => error.log(),
                     }
-                }
-                _ => {
-                    // Save unknown Sub-TLV.
-                    sub_tlvs
-                        .unknown
-                        .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
                 }
             }
         }
@@ -2810,7 +2812,6 @@ impl MtCapabilityTlv {
         while buf.remaining() >= TLV_HDR_SIZE {
             // Parse Sub-TLV type.
             let stlv_type = buf.try_get_u8()?;
-            let stlv_etype = MtCapStlvType::from_u8(stlv_type);
 
             // Parse and validate Sub-TLV length.
             let stlv_len = buf.try_get_u8()?;
@@ -2823,21 +2824,22 @@ impl MtCapabilityTlv {
                 debug_span!("sub-TLV", r#type = stlv_type, length = stlv_len);
             let _span_guard = span.enter();
             let mut buf_stlv = buf.try_copy_to_bytes(stlv_len as usize)?;
+            let Some(stlv_etype) = MtCapStlvType::from_u8(stlv_type) else {
+                // Save unknown Sub-TLV.
+                sub_tlvs
+                    .unknown
+                    .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
+                continue;
+            };
             match stlv_etype {
-                Some(MtCapStlvType::SpbmSi) => {
+                MtCapStlvType::SpbmSi => {
                     match SpbmSiStlv::decode(stlv_len, &mut buf_stlv) {
                         Ok(stlv) => sub_tlvs.spbm_si.push(stlv),
                         Err(error) => error.log(),
                     }
                 }
-                Some(MtCapStlvType::SpbInstance) => {
+                MtCapStlvType::SpbInstance => {
                     // TODO: Implement SPB-Inst Sub-TLV decoding.
-                    sub_tlvs
-                        .unknown
-                        .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
-                }
-                _ => {
-                    // Save unknown Sub-TLV.
                     sub_tlvs
                         .unknown
                         .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));

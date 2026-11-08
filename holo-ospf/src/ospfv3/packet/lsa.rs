@@ -2388,7 +2388,6 @@ impl LsaGrace {
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
             let tlv_type = buf.try_get_u16()?;
-            let tlv_etype = GraceTlvType::from_u16(tlv_type);
 
             // Parse and validate TLV length.
             let tlv_len = buf.try_get_u16()?;
@@ -2399,20 +2398,21 @@ impl LsaGrace {
 
             // Parse TLV value.
             let mut buf_tlv = buf.try_copy_to_bytes(tlv_wlen as usize)?;
+            let Some(tlv_etype) = GraceTlvType::from_u16(tlv_type) else {
+                // Save unknown TLV.
+                grace
+                    .unknown_tlvs
+                    .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
+                continue;
+            };
             match tlv_etype {
-                Some(GraceTlvType::GracePeriod) => {
+                GraceTlvType::GracePeriod => {
                     let period = GracePeriodTlv::decode(tlv_len, &mut buf_tlv)?;
                     grace.grace_period.get_or_insert(period);
                 }
-                Some(GraceTlvType::GrReason) => {
+                GraceTlvType::GrReason => {
                     let reason = GrReasonTlv::decode(tlv_len, &mut buf_tlv)?;
                     grace.gr_reason.get_or_insert(reason);
-                }
-                _ => {
-                    // Save unknown TLV.
-                    grace
-                        .unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }
@@ -2445,7 +2445,6 @@ impl LsaRouterInfo {
         while buf.remaining() >= TLV_HDR_SIZE as usize {
             // Parse TLV type.
             let tlv_type = buf.try_get_u16()?;
-            let tlv_etype = RouterInfoTlvType::from_u16(tlv_type);
 
             // Parse and validate TLV length.
             let tlv_len = buf.try_get_u16()?;
@@ -2456,52 +2455,53 @@ impl LsaRouterInfo {
 
             // Parse TLV value.
             let mut buf_tlv = buf.try_copy_to_bytes(tlv_wlen as usize)?;
+            let Some(tlv_etype) = RouterInfoTlvType::from_u16(tlv_type) else {
+                // Save unknown TLV.
+                router_info
+                    .unknown_tlvs
+                    .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
+                continue;
+            };
             match tlv_etype {
-                Some(RouterInfoTlvType::InformationalCaps) => {
+                RouterInfoTlvType::InformationalCaps => {
                     let caps =
                         RouterInfoCapsTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.info_caps.get_or_insert(caps);
                 }
-                Some(RouterInfoTlvType::FunctionalCaps) => {
+                RouterInfoTlvType::FunctionalCaps => {
                     let caps =
                         RouterFuncCapsTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.func_caps.get_or_insert(caps);
                 }
-                Some(RouterInfoTlvType::DynamicHostname) => {
+                RouterInfoTlvType::DynamicHostname => {
                     let hostname =
                         DynamicHostnameTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.info_hostname.get_or_insert(hostname);
                 }
-                Some(RouterInfoTlvType::NodeAdminTag) => {
+                RouterInfoTlvType::NodeAdminTag => {
                     let node_tag =
                         NodeAdminTagTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.node_tags.push(node_tag);
                 }
-                Some(RouterInfoTlvType::SrAlgo) => {
+                RouterInfoTlvType::SrAlgo => {
                     let sr_algo = SrAlgoTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.sr_algo.get_or_insert(sr_algo);
                 }
-                Some(RouterInfoTlvType::SidLabelRange) => {
+                RouterInfoTlvType::SidLabelRange => {
                     let srgb = SidLabelRangeTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.srgb.push(srgb);
                 }
-                Some(RouterInfoTlvType::SrLocalBlock) => {
+                RouterInfoTlvType::SrLocalBlock => {
                     let srlb = SrLocalBlockTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.srlb.push(srlb);
                 }
-                Some(RouterInfoTlvType::NodeMsd) => {
+                RouterInfoTlvType::NodeMsd => {
                     let msds = MsdTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.msds.get_or_insert(msds);
                 }
-                Some(RouterInfoTlvType::SrmsPref) => {
+                RouterInfoTlvType::SrmsPref => {
                     let srms_pref = SrmsPrefTlv::decode(tlv_len, &mut buf_tlv)?;
                     router_info.srms_pref.get_or_insert(srms_pref);
-                }
-                _ => {
-                    // Save unknown TLV.
-                    router_info
-                        .unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }

@@ -378,39 +378,27 @@ impl BierStlv {
 
             // Parse Sub-TLV value.
             let mut buf_stlv = buf.try_copy_to_bytes(stlv_wlen as usize)?;
-            match BierStlvType::from_u16(stlv_type) {
-                Some(stlv_type) => {
-                    match stlv_type {
-                        BierStlvType::MplsEncap
-                        | BierStlvType::NonMplsEncap => {
-                            let max_si = buf_stlv.try_get_u8()?;
-                            let id = buf_stlv.try_get_u24()?;
-                            let bs_len_raw =
-                                (buf_stlv.try_get_u8()? & 0xf0) >> 4;
+            let Some(stlv_etype) = BierStlvType::from_u16(stlv_type) else {
+                unknown.push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
+                continue;
+            };
+            match stlv_etype {
+                BierStlvType::MplsEncap | BierStlvType::NonMplsEncap => {
+                    let max_si = buf_stlv.try_get_u8()?;
+                    let id = buf_stlv.try_get_u24()?;
+                    let bs_len_raw = (buf_stlv.try_get_u8()? & 0xf0) >> 4;
 
-                            if let Ok(bs_len) = Bsl::try_from(bs_len_raw) {
-                                let id = match stlv_type {
-                                    BierStlvType::MplsEncap => {
-                                        BierEncapId::Mpls(Label::new(
-                                            id & Label::VALUE_MASK,
-                                        ))
-                                    }
-                                    BierStlvType::NonMplsEncap => {
-                                        BierEncapId::NonMpls(BiftId::new(id))
-                                    }
-                                };
-                                encaps.push(BierEncapSubStlv {
-                                    max_si,
-                                    id,
-                                    bs_len,
-                                });
+                    if let Ok(bs_len) = Bsl::try_from(bs_len_raw) {
+                        let id = match stlv_etype {
+                            BierStlvType::MplsEncap => BierEncapId::Mpls(
+                                Label::new(id & Label::VALUE_MASK),
+                            ),
+                            BierStlvType::NonMplsEncap => {
+                                BierEncapId::NonMpls(BiftId::new(id))
                             }
-                        }
-                    };
-                }
-                None => {
-                    unknown
-                        .push(UnknownTlv::new(stlv_type, stlv_len, buf_stlv));
+                        };
+                        encaps.push(BierEncapSubStlv { max_si, id, bs_len });
+                    }
                 }
             }
         }

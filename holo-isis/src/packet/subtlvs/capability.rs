@@ -402,8 +402,6 @@ impl FadStlv {
         let mut sub_tlvs = FadStlvs::default();
         while buf.remaining() >= TLV_HDR_SIZE {
             let sstlv_type = buf.try_get_u8()?;
-            let sstlv_etype = FadStlvType::from_u8(sstlv_type);
-
             let sstlv_len = buf.try_get_u8()?;
             if sstlv_len as usize > buf.remaining() {
                 return Err(TlvDecodeError::InvalidLength(sstlv_len));
@@ -416,8 +414,14 @@ impl FadStlv {
             );
             let _span_guard = span.enter();
             let mut buf_sstlv = buf.try_copy_to_bytes(sstlv_len as usize)?;
+            let Some(sstlv_etype) = FadStlvType::from_u8(sstlv_type) else {
+                sub_tlvs
+                    .unknown
+                    .push(UnknownTlv::new(sstlv_type, sstlv_len, buf_sstlv));
+                continue;
+            };
             match sstlv_etype {
-                Some(FadStlvType::ExcludeAdminGroup) => {
+                FadStlvType::ExcludeAdminGroup => {
                     if sub_tlvs.exclude_admin_group.is_some() {
                         continue;
                     }
@@ -426,7 +430,7 @@ impl FadStlv {
                         Err(error) => error.log(),
                     }
                 }
-                Some(FadStlvType::IncludeAnyAdminGroup) => {
+                FadStlvType::IncludeAnyAdminGroup => {
                     if sub_tlvs.include_any_admin_group.is_some() {
                         continue;
                     }
@@ -437,7 +441,7 @@ impl FadStlv {
                         Err(error) => error.log(),
                     }
                 }
-                Some(FadStlvType::IncludeAllAdminGroup) => {
+                FadStlvType::IncludeAllAdminGroup => {
                     if sub_tlvs.include_all_admin_group.is_some() {
                         continue;
                     }
@@ -448,7 +452,7 @@ impl FadStlv {
                         Err(error) => error.log(),
                     }
                 }
-                Some(FadStlvType::Flags) => {
+                FadStlvType::Flags => {
                     if sub_tlvs.flags.is_some() {
                         continue;
                     }
@@ -457,7 +461,7 @@ impl FadStlv {
                         Err(error) => error.log(),
                     }
                 }
-                Some(FadStlvType::ExcludeSrlg) => {
+                FadStlvType::ExcludeSrlg => {
                     if sub_tlvs.exclude_srlgs.is_some() {
                         continue;
                     }
@@ -465,11 +469,6 @@ impl FadStlv {
                         Ok(stlv) => sub_tlvs.exclude_srlgs = Some(stlv),
                         Err(error) => error.log(),
                     }
-                }
-                _ => {
-                    sub_tlvs.unknown.push(UnknownTlv::new(
-                        sstlv_type, sstlv_len, buf_sstlv,
-                    ));
                 }
             }
         }

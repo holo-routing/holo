@@ -315,26 +315,27 @@ impl BierInfoStlv {
         let mut subtlvs: Vec<BierSubStlv> = Vec::new();
 
         while buf.remaining() >= TLV_HDR_SIZE {
-            // Parse Stlv type.
+            // Parse Sub-TLV type.
             let stlv_type = buf.try_get_u8()?;
-            let stlv_etype = BierSubStlvType::from_u8(stlv_type);
 
-            // Parse and validate Stlv length.
+            // Parse and validate Sub-TLV length.
             let stlv_len = buf.try_get_u8()?;
             if stlv_len as usize > buf.remaining() {
                 return Err(TlvDecodeError::InvalidLength(stlv_len));
             }
 
-            // Parse Stlv value.
+            // Parse Sub-TLV value.
             let mut buf_stlv = buf.try_copy_to_bytes(stlv_len as usize)?;
+            let Some(stlv_etype) = BierSubStlvType::from_u8(stlv_type) else {
+                // Ignore unknown Sub-TLV.
+                continue;
+            };
             match stlv_etype {
-                Some(
-                    BierSubStlvType::MplsEncap | BierSubStlvType::NonMplsEncap,
-                ) => {
+                BierSubStlvType::MplsEncap | BierSubStlvType::NonMplsEncap => {
                     let max_si = buf_stlv.try_get_u8()?;
                     let id = buf_stlv.try_get_u24()?;
                     let bs_len = ((id >> 20) & 0x0f) as u8;
-                    let id = match stlv_etype.unwrap() {
+                    let id = match stlv_etype {
                         BierSubStlvType::MplsEncap => BierEncapId::Mpls(
                             Label::new(id & Label::VALUE_MASK),
                         ),
@@ -345,10 +346,6 @@ impl BierInfoStlv {
                     subtlvs.push(BierSubStlv::BierEncapSubStlv(
                         BierEncapSubStlv { max_si, bs_len, id },
                     ));
-                }
-                _ => {
-                    // Ignore unknown Sub-TLV.
-                    continue;
                 }
             }
         }

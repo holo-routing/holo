@@ -211,7 +211,6 @@ impl LlsVersion<Self> for Ospfv2 {
         while buf.remaining() >= LLS_HDR_SIZE as usize {
             // Parse TLV type.
             let tlv_type = buf.try_get_u16()?;
-            let tlv_etype = LlsTlvType::from_u16(tlv_type);
 
             // Parse and validate TLV length.
             let tlv_len = buf.try_get_u16()?;
@@ -222,13 +221,20 @@ impl LlsVersion<Self> for Ospfv2 {
 
             // Parse TLV value.
             let mut buf_tlv = buf.try_copy_to_bytes(tlv_wlen as usize)?;
+            let Some(tlv_etype) = LlsTlvType::from_u16(tlv_type) else {
+                // Save unknown TLV.
+                lls_block
+                    .unknown_tlvs
+                    .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
+                continue;
+            };
             match tlv_etype {
-                Some(LlsTlvType::ExtendedOptionsFlags) => {
+                LlsTlvType::ExtendedOptionsFlags => {
                     let opts =
                         ExtendedOptionsFlagsTlv::decode(tlv_len, &mut buf_tlv)?;
                     lls_block.eof = Some(opts);
                 }
-                Some(LlsTlvType::CryptoAuth) => {
+                LlsTlvType::CryptoAuth => {
                     let ca = CryptoAuthTlv::decode(tlv_len, &mut buf_tlv)?;
 
                     if let PacketHdrAuth::Cryptographic {
@@ -257,12 +263,6 @@ impl LlsVersion<Self> for Ospfv2 {
                             &data[..data.len() - ca.auth_data.len()],
                         )?;
                     }
-                }
-                _ => {
-                    // Save unknown TLV.
-                    lls_block
-                        .unknown_tlvs
-                        .push(UnknownTlv::new(tlv_type, tlv_len, buf_tlv));
                 }
             }
         }

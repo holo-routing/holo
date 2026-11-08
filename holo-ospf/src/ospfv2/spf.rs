@@ -367,8 +367,8 @@ impl SpfVersion<Self> for Ospfv2 {
                     .lsdb
                     .iter_by_type(lsa_entries, LsaTypeCode::Network.into())
                     .map(|(_, lse)| &lse.data)
-                    .find(|lsa| lsa.hdr.lsa_id == dr_addr)
                     .filter(|lsa| !lsa.hdr.is_maxage())
+                    .find(|lsa| lsa.hdr.lsa_id == dr_addr)
                     .map(|lsa| VertexLsa::Network(lsa.clone()))
             }
             VertexId::Router { router_id } => {

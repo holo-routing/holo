@@ -6,7 +6,6 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::net::Ipv4Addr;
-use std::sync::Arc;
 
 use enum_as_inner::EnumAsInner;
 use holo_utils::ip::{AddressFamily, Ipv4NetworkExt};
@@ -28,7 +27,7 @@ use crate::ospfv2::packet::lsa::{
 use crate::ospfv2::packet::lsa_opaque::{
     ExtPrefixRouteType, LsaOpaque, PrefixSid,
 };
-use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
+use crate::packet::lsa::{LsaHdrVersion, LsaKey, TypedLsa};
 use crate::route::{Nexthop, NexthopKey, Nexthops};
 use crate::spf::{
     SpfComputation, SpfExternalNetwork, SpfInterAreaNetwork,
@@ -44,11 +43,17 @@ pub enum VertexId {
     Router { router_id: Ipv4Addr },
 }
 
-#[derive(Debug, Eq, PartialEq, EnumAsInner)]
+#[derive(Debug, EnumAsInner)]
 pub enum VertexLsa {
-    Network(Arc<Lsa<Ospfv2>>),
-    Router(Arc<Lsa<Ospfv2>>),
+    Network(VertexLsaNetwork),
+    Router(VertexLsaRouter),
 }
+
+// Network-LSA of a network vertex.
+pub type VertexLsaNetwork = TypedLsa<Ospfv2, kind::Network>;
+
+// Router-LSA of a router vertex.
+pub type VertexLsaRouter = TypedLsa<Ospfv2, kind::Router>;
 
 // ===== impl VertexId =====
 
@@ -67,16 +72,14 @@ impl VertexLsaVersion<Ospfv2> for VertexLsa {
 
     fn router(&self) -> Option<(Ipv4Addr, Options, LsaRouterFlags)> {
         let lsa = self.as_router()?;
-        let lsa_body = lsa.body.as_router().unwrap();
-        Some((lsa.hdr.adv_rtr, lsa.hdr.options, lsa_body.flags))
+        Some((lsa.hdr.adv_rtr, lsa.hdr.options, lsa.body().flags))
     }
 
     fn origin(&self) -> LsaKey<LsaType> {
-        let lsa = match self {
-            VertexLsa::Network(lsa) => lsa,
-            VertexLsa::Router(lsa) => lsa,
-        };
-        lsa.hdr.key()
+        match self {
+            VertexLsa::Network(lsa) => lsa.hdr.key(),
+            VertexLsa::Router(lsa) => lsa.hdr.key(),
+        }
     }
 }
 
@@ -249,9 +252,7 @@ impl SpfVersion<Self> for Ospfv2 {
                                 // hop router.
                                 nexthops.extend(
                                     dest_lsa
-                                        .body
-                                        .as_router()
-                                        .unwrap()
+                                        .body()
                                         .links
                                         .iter()
                                         .filter(|link| {
@@ -299,17 +300,14 @@ impl SpfVersion<Self> for Ospfv2 {
                 // destination's router-LSA. For each link in the router-LSA
                 // that points back to the parent network, the link's Link
                 // Data field provides the IP address of a next hop router.
-                let lsa_body = parent_lsa.body.as_network().unwrap();
                 let parent_network = Ipv4Network::with_netmask(
                     parent_lsa.hdr.lsa_id,
-                    lsa_body.mask,
+                    parent_lsa.body().mask,
                 )
                 .map_err(|_| Error::SpfNexthopCalcError(dest_id))?;
                 let dest_lsa = dest_lsa.as_router().unwrap();
                 let dest_link = dest_lsa
-                    .body
-                    .as_router()
-                    .unwrap()
+                    .body()
                     .links
                     .iter()
                     .find(|link| parent_network.contains(link.link_data))
@@ -359,7 +357,8 @@ impl SpfVersion<Self> for Ospfv2 {
                     .map(|(_, lse)| &lse.data)
                     .filter(|lsa| !lsa.hdr.is_maxage())
                     .find(|lsa| lsa.hdr.lsa_id == dr_addr)
-                    .map(|lsa| VertexLsa::Network(lsa.clone()))
+                    .and_then(TypedLsa::new)
+                    .map(VertexLsa::Network)
             }
             VertexId::Router { router_id } => {
                 let lsa_key = LsaKey::new(
@@ -370,8 +369,10 @@ impl SpfVersion<Self> for Ospfv2 {
                 area.state
                     .lsdb
                     .get(lsa_entries, &lsa_key)
-                    .filter(|(_, lse)| !lse.data.hdr.is_maxage())
-                    .map(|(_, lse)| VertexLsa::Router(lse.data.clone()))
+                    .map(|(_, lse)| &lse.data)
+                    .filter(|lsa| !lsa.hdr.is_maxage())
+                    .and_then(TypedLsa::new)
+                    .map(VertexLsa::Router)
             }
         }
     }
@@ -385,8 +386,7 @@ impl SpfVersion<Self> for Ospfv2 {
     ) -> Box<dyn Iterator<Item = SpfLink<'a, Ospfv2>> + 'a> {
         match vertex_lsa {
             VertexLsa::Network(lsa) => {
-                let lsa_body = lsa.body.as_network().unwrap();
-                let iter = lsa_body.attached_rtrs.iter().filter_map(
+                let iter = lsa.body().attached_rtrs.iter().filter_map(
                     move |router_id| {
                         let link_vid = VertexId::Router {
                             router_id: *router_id,
@@ -406,8 +406,8 @@ impl SpfVersion<Self> for Ospfv2 {
                 Box::new(iter)
             }
             VertexLsa::Router(lsa) => {
-                let lsa_body = lsa.body.as_router().unwrap();
-                let iter = lsa_body
+                let iter = lsa
+                    .body()
                     .links
                     .iter()
                     .filter_map(|link| match link.link_type {
@@ -459,10 +459,9 @@ impl SpfVersion<Self> for Ospfv2 {
         for vertex in area.state.spt.values() {
             match &vertex.lsa {
                 VertexLsa::Network(lsa) => {
-                    let lsa_body = lsa.body.as_network().unwrap();
                     let Some(prefix) = Ipv4Network::with_netmask(
                         lsa.hdr.lsa_id,
-                        lsa_body.mask,
+                        lsa.body().mask,
                     )
                     .ok() else {
                         continue;
@@ -486,9 +485,8 @@ impl SpfVersion<Self> for Ospfv2 {
                     });
                 }
                 VertexLsa::Router(lsa) => {
-                    let lsa_body = lsa.body.as_router().unwrap();
                     stubs.extend(
-                        lsa_body
+                        lsa.body()
                             .links
                             .iter()
                             .filter(|link| {

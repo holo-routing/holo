@@ -4,7 +4,9 @@
 // SPDX-License-Identifier: MIT
 //
 
+use std::marker::PhantomData;
 use std::net::Ipv4Addr;
+use std::sync::Arc;
 use std::time::Instant;
 
 use derive_new::new;
@@ -63,6 +65,16 @@ pub enum LsaScope {
     Area,
     As,
     Unknown,
+}
+
+// OSPF LSA whose body is of the given kind.
+//
+// The body kind is checked once, when the LSA is wrapped, so that the typed
+// body can be read afterwards without matching on it again.
+#[derive(Clone, Debug)]
+pub struct TypedLsa<V: Version, K> {
+    lsa: Arc<Lsa<V>>,
+    kind: PhantomData<K>,
 }
 
 // OSPF version-specific code.
@@ -436,6 +448,43 @@ where
         // Skip the Age field.
         fletcher::calc_fletcher16(&self.raw[2..(self.hdr.length() as usize)])
             == 0
+    }
+}
+
+// ===== impl TypedLsa =====
+
+impl<V, K> TypedLsa<V, K>
+where
+    V: Version,
+    K: LsaKind<V>,
+{
+    // Wraps the given LSA, whose body is expected to be of this kind.
+    //
+    // Returns `None` if the LSA body is of any other kind, which is logged as
+    // an error.
+    pub fn new(lsa: &Arc<Lsa<V>>) -> Option<Self> {
+        lsa.body_of_kind::<K>()?;
+        Some(TypedLsa {
+            lsa: lsa.clone(),
+            kind: PhantomData,
+        })
+    }
+
+    // Returns the LSA body.
+    pub fn body(&self) -> &K::Body {
+        K::body(&self.lsa.body).expect("LSA body kind checked on creation")
+    }
+}
+
+impl<V, K> std::ops::Deref for TypedLsa<V, K>
+where
+    V: Version,
+    K: LsaKind<V>,
+{
+    type Target = Lsa<V>;
+
+    fn deref(&self) -> &Lsa<V> {
+        &self.lsa
     }
 }
 

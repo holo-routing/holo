@@ -6,7 +6,6 @@
 
 use std::collections::BTreeSet;
 use std::net::{IpAddr, Ipv4Addr};
-use std::sync::Arc;
 
 use enum_as_inner::EnumAsInner;
 use holo_utils::ip::AddressFamily;
@@ -24,7 +23,7 @@ use crate::ospfv3::packet::lsa::{
     LsaAsExternalFlags, LsaNetwork, LsaRouter, LsaRouterLink, LsaScopeCode,
     LsaType, kind,
 };
-use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
+use crate::packet::lsa::{LsaHdrVersion, LsaKey, TypedLsa};
 use crate::route::{Nexthop, NexthopKey, Nexthops};
 use crate::spf::{
     SpfComputation, SpfExternalNetwork, SpfInterAreaNetwork,
@@ -40,10 +39,25 @@ pub enum VertexId {
     Router { router_id: Ipv4Addr },
 }
 
-#[derive(Debug, Eq, PartialEq, EnumAsInner)]
+#[derive(Debug, EnumAsInner)]
 pub enum VertexLsa {
-    Network(Arc<Lsa<Ospfv3>>),
-    Router(Vec<Arc<Lsa<Ospfv3>>>),
+    Network(VertexLsaNetwork),
+    Router(VertexLsaRouter),
+}
+
+// Network-LSA of a network vertex.
+pub type VertexLsaNetwork = TypedLsa<Ospfv3, kind::Network>;
+
+// Router-LSA fragment of a router vertex.
+type VertexLsaRouterFragment = TypedLsa<Ospfv3, kind::Router>;
+
+// Router-LSA fragments of a router vertex.
+#[derive(Clone, Debug)]
+pub struct VertexLsaRouter {
+    // First fragment, whose header, options and flags describe the router.
+    first: VertexLsaRouterFragment,
+    // Remaining fragments.
+    rest: Vec<VertexLsaRouterFragment>,
 }
 
 // ===== impl VertexId =====
@@ -62,17 +76,27 @@ impl VertexLsaVersion<Ospfv3> for VertexLsa {
     }
 
     fn router(&self) -> Option<(Ipv4Addr, Options, LsaRouterFlags)> {
-        let lsa = self.as_router()?.iter().next().unwrap();
-        let lsa_body = lsa.body.as_router().unwrap();
-        Some((lsa.hdr.adv_rtr, lsa_body.options, lsa_body.flags))
+        let lsa = self.as_router()?;
+        let lsa_body = lsa.first.body();
+        Some((lsa.first.hdr.adv_rtr, lsa_body.options, lsa_body.flags))
     }
 
     fn origin(&self) -> LsaKey<LsaType> {
-        let lsa = match self {
-            VertexLsa::Network(lsa) => lsa,
-            VertexLsa::Router(lsas) => lsas.iter().next().unwrap(),
-        };
-        lsa.hdr.key()
+        match self {
+            VertexLsa::Network(lsa) => lsa.hdr.key(),
+            VertexLsa::Router(lsa) => lsa.first.hdr.key(),
+        }
+    }
+}
+
+// ===== impl VertexLsaRouter =====
+
+impl VertexLsaRouter {
+    // Returns the links of all fragments.
+    fn links(&self) -> impl Iterator<Item = &LsaRouterLink> {
+        std::iter::once(&self.first)
+            .chain(&self.rest)
+            .flat_map(|fragment| fragment.body().links.iter())
     }
 }
 
@@ -195,8 +219,7 @@ impl SpfVersion<Self> for Ospfv3 {
                             lsa_entries,
                         )
                         .ok_or(Error::SpfNexthopCalcError(dest_id))?;
-                        let nbr_router_id =
-                            dest_lsa.iter().next().unwrap().hdr.adv_rtr;
+                        let nbr_router_id = dest_lsa.first.hdr.adv_rtr;
 
                         // Add nexthop.
                         nexthops.insert(
@@ -226,9 +249,7 @@ impl SpfVersion<Self> for Ospfv3 {
                 // Data field provides the IP address of a next hop router.
                 let dest_lsa = dest_lsa.as_router().unwrap();
                 let dest_link = dest_lsa
-                    .iter()
-                    .map(|dest_lsa| dest_lsa.body.as_router().unwrap())
-                    .flat_map(|dest_lsa_body| dest_lsa_body.links.iter())
+                    .links()
                     .find(|dest_link| {
                         dest_link.nbr_router_id == parent_lsa.hdr.adv_rtr
                             && Ipv4Addr::from(dest_link.nbr_iface_id)
@@ -246,7 +267,7 @@ impl SpfVersion<Self> for Ospfv3 {
                 let iface = &interfaces[iface_idx];
 
                 // Get nexthop address.
-                let nbr_router_id = dest_lsa.iter().next().unwrap().hdr.adv_rtr;
+                let nbr_router_id = dest_lsa.first.hdr.adv_rtr;
                 let nexthop_addr = calc_nexthop_lladdr(
                     iface,
                     nbr_router_id,
@@ -294,7 +315,7 @@ impl SpfVersion<Self> for Ospfv3 {
                     .get(lsa_entries, &lsa_key)
                     .map(|(_, lse)| &lse.data)
                     .filter(|lsa| !lsa.hdr.is_maxage())
-                    .cloned()
+                    .and_then(TypedLsa::new)
                     .map(VertexLsa::Network)
             }
             VertexId::Router { router_id } => {
@@ -302,7 +323,7 @@ impl SpfVersion<Self> for Ospfv3 {
                 // "All router-LSAs with the Advertising Router set to V's OSPF
                 // Router ID MUST be processed as an aggregate, treating them as
                 // fragments of a single large router-LSA".
-                let lsas = area
+                let mut fragments = area
                     .state
                     .lsdb
                     .iter_by_type_advrtr(
@@ -312,23 +333,21 @@ impl SpfVersion<Self> for Ospfv3 {
                     )
                     .map(|(_, lse)| &lse.data)
                     .filter(|lsa| !lsa.hdr.is_maxage())
-                    .filter(|lsa| {
-                        let lsa_body = lsa.body.as_router().unwrap();
-
+                    .filter_map(VertexLsaRouterFragment::new)
+                    .filter(|fragment| {
                         // Ensure the R and V6 bits are set (except for AFs
                         // other than IPv6 unicast).
-                        lsa_body.options.contains(Options::R)
+                        let options = fragment.body().options;
+                        options.contains(Options::R)
                             && (af != AddressFamily::Ipv6
-                                || lsa_body.options.contains(Options::V6))
-                    })
-                    .cloned()
-                    .collect::<Vec<_>>();
+                                || options.contains(Options::V6))
+                    });
 
-                if !lsas.is_empty() {
-                    Some(VertexLsa::Router(lsas))
-                } else {
-                    None
-                }
+                let first = fragments.next()?;
+                Some(VertexLsa::Router(VertexLsaRouter {
+                    first,
+                    rest: fragments.collect(),
+                }))
             }
         }
     }
@@ -342,8 +361,7 @@ impl SpfVersion<Self> for Ospfv3 {
     ) -> Box<dyn Iterator<Item = SpfLink<'a, Ospfv3>> + 'a> {
         match vertex_lsa {
             VertexLsa::Network(lsa) => {
-                let lsa_body = lsa.body.as_network().unwrap();
-                let iter = lsa_body.attached_rtrs.iter().filter_map(
+                let iter = lsa.body().attached_rtrs.iter().filter_map(
                     move |router_id| {
                         let link_vid = VertexId::Router {
                             router_id: *router_id,
@@ -362,11 +380,9 @@ impl SpfVersion<Self> for Ospfv3 {
                 );
                 Box::new(iter)
             }
-            VertexLsa::Router(lsas) => {
-                let iter = lsas
-                    .iter()
-                    .map(|lsa| lsa.body.as_router().unwrap())
-                    .flat_map(|lsa| lsa.links.iter())
+            VertexLsa::Router(lsa) => {
+                let iter = lsa
+                    .links()
                     .map(|link| match link.link_type {
                         LsaRouterLinkType::PointToPoint
                         | LsaRouterLinkType::VirtualLink => {

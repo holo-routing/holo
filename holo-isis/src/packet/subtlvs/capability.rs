@@ -395,6 +395,12 @@ impl FadStlv {
         }
 
         let flex_algo = buf.try_get_u8()?;
+        // RFC 9350 - Section 5.3:
+        // "The value of the Flex-Algorithm MUST be between 128 and 255
+        // inclusive. If it is not, the FAD TLV MUST be ignored".
+        if flex_algo < 128 {
+            return Err(TlvDecodeError::InvalidFlexAlgo(flex_algo));
+        }
         let metric_type = buf.try_get_u8()?;
         let calc_type = buf.try_get_u8()?;
         let priority = buf.try_get_u8()?;

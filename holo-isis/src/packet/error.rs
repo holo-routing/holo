@@ -62,6 +62,7 @@ pub enum TlvDecodeError {
     LabelBlockReservedFirstLabel(Label),
     LabelBlockRangeOverflow(Label, u32),
     ZeroExtendedSessionSeqNum,
+    InvalidFlexAlgo(u8),
 }
 
 // ===== impl DecodeError =====
@@ -238,6 +239,9 @@ impl std::fmt::Display for TlvDecodeError {
             }
             TlvDecodeError::ZeroExtendedSessionSeqNum => {
                 write!(f, "extended session sequence number is zero")
+            }
+            TlvDecodeError::InvalidFlexAlgo(flex_algo) => {
+                write!(f, "invalid Flexible Algorithm: {flex_algo}")
             }
         }
     }

@@ -277,6 +277,14 @@ impl FapmStlv {
         }
 
         let flex_algo = buf.try_get_u8()?;
+        // RFC 9350 - Section 8:
+        // "Flex-Algorithm: single octet value between 128 and 255 inclusive".
+        //
+        // The RFC doesn't specify how to handle values outside that range.
+        // Ignore the Sub-TLV, as done for the FAD Sub-TLV.
+        if flex_algo < 128 {
+            return Err(TlvDecodeError::InvalidFlexAlgo(flex_algo));
+        }
         let metric = buf.try_get_u32()?;
 
         Ok(FapmStlv { flex_algo, metric })

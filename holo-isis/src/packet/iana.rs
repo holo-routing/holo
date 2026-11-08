@@ -287,14 +287,14 @@ pub enum MtId {
 
 // IGP Algorithm Type For Computing Flooding Topology.
 //
-// IANA registry not yet created (see draft-prz-lsr-interop-flood-reduction-architecture-01).
+// IANA registry:
+// https://www.iana.org/assignments/igp-parameters/igp-parameters.xhtml#algorithm-type-computing-flooding-topology
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[derive(FromPrimitive, ToPrimitive)]
 #[derive(Deserialize, Serialize)]
 pub enum FloodingAlgo {
-    ZeroPruner = 1,
-    // FIXME: TBD1 in https://datatracker.ietf.org/doc/html/draft-ietf-lsr-distoptflood-11#section-4
-    ModifiedManet = 2,
+    ZeroPruner = 0,
+    ModifiedManet = 1,
 }
 
 // ===== impl MtId =====

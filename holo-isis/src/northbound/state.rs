@@ -2216,7 +2216,7 @@ impl<'a> YangList<'a, Instance> for isis::interfaces::interface::adjacencies::ad
             neighbor_snpa: Some(Cow::Owned(adj.snpa.to_string())).ignore_in_testing(),
             usage: Some(adj.level_usage),
             hold_timer: adj.holdtimer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
-            neighbor_priority: adj.priority,
+            neighbor_priority: adj.lan.map(|adj_lan| adj_lan.priority),
             lastuptime: adj.last_uptime.map(Timeticks).ignore_in_testing(),
             state: Some(adj.state),
             area_addresses: Some(Box::new(area_addresses)),

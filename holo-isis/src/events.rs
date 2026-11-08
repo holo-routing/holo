@@ -14,7 +14,9 @@ use chrono::Utc;
 use holo_utils::bytes::Bytes;
 use holo_utils::mac_addr::MacAddr;
 
-use crate::adjacency::{Adjacency, AdjacencyEvent, AdjacencyState};
+use crate::adjacency::{
+    Adjacency, AdjacencyEvent, AdjacencyLan, AdjacencyState,
+};
 use crate::collections::{
     AdjacencyKey, InterfaceIndex, InterfaceKey, LspEntryKey,
 };
@@ -331,9 +333,8 @@ fn process_pdu_hello_lan(
     }
 
     // Update adjacency with received PDU values.
-    let old_priority = adj.priority;
-    adj.priority = Some(priority);
-    adj.lan_id = Some(lan_id);
+    let old_priority = adj.lan.map(|adj_lan| adj_lan.priority);
+    adj.lan = Some(AdjacencyLan { priority, lan_id });
     adj.protocols_supported = hello.tlvs.protocols_supported().collect();
     adj.area_addrs = hello.tlvs.area_addrs().cloned().collect();
     adj.topologies = hello_topologies;
@@ -347,9 +348,9 @@ fn process_pdu_hello_lan(
     // Check if the locally elected DIS has changed its perceived DIS.
     if let Some(dis) = iface.state.dis.get_mut(level)
         && adj.system_id == dis.system_id
-        && adj.lan_id.unwrap() != dis.lan_id
+        && lan_id != dis.lan_id
     {
-        dis.lan_id = adj.lan_id.unwrap();
+        dis.lan_id = lan_id;
 
         // Restart Hello Tx task.
         iface.hello_interval_start(instance, level);
@@ -385,7 +386,7 @@ fn process_pdu_hello_lan(
     }
 
     // Trigger DIS election if priority changed.
-    if adj.priority != old_priority {
+    if old_priority != Some(priority) {
         instance.tx.protocol_input.dis_election(iface.id, level);
     }
 

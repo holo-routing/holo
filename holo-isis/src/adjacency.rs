@@ -40,8 +40,7 @@ pub struct Adjacency {
     pub level_capability: LevelType,
     pub level_usage: LevelType,
     pub state: AdjacencyState,
-    pub priority: Option<u8>,
-    pub lan_id: Option<LanId>,
+    pub lan: Option<AdjacencyLan>,
     pub three_way_state: ThreeWayAdjState,
     pub ext_circuit_id: Option<u32>,
     pub ext_seqnum: HashMap<PduType, ExtendedSeqNum>,
@@ -72,6 +71,12 @@ pub enum AdjacencyEvent {
     BfdDown,
     LinkDown,
     Kill,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct AdjacencyLan {
+    pub priority: u8,
+    pub lan_id: LanId,
 }
 
 #[derive(Debug)]
@@ -106,8 +111,7 @@ impl Adjacency {
             level_capability,
             level_usage,
             state: AdjacencyState::Down,
-            priority: None,
-            lan_id: None,
+            lan: None,
             three_way_state: ThreeWayAdjState::Down,
             ext_circuit_id: None,
             ext_seqnum: Default::default(),

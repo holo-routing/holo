@@ -461,12 +461,14 @@ impl Interface {
             .get(level)
             .iter(adjacencies)
             .filter(|adj| adj.state == AdjacencyState::Up)
-            .map(|adj| DisCandidate {
-                priority: adj.priority.unwrap(),
-                snpa: adj.snpa,
-                system_id: adj.system_id,
-                lan_id: adj.lan_id.unwrap(),
-                myself: false,
+            .filter_map(|adj| {
+                adj.lan.map(|adj_lan| DisCandidate {
+                    priority: adj_lan.priority,
+                    snpa: adj.snpa,
+                    system_id: adj.system_id,
+                    lan_id: adj_lan.lan_id,
+                    myself: false,
+                })
             })
             .peekable();
 

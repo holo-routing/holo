@@ -53,6 +53,7 @@ pub enum Error<V: Version> {
     InvalidSidIndex(u32),
     AdjSidAllocFailed(String, Ipv4Addr, LabelManagerError),
     // Other
+    LsaUnexpectedBody(V::LsaHdr),
     IsmUnexpectedEvent(ism::State, ism::Event),
     NsmUnexpectedEvent(Ipv4Addr, nsm::State, nsm::Event),
     SpfDelayUnexpectedEvent(spf::fsm::State, spf::fsm::Event),
@@ -162,6 +163,9 @@ where
             Error::AdjSidAllocFailed(iface, router_id, error) => {
                 warn!(interface = %iface, %router_id, %error, "{}", self);
             }
+            Error::LsaUnexpectedBody(lsa_hdr) => {
+                warn!(?lsa_hdr, "{}", self);
+            }
             Error::IsmUnexpectedEvent(state, event) => warn_span!("fsm")
                 .in_scope(|| {
                     warn!(?state, ?event, "{}", self);
@@ -265,6 +269,9 @@ where
             }
             Error::AdjSidAllocFailed(..) => {
                 write!(f, "failed to allocate Adj-SID label")
+            }
+            Error::LsaUnexpectedBody(..) => {
+                write!(f, "LSA body doesn't match its type")
             }
             Error::IsmUnexpectedEvent(..) => {
                 write!(f, "unexpected event")

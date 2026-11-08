@@ -21,9 +21,8 @@ use crate::ospfv3::packet::iana::{
     LsaFunctionCode, LsaRouterFlags, LsaRouterLinkType, Options, PrefixOptions,
 };
 use crate::ospfv3::packet::lsa::{
-    LsaAsExternal, LsaAsExternalFlags, LsaInterAreaPrefix, LsaInterAreaRouter,
-    LsaIntraAreaPrefix, LsaLink, LsaNetwork, LsaRouter, LsaRouterInfo,
-    LsaRouterLink, LsaScopeCode, LsaType,
+    LsaAsExternalFlags, LsaNetwork, LsaRouter, LsaRouterLink, LsaScopeCode,
+    LsaType, kind,
 };
 use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
 use crate::route::{Nexthop, NexthopKey, Nexthops};
@@ -427,15 +426,10 @@ impl SpfVersion<Self> for Ospfv3 {
         // the area's intra-area-prefix-LSAs is examined.
         area.state
             .lsdb
-            .iter_by_type(
-                lsa_entries,
-                LsaIntraAreaPrefix::lsa_type(extended_lsa),
-            )
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .filter_map(move |lsa| {
+            .iter_typed(lsa_entries, kind::IntraAreaPrefix(extended_lsa))
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
+            .filter_map(move |(_, lsa_body)| {
                 // Find SPT vertex corresponding to referenced LSA.
-                let lsa_body = lsa.body.as_intra_area_prefix().unwrap();
                 if lsa_body.ref_lsa_type == LsaRouter::lsa_type(extended_lsa) {
                     if lsa_body.ref_lsa_id != Ipv4Addr::UNSPECIFIED {
                         return None;
@@ -484,17 +478,12 @@ impl SpfVersion<Self> for Ospfv3 {
     ) -> impl Iterator<Item = SpfInterAreaNetwork<Self>> + 'a {
         area.state
             .lsdb
-            .iter_by_type(
-                lsa_entries,
-                LsaInterAreaPrefix::lsa_type(extended_lsa),
-            )
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .filter_map(|lsa| {
-                let lsa_body = lsa.body.as_inter_area_prefix().unwrap();
+            .iter_typed(lsa_entries, kind::InterAreaPrefix(extended_lsa))
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
+            .filter_map(|(lsa_hdr, lsa_body)| {
                 (!lsa_body.prefix_options.contains(PrefixOptions::NU))
                     .then_some(SpfInterAreaNetwork {
-                        adv_rtr: lsa.hdr.adv_rtr,
+                        adv_rtr: lsa_hdr.adv_rtr,
                         prefix: lsa_body.prefix,
                         prefix_options: lsa_body.prefix_options,
                         metric: lsa_body.metric,
@@ -508,22 +497,15 @@ impl SpfVersion<Self> for Ospfv3 {
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<Self>>,
     ) -> impl Iterator<Item = SpfInterAreaRouter<Self>> + 'a {
-        lsdb.iter_by_type(
-            lsa_entries,
-            LsaInterAreaRouter::lsa_type(extended_lsa),
-        )
-        .map(|(_, lse)| &lse.data)
-        .filter(|lsa| !lsa.hdr.is_maxage())
-        .map(|lsa| {
-            let lsa_body = lsa.body.as_inter_area_router().unwrap();
-            SpfInterAreaRouter {
-                adv_rtr: lsa.hdr.adv_rtr,
+        lsdb.iter_typed(lsa_entries, kind::InterAreaRouter(extended_lsa))
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
+            .map(|(lsa_hdr, lsa_body)| SpfInterAreaRouter {
+                adv_rtr: lsa_hdr.adv_rtr,
                 router_id: lsa_body.router_id,
                 options: lsa_body.options,
                 flags: LsaRouterFlags::E,
                 metric: lsa_body.metric,
-            }
-        })
+            })
     }
 
     fn external_networks<'a>(
@@ -531,14 +513,12 @@ impl SpfVersion<Self> for Ospfv3 {
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<Self>>,
     ) -> impl Iterator<Item = SpfExternalNetwork<Self>> + 'a {
-        lsdb.iter_by_type(lsa_entries, LsaAsExternal::lsa_type(extended_lsa))
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .filter_map(|lsa| {
-                let lsa_body = lsa.body.as_as_external().unwrap();
+        lsdb.iter_typed(lsa_entries, kind::AsExternal(extended_lsa))
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
+            .filter_map(|(lsa_hdr, lsa_body)| {
                 (!lsa_body.prefix_options.contains(PrefixOptions::NU))
                     .then_some(SpfExternalNetwork {
-                        adv_rtr: lsa.hdr.adv_rtr,
+                        adv_rtr: lsa_hdr.adv_rtr,
                         e_bit: lsa_body.flags.contains(LsaAsExternalFlags::E),
                         prefix: lsa_body.prefix,
                         prefix_options: lsa_body.prefix_options,
@@ -556,15 +536,13 @@ impl SpfVersion<Self> for Ospfv3 {
     ) -> SpfRouterInfo<'a> {
         let mut ri_agg = SpfRouterInfo::default();
 
-        for ri_lsa in lsdb
-            .iter_by_type_advrtr(
+        for (_, ri_lsa) in lsdb
+            .iter_typed_advrtr(
                 lsa_entries,
-                LsaRouterInfo::lsa_type_scope(LsaScopeCode::Area),
+                kind::RouterInfo(LsaScopeCode::Area),
                 router_id,
             )
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .filter_map(|lsa| lsa.body.as_router_info())
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
         {
             if let Some(sr_algo) = &ri_lsa.sr_algo {
                 // When multiple SR-Algorithm TLVs are received from a given
@@ -597,16 +575,15 @@ fn calc_nexthop_lladdr(
     extended_lsa: bool,
     lsa_entries: &Arena<LsaEntry<Ospfv3>>,
 ) -> Option<IpAddr> {
-    let lsa_key = LsaKey::new(
-        LsaLink::lsa_type(extended_lsa),
-        nbr_router_id,
-        Ipv4Addr::from(nbr_iface_id),
-    );
     iface
         .state
         .lsdb
-        .get(lsa_entries, &lsa_key)
-        .map(|(_, lse)| &lse.data)
-        .filter(|lsa| !lsa.hdr.is_maxage())
-        .map(|lsa| lsa.body.as_link().unwrap().linklocal)
+        .get_typed(
+            lsa_entries,
+            kind::Link(extended_lsa),
+            nbr_router_id,
+            Ipv4Addr::from(nbr_iface_id),
+        )
+        .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
+        .map(|(_, lsa_body)| lsa_body.linklocal)
 }

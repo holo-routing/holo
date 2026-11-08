@@ -13,10 +13,11 @@ use crate::area::{Area, AreaType, AreaVersion, OptionsLocation};
 use crate::collections::Arena;
 use crate::interface::Interface;
 use crate::lsdb::LsaEntry;
-use crate::ospfv2::packet::iana::{LsaRouterLinkType, LsaTypeCode, Options};
+use crate::ospfv2::packet::iana::{LsaRouterLinkType, Options};
+use crate::ospfv2::packet::lsa::kind;
 use crate::ospfv2::packet::lsa_opaque::ExtPrefixTlv;
 use crate::packet::iana::PacketType;
-use crate::packet::lsa::{LsaHdrVersion, LsaKey};
+use crate::packet::lsa::LsaHdrVersion;
 use crate::route::RouteRtr;
 use crate::version::Ospfv2;
 
@@ -78,15 +79,11 @@ impl AreaVersion<Self> for Ospfv2 {
         _extended_lsa: bool,
         lsa_entries: &Arena<LsaEntry<Self>>,
     ) -> Option<Ipv4Addr> {
-        let lsa_key =
-            LsaKey::new(LsaTypeCode::Router.into(), router_id, router_id);
-        let (_, lse) = area
+        let (_, lsa_body) = area
             .state
             .lsdb
-            .get(lsa_entries, &lsa_key)
-            .filter(|(_, lse)| !lse.data.hdr.is_maxage())?;
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_router().unwrap();
+            .get_typed(lsa_entries, kind::Router, router_id, router_id)
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())?;
         lsa_body.links.iter().find_map(|link| match link.link_type {
             LsaRouterLinkType::PointToPoint
             | LsaRouterLinkType::TransitNetwork => Some(link.link_data),

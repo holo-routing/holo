@@ -19,7 +19,7 @@ use crate::instance::ProtocolInputChannelsTx;
 use crate::interface::{Interface, VirtualLinkKey};
 use crate::lsdb::{LsaDelayedOrig, LsaEntry};
 use crate::neighbor::{Neighbor, NeighborNetId};
-use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey};
+use crate::packet::lsa::{Lsa, LsaHdrVersion, LsaKey, LsaKind};
 use crate::tasks;
 use crate::version::Version;
 
@@ -960,6 +960,24 @@ where
             .map(move |lse_idx| (lse_idx, &arena[lse_idx]))
     }
 
+    // Returns the header and body of the LSA of the given kind corresponding
+    // to the given advertising router and LSA ID.
+    pub(crate) fn get_typed<'a, K>(
+        &self,
+        arena: &'a Arena<LsaEntry<V>>,
+        kind: K,
+        adv_rtr: Ipv4Addr,
+        lsa_id: Ipv4Addr,
+    ) -> Option<(&'a V::LsaHdr, &'a K::Body)>
+    where
+        K: LsaKind<V>,
+    {
+        let key = LsaKey::new(kind.lsa_type(), adv_rtr, lsa_id);
+        let (_, lse) = self.get(arena, &key)?;
+        let lsa_body = lse.data.body_of_kind::<K>()?;
+        Some((&lse.data.hdr, lsa_body))
+    }
+
     // Returns a mutable reference to the LSA corresponding to the given
     // LSA key.
     pub(crate) fn get_mut<'a>(
@@ -1048,6 +1066,45 @@ where
             .into_iter()
             .flat_map(move |lsdb_type| {
                 lsdb_type.iter_by_type_advrtr(arena, adv_rtr)
+            })
+    }
+
+    // Returns an iterator visiting the headers and bodies of all LSAs of the
+    // given kind.
+    //
+    // LSAs are ordered by their keys.
+    pub(crate) fn iter_typed<'a, K>(
+        &'a self,
+        arena: &'a Arena<LsaEntry<V>>,
+        kind: K,
+    ) -> impl Iterator<Item = (&'a V::LsaHdr, &'a K::Body)> + 'a
+    where
+        K: LsaKind<V> + 'a,
+    {
+        self.iter_by_type(arena, kind.lsa_type())
+            .filter_map(|(_, lse)| {
+                let lsa_body = lse.data.body_of_kind::<K>()?;
+                Some((&lse.data.hdr, lsa_body))
+            })
+    }
+
+    // Returns an iterator visiting the headers and bodies of all LSAs of the
+    // given kind and advertising router.
+    //
+    // LSAs are ordered by their keys.
+    pub(crate) fn iter_typed_advrtr<'a, K>(
+        &'a self,
+        arena: &'a Arena<LsaEntry<V>>,
+        kind: K,
+        adv_rtr: Ipv4Addr,
+    ) -> impl Iterator<Item = (&'a V::LsaHdr, &'a K::Body)> + 'a
+    where
+        K: LsaKind<V> + 'a,
+    {
+        self.iter_by_type_advrtr(arena, kind.lsa_type(), adv_rtr)
+            .filter_map(|(_, lse)| {
+                let lsa_body = lse.data.body_of_kind::<K>()?;
+                Some((&lse.data.hdr, lsa_body))
             })
     }
 

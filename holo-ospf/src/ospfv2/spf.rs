@@ -23,7 +23,7 @@ use crate::ospfv2::packet::iana::{
     LsaRouterFlags, LsaRouterLinkType, LsaTypeCode, Options,
 };
 use crate::ospfv2::packet::lsa::{
-    LsaAsExternalFlags, LsaBody, LsaRouterLink, LsaType,
+    LsaAsExternalFlags, LsaBody, LsaRouterLink, LsaType, kind,
 };
 use crate::ospfv2::packet::lsa_opaque::{
     ExtPrefixRouteType, LsaOpaque, PrefixSid,
@@ -544,23 +544,21 @@ impl SpfVersion<Self> for Ospfv2 {
     ) -> impl Iterator<Item = SpfInterAreaNetwork<Self>> + 'a {
         area.state
             .lsdb
-            .iter_by_type(lsa_entries, LsaTypeCode::SummaryNetwork.into())
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .filter_map(|lsa| {
-                let lsa_body = lsa.body.as_summary_network().unwrap();
+            .iter_typed(lsa_entries, kind::SummaryNetwork)
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
+            .filter_map(|(lsa_hdr, lsa_body)| {
                 let prefix =
-                    Ipv4Network::with_netmask(lsa.hdr.lsa_id, lsa_body.mask)
+                    Ipv4Network::with_netmask(lsa_hdr.lsa_id, lsa_body.mask)
                         .ok()?;
                 let prefix_sids = route_prefix_sids(
                     area,
-                    lsa.hdr.adv_rtr,
+                    lsa_hdr.adv_rtr,
                     &prefix,
                     ExtPrefixRouteType::InterArea,
                 );
 
                 Some(SpfInterAreaNetwork {
-                    adv_rtr: lsa.hdr.adv_rtr,
+                    adv_rtr: lsa_hdr.adv_rtr,
                     prefix,
                     prefix_options: Default::default(),
                     metric: lsa_body.metric,
@@ -574,18 +572,14 @@ impl SpfVersion<Self> for Ospfv2 {
         _extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<Self>>,
     ) -> impl Iterator<Item = SpfInterAreaRouter<Self>> + 'a {
-        lsdb.iter_by_type(lsa_entries, LsaTypeCode::SummaryRouter.into())
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .map(|lsa| {
-                let lsa_body = lsa.body.as_summary_router().unwrap();
-                SpfInterAreaRouter {
-                    adv_rtr: lsa.hdr.adv_rtr,
-                    router_id: lsa.hdr.lsa_id,
-                    options: lsa.hdr.options,
-                    flags: LsaRouterFlags::E,
-                    metric: lsa_body.metric,
-                }
+        lsdb.iter_typed(lsa_entries, kind::SummaryRouter)
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
+            .map(|(lsa_hdr, lsa_body)| SpfInterAreaRouter {
+                adv_rtr: lsa_hdr.adv_rtr,
+                router_id: lsa_hdr.lsa_id,
+                options: lsa_hdr.options,
+                flags: LsaRouterFlags::E,
+                metric: lsa_body.metric,
             })
     }
 
@@ -594,17 +588,15 @@ impl SpfVersion<Self> for Ospfv2 {
         _extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<Self>>,
     ) -> impl Iterator<Item = SpfExternalNetwork<Self>> + 'a {
-        lsdb.iter_by_type(lsa_entries, LsaTypeCode::AsExternal.into())
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .filter_map(|lsa| {
-                let lsa_body = lsa.body.as_as_external().unwrap();
+        lsdb.iter_typed(lsa_entries, kind::AsExternal)
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
+            .filter_map(|(lsa_hdr, lsa_body)| {
                 let prefix =
-                    Ipv4Network::with_netmask(lsa.hdr.lsa_id, lsa_body.mask)
+                    Ipv4Network::with_netmask(lsa_hdr.lsa_id, lsa_body.mask)
                         .ok()?;
 
                 Some(SpfExternalNetwork {
-                    adv_rtr: lsa.hdr.adv_rtr,
+                    adv_rtr: lsa_hdr.adv_rtr,
                     e_bit: lsa_body.flags.contains(LsaAsExternalFlags::E),
                     prefix,
                     prefix_options: Default::default(),
@@ -623,15 +615,9 @@ impl SpfVersion<Self> for Ospfv2 {
         let mut ri_agg = SpfRouterInfo::default();
 
         for ri_lsa in lsdb
-            .iter_by_type_advrtr(
-                lsa_entries,
-                LsaTypeCode::OpaqueArea.into(),
-                router_id,
-            )
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .map(|lsa| lsa.body.as_opaque_area().unwrap())
-            .filter_map(|lsa_body| lsa_body.as_router_info())
+            .iter_typed_advrtr(lsa_entries, kind::OpaqueArea, router_id)
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
+            .filter_map(|(_, lsa_body)| lsa_body.as_router_info())
         {
             if let Some(sr_algo) = &ri_lsa.sr_algo {
                 // When multiple SR-Algorithm TLVs are received from a given
@@ -660,13 +646,11 @@ impl SpfVersion<Self> for Ospfv2 {
     ) {
         area.state.version.ext_prefix_db.clear();
 
-        for (adv_rtr, lsa_body) in area
+        for (lsa_hdr, lsa_body) in area
             .state
             .lsdb
-            .iter_by_type(lsa_entries, LsaTypeCode::OpaqueArea.into())
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .map(|lsa| (lsa.hdr.adv_rtr, lsa.body.as_opaque_area().unwrap()))
+            .iter_typed(lsa_entries, kind::OpaqueArea)
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
         {
             if let Some(lsa_body) = lsa_body.as_ext_prefix() {
                 // If this TLV is advertised multiple times for the same prefix
@@ -682,7 +666,7 @@ impl SpfVersion<Self> for Ospfv2 {
                     area.state
                         .version
                         .ext_prefix_db
-                        .entry((adv_rtr, *prefix))
+                        .entry((lsa_hdr.adv_rtr, *prefix))
                         .or_insert_with(|| tlv.clone());
                 }
             }

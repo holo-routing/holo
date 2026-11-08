@@ -15,6 +15,7 @@ use holo_utils::sr::Sid;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
+use crate::error::Error;
 use crate::lsdb::{LSA_MAX_AGE, LSA_RESERVED_SEQ_NO};
 use crate::packet::error::{DecodeError, DecodeResult, LsaValidationError};
 use crate::packet::tlv::{AdjSidFlags, GrReason, PrefixSidFlags};
@@ -187,6 +188,20 @@ where
 }
 
 // OSPF version-specific code.
+//
+// An LSA kind identifies an LSA type together with the body carried by LSAs
+// of that type, so LSAs can be read from the LSDB with their typed bodies.
+pub trait LsaKind<V: Version> {
+    type Body;
+
+    // Return the LSA type of this kind.
+    fn lsa_type(&self) -> V::LsaType;
+
+    // Return the LSA body, if it's of this kind.
+    fn body(lsa_body: &V::LsaBody) -> Option<&Self::Body>;
+}
+
+// OSPF version-specific code.
 pub trait LsaRouterFlagsVersion
 where
     Self: Send + Sync + Clone + std::fmt::Debug + Serialize + DeserializeOwned,
@@ -309,6 +324,21 @@ where
     // Sets the LSA age to MaxAge.
     pub(crate) fn set_maxage(&mut self) {
         self.set_age(LSA_MAX_AGE);
+    }
+
+    // Returns the LSA body, which is expected to be of the given kind.
+    //
+    // LSAs of a given type always carry the body of that type, so a body of
+    // any other kind is logged as an error.
+    pub(crate) fn body_of_kind<K>(&self) -> Option<&K::Body>
+    where
+        K: LsaKind<V>,
+    {
+        let lsa_body = K::body(&self.body);
+        if lsa_body.is_none() {
+            Error::<V>::LsaUnexpectedBody(self.hdr).log();
+        }
+        lsa_body
     }
 
     // Decodes LSA from a bytes buffer.

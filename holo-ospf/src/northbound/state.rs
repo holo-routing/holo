@@ -258,18 +258,16 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_ty
 
 impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv2::body::external::topologies::topology::Topology {
     type ParentListEntry = &'a LsaEntry<Ospfv2>;
-    type ListEntry = &'a LsaEntry<Ospfv2>;
+    type ListEntry = &'a ospfv2::packet::lsa::LsaAsExternal;
 
-    fn iter(_instance: &'a Instance<Ospfv2>, &lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance<Ospfv2>, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsa = &lse.data;
-        let _lsa_body = lsa.body.as_as_external()?;
-        let iter = std::iter::once(lse);
+        let lsa_body = lsa.body.as_as_external()?;
+        let iter = std::iter::once(lsa_body);
         Some(iter)
     }
 
-    fn new(_instance: &'a Instance<Ospfv2>, lse: &Self::ListEntry) -> Self {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_as_external().unwrap();
+    fn new(_instance: &'a Instance<Ospfv2>, lsa_body: &Self::ListEntry) -> Self {
         Self {
             mt_id: Some(0),
             flags: Some(lsa_body.flags),
@@ -1161,18 +1159,16 @@ impl<'a> YangContainer<'a, Instance<Ospfv2>> for ospf::areas::area::database::ar
 
 impl<'a> YangList<'a, Instance<Ospfv2>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv2::body::summary::topologies::topology::Topology {
     type ParentListEntry = &'a LsaEntry<Ospfv2>;
-    type ListEntry = &'a LsaEntry<Ospfv2>;
+    type ListEntry = &'a ospfv2::packet::lsa::LsaSummary;
 
-    fn iter(_instance: &'a Instance<Ospfv2>, &lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance<Ospfv2>, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsa = &lse.data;
-        let _ = lsa.body.as_summary()?;
-        let iter = std::iter::once(lse);
+        let lsa_body = lsa.body.as_summary()?;
+        let iter = std::iter::once(lsa_body);
         Some(iter)
     }
 
-    fn new(_instance: &'a Instance<Ospfv2>, lse: &Self::ListEntry) -> Self {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_summary().unwrap();
+    fn new(_instance: &'a Instance<Ospfv2>, lsa_body: &Self::ListEntry) -> Self {
         Self {
             mt_id: Some(0),
             metric: Some(lsa_body.metric),

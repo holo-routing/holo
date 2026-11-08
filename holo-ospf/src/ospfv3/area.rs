@@ -13,7 +13,7 @@ use crate::collections::Arena;
 use crate::interface::Interface;
 use crate::lsdb::LsaEntry;
 use crate::ospfv3::packet::iana::{Options, PrefixOptions};
-use crate::ospfv3::packet::lsa::LsaIntraAreaPrefix;
+use crate::ospfv3::packet::lsa::kind;
 use crate::packet::lsa::LsaHdrVersion;
 use crate::route::RouteRtr;
 use crate::version::Ospfv3;
@@ -85,17 +85,13 @@ impl AreaVersion<Self> for Ospfv3 {
         // set to the first prefix encountered with the LA-bit set.
         area.state
             .lsdb
-            .iter_by_type_advrtr(
+            .iter_typed_advrtr(
                 lsa_entries,
-                LsaIntraAreaPrefix::lsa_type(extended_lsa),
+                kind::IntraAreaPrefix(extended_lsa),
                 router_id,
             )
-            .map(|(_, lse)| &lse.data)
-            .filter(|lsa| !lsa.hdr.is_maxage())
-            .flat_map(move |lsa| {
-                let lsa_body = lsa.body.as_intra_area_prefix().unwrap();
-                lsa_body.prefixes.iter()
-            })
+            .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
+            .flat_map(|(_, lsa_body)| lsa_body.prefixes.iter())
             .find(|prefix| prefix.options.contains(PrefixOptions::LA))
             .map(|prefix| prefix.value.ip())
             // RFC 5838, section 2.8: Virtual links are not supported in AFs

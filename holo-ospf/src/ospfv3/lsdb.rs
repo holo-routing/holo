@@ -35,7 +35,7 @@ use crate::ospfv3::packet::lsa::{
     LsaBody, LsaHdr, LsaInterAreaPrefix, LsaInterAreaRouter,
     LsaIntraAreaPrefix, LsaIntraAreaPrefixEntry, LsaLink, LsaLinkPrefix,
     LsaNetwork, LsaRouter, LsaRouterInfo, LsaRouterLink, LsaScopeCode, LsaType,
-    PrefixSid,
+    PrefixSid, kind,
 };
 use crate::packet::iana::RouterInfoCaps;
 use crate::packet::lsa::{
@@ -1020,26 +1020,22 @@ fn lsa_orig_intra_area_prefix(
             .state
             .lsdb
             // Get all interface Link-LSAs.
-            .iter_by_type(&arenas.lsa_entries, LsaLink::lsa_type(extended_lsa))
-            .map(|(_, lse)| &lse.data)
+            .iter_typed(&arenas.lsa_entries, kind::Link(extended_lsa))
             // Check if the link-LSA's Advertising Router is fully adjacent to
             // the DR and the Link State ID matches the neighbor's interface ID.
-            .filter(|lsa| {
+            .filter(|(lsa_hdr, _)| {
                 iface
                     .state
                     .neighbors
-                    .get_by_router_id(&arenas.neighbors, lsa.hdr.adv_rtr)
+                    .get_by_router_id(&arenas.neighbors, lsa_hdr.adv_rtr)
                     .filter(|(_, nbr)| nbr.state == nsm::State::Full)
                     .filter(|(_, nbr)| {
-                        lsa.hdr.lsa_id == Ipv4Addr::from(nbr.iface_id.unwrap())
+                        lsa_hdr.lsa_id == Ipv4Addr::from(nbr.iface_id.unwrap())
                     })
                     .is_some()
             })
             // Get all Link-LSA prefixes.
-            .flat_map(|lsa| {
-                let link_lsa = lsa.body.as_link().unwrap();
-                link_lsa.prefixes.iter().cloned()
-            })
+            .flat_map(|(_, link_lsa)| link_lsa.prefixes.iter().cloned())
             // Filter out prefixes with the NU/LA options.
             .filter(|prefix| {
                 !prefix

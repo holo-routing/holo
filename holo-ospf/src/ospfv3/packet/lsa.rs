@@ -2785,6 +2785,146 @@ impl LsaVersion<Self> for Ospfv3 {
     }
 }
 
+// ===== LSA kinds =====
+
+pub mod kind {
+    use super::{
+        LsaAsExternal, LsaBody, LsaInterAreaPrefix, LsaInterAreaRouter,
+        LsaIntraAreaPrefix, LsaLink, LsaNetwork, LsaRouter, LsaRouterInfo,
+        LsaScopeCode, LsaType,
+    };
+    use crate::packet::lsa::LsaKind;
+    use crate::version::Ospfv3;
+
+    // Router-LSA. The flag selects the extended LSA type.
+    #[derive(Clone, Copy, Debug)]
+    pub struct Router(pub bool);
+
+    // Network-LSA. The flag selects the extended LSA type.
+    #[derive(Clone, Copy, Debug)]
+    pub struct Network(pub bool);
+
+    // Inter-Area-Prefix-LSA. The flag selects the extended LSA type.
+    #[derive(Clone, Copy, Debug)]
+    pub struct InterAreaPrefix(pub bool);
+
+    // Inter-Area-Router-LSA. The flag selects the extended LSA type.
+    #[derive(Clone, Copy, Debug)]
+    pub struct InterAreaRouter(pub bool);
+
+    // AS-External-LSA. The flag selects the extended LSA type.
+    #[derive(Clone, Copy, Debug)]
+    pub struct AsExternal(pub bool);
+
+    // Link-LSA. The flag selects the extended LSA type.
+    #[derive(Clone, Copy, Debug)]
+    pub struct Link(pub bool);
+
+    // Intra-Area-Prefix-LSA. The flag selects the extended LSA type.
+    #[derive(Clone, Copy, Debug)]
+    pub struct IntraAreaPrefix(pub bool);
+
+    // Router Information LSA. The flooding scope selects the LSA type.
+    #[derive(Clone, Copy, Debug)]
+    pub struct RouterInfo(pub LsaScopeCode);
+
+    impl LsaKind<Ospfv3> for Router {
+        type Body = LsaRouter;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaRouter::lsa_type(self.0)
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaRouter> {
+            lsa_body.as_router()
+        }
+    }
+
+    impl LsaKind<Ospfv3> for Network {
+        type Body = LsaNetwork;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaNetwork::lsa_type(self.0)
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaNetwork> {
+            lsa_body.as_network()
+        }
+    }
+
+    impl LsaKind<Ospfv3> for InterAreaPrefix {
+        type Body = LsaInterAreaPrefix;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaInterAreaPrefix::lsa_type(self.0)
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaInterAreaPrefix> {
+            lsa_body.as_inter_area_prefix()
+        }
+    }
+
+    impl LsaKind<Ospfv3> for InterAreaRouter {
+        type Body = LsaInterAreaRouter;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaInterAreaRouter::lsa_type(self.0)
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaInterAreaRouter> {
+            lsa_body.as_inter_area_router()
+        }
+    }
+
+    impl LsaKind<Ospfv3> for AsExternal {
+        type Body = LsaAsExternal;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaAsExternal::lsa_type(self.0)
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaAsExternal> {
+            lsa_body.as_as_external()
+        }
+    }
+
+    impl LsaKind<Ospfv3> for Link {
+        type Body = LsaLink;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaLink::lsa_type(self.0)
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaLink> {
+            lsa_body.as_link()
+        }
+    }
+
+    impl LsaKind<Ospfv3> for IntraAreaPrefix {
+        type Body = LsaIntraAreaPrefix;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaIntraAreaPrefix::lsa_type(self.0)
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaIntraAreaPrefix> {
+            lsa_body.as_intra_area_prefix()
+        }
+    }
+
+    impl LsaKind<Ospfv3> for RouterInfo {
+        type Body = LsaRouterInfo;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaRouterInfo::lsa_type_scope(self.0)
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaRouterInfo> {
+            lsa_body.as_router_info()
+        }
+    }
+}
+
 // ===== global functions =====
 
 // Calculate the number of bytes required to encode a prefix.

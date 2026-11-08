@@ -713,3 +713,143 @@ impl LsaVersion<Self> for Ospfv2 {
         LsaTypeCode::SummaryRouter.into()
     }
 }
+
+// ===== LSA kinds =====
+
+pub mod kind {
+    use super::{
+        LsaAsExternal, LsaBody, LsaNetwork, LsaRouter, LsaSummary, LsaType,
+    };
+    use crate::ospfv2::packet::iana::LsaTypeCode;
+    use crate::ospfv2::packet::lsa_opaque::LsaOpaque;
+    use crate::packet::lsa::LsaKind;
+    use crate::version::Ospfv2;
+
+    // Router-LSA.
+    #[derive(Clone, Copy, Debug)]
+    pub struct Router;
+
+    // Network-LSA.
+    #[derive(Clone, Copy, Debug)]
+    pub struct Network;
+
+    // Summary-LSA describing an inter-area network (type 3).
+    #[derive(Clone, Copy, Debug)]
+    pub struct SummaryNetwork;
+
+    // Summary-LSA describing an AS boundary router (type 4).
+    #[derive(Clone, Copy, Debug)]
+    pub struct SummaryRouter;
+
+    // AS-external-LSA.
+    #[derive(Clone, Copy, Debug)]
+    pub struct AsExternal;
+
+    // Opaque-LSA with link-local flooding scope (type 9).
+    #[derive(Clone, Copy, Debug)]
+    pub struct OpaqueLink;
+
+    // Opaque-LSA with area-local flooding scope (type 10).
+    #[derive(Clone, Copy, Debug)]
+    pub struct OpaqueArea;
+
+    // Opaque-LSA with AS-wide flooding scope (type 11).
+    #[derive(Clone, Copy, Debug)]
+    pub struct OpaqueAs;
+
+    impl LsaKind<Ospfv2> for Router {
+        type Body = LsaRouter;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaTypeCode::Router.into()
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaRouter> {
+            lsa_body.as_router()
+        }
+    }
+
+    impl LsaKind<Ospfv2> for Network {
+        type Body = LsaNetwork;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaTypeCode::Network.into()
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaNetwork> {
+            lsa_body.as_network()
+        }
+    }
+
+    impl LsaKind<Ospfv2> for SummaryNetwork {
+        type Body = LsaSummary;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaTypeCode::SummaryNetwork.into()
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaSummary> {
+            lsa_body.as_summary_network()
+        }
+    }
+
+    impl LsaKind<Ospfv2> for SummaryRouter {
+        type Body = LsaSummary;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaTypeCode::SummaryRouter.into()
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaSummary> {
+            lsa_body.as_summary_router()
+        }
+    }
+
+    impl LsaKind<Ospfv2> for AsExternal {
+        type Body = LsaAsExternal;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaTypeCode::AsExternal.into()
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaAsExternal> {
+            lsa_body.as_as_external()
+        }
+    }
+
+    impl LsaKind<Ospfv2> for OpaqueLink {
+        type Body = LsaOpaque;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaTypeCode::OpaqueLink.into()
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaOpaque> {
+            lsa_body.as_opaque_link()
+        }
+    }
+
+    impl LsaKind<Ospfv2> for OpaqueArea {
+        type Body = LsaOpaque;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaTypeCode::OpaqueArea.into()
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaOpaque> {
+            lsa_body.as_opaque_area()
+        }
+    }
+
+    impl LsaKind<Ospfv2> for OpaqueAs {
+        type Body = LsaOpaque;
+
+        fn lsa_type(&self) -> LsaType {
+            LsaTypeCode::OpaqueAs.into()
+        }
+
+        fn body(lsa_body: &LsaBody) -> Option<&LsaOpaque> {
+            lsa_body.as_opaque_as()
+        }
+    }
+}

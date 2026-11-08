@@ -204,7 +204,13 @@ pub trait LsaKind<V: Version> {
 // OSPF version-specific code.
 pub trait LsaRouterFlagsVersion
 where
-    Self: Send + Sync + Clone + std::fmt::Debug + Serialize + DeserializeOwned,
+    Self: Send
+        + Sync
+        + Clone
+        + Copy
+        + std::fmt::Debug
+        + Serialize
+        + DeserializeOwned,
 {
     fn is_abr(&self) -> bool;
     fn is_asbr(&self) -> bool;

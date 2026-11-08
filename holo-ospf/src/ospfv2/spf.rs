@@ -65,20 +65,10 @@ impl VertexLsaVersion<Ospfv2> for VertexLsa {
         matches!(self, VertexLsa::Router(_))
     }
 
-    fn router_id(&self) -> Ipv4Addr {
-        let lsa = self.as_router().unwrap();
-        lsa.hdr.adv_rtr
-    }
-
-    fn router_options(&self) -> Options {
-        let lsa = self.as_router().unwrap();
-        lsa.hdr.options
-    }
-
-    fn router_flags(&self) -> LsaRouterFlags {
-        let lsa = self.as_router().unwrap();
+    fn router(&self) -> Option<(Ipv4Addr, Options, LsaRouterFlags)> {
+        let lsa = self.as_router()?;
         let lsa_body = lsa.body.as_router().unwrap();
-        lsa_body.flags
+        Some((lsa.hdr.adv_rtr, lsa.hdr.options, lsa_body.flags))
     }
 
     fn origin(&self) -> LsaKey<LsaType> {

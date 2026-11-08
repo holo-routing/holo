@@ -260,14 +260,10 @@ where
     // Return whether this is a router vertex.
     fn is_router(&self) -> bool;
 
-    // Return the Router-ID of this router vertex.
-    fn router_id(&self) -> Ipv4Addr;
-
-    // Return the options of this router vertex.
-    fn router_options(&self) -> V::PacketOptions;
-
-    // Return the flags of this router vertex.
-    fn router_flags(&self) -> V::LsaRouterFlags;
+    // Return the Router-ID, options and flags of this vertex, if it's a
+    // router vertex.
+    fn router(&self)
+    -> Option<(Ipv4Addr, V::PacketOptions, V::LsaRouterFlags)>;
 
     // Return the Link State Origin of this vertex.
     fn origin(&self) -> LsaKey<V::LsaType>;
@@ -693,20 +689,20 @@ fn run_area<V>(
         spt.insert(vertex_id, vertex);
         let vertex = spt.get(&vertex_id).unwrap();
 
-        if vertex.lsa.is_router() {
+        if let Some((router_id, options, flags)) = vertex.lsa.router() {
             // Add "router" routing table entry.
             let route = RouteRtr::new(
                 area.area_id,
                 PathType::IntraArea,
-                vertex.lsa.router_options(),
-                vertex.lsa.router_flags(),
+                options,
+                flags,
                 vertex.distance,
                 vertex.nexthops.clone(),
             );
-            area.state.routers.insert(vertex.lsa.router_id(), route);
+            area.state.routers.insert(router_id, route);
 
             // Set TransitCapability.
-            if vertex.lsa.router_flags().is_vlink_endpoint() {
+            if flags.is_vlink_endpoint() {
                 area.state.transit_capability = true;
             }
         }

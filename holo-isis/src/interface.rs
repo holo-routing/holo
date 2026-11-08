@@ -474,7 +474,7 @@ impl Interface {
         adjs.peek()?;
 
         // Add ourselves as a DIS candidate.
-        let system_id = instance.config.system_id.unwrap();
+        let system_id = instance.state.system_id;
         let myself = DisCandidate {
             priority: self.config.priority.get(level),
             snpa: self.system.mac_addr.unwrap(),
@@ -532,7 +532,7 @@ impl Interface {
 
         // Fixed fields.
         let circuit_type = self.config.level_type.resolved;
-        let source = instance.config.system_id.unwrap();
+        let source = instance.state.system_id;
         let holdtime = self.config.hello_holdtime(level);
         let variant = match self.config.interface_type {
             InterfaceType::Broadcast => HelloVariant::Lan {

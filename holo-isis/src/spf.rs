@@ -758,7 +758,7 @@ fn compute_spf(
 
     // Compute shortest-path tree(s) if necessary.
     if spf_type == SpfType::Full {
-        let root_system_id = instance.config.system_id.unwrap();
+        let root_system_id = instance.state.system_id;
         for mt_id in MtId::ALL {
             if instance.config.is_topology_enabled(mt_id) {
                 let spt = compute_spt(

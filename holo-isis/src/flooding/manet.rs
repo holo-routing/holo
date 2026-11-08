@@ -150,7 +150,7 @@ pub(crate) fn reflood_list(
 
         // If the current RNL entry is the local system, reflood to all
         // remaining THL members that are adjacent to it.
-        if *rnl == instance.config.system_id.unwrap() {
+        if *rnl == instance.state.system_id {
             for thl_node in two_hop_list {
                 if cache.spt_hopcount.is_on_path(*rnl, thl_node) {
                     reflood_list.insert(thl_node);

@@ -1343,7 +1343,7 @@ fn process_event(instance: &mut Instance, event: Event) {
         }
         Event::RefreshLsps => {
             if let Some((instance, arenas)) = instance.as_up() {
-                let system_id = instance.config.system_id.unwrap();
+                let system_id = instance.state.system_id;
                 for level in instance.config.levels() {
                     for lse in instance.state.lsdb.get(level).iter_for_system_id(&arenas.lsp_entries, system_id).filter(|lse| lse.data.rem_lifetime != 0) {
                         instance.tx.protocol_input.lsp_refresh(level, lse.id);

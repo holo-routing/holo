@@ -182,7 +182,7 @@ fn prefix_sid_input_label(
     let label = match prefix_sid.sid {
         Sid::Index(index) => {
             // Get local SRGB.
-            let system_id = instance.config.system_id.unwrap();
+            let system_id = instance.state.system_id;
             let lsdb = instance.state.lsdb.get(level);
             let Some(sr_cap) = lsdb
                 .iter_for_system_id(lsp_entries, system_id)

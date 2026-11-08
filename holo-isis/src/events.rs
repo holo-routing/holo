@@ -279,7 +279,7 @@ fn process_pdu_hello_lan(
     }
 
     // Check for duplicate System-ID.
-    if hello.source == instance.config.system_id.unwrap() {
+    if hello.source == instance.state.system_id {
         return Err(AdjacencyRejectError::DuplicateSystemId.into());
     }
 
@@ -423,14 +423,14 @@ fn process_pdu_hello_p2p(
     // If the Three-Way Adjacency TLV is present, validate the neighbor fields.
     if let Some(three_way_adj) = &hello.tlvs.three_way_adj
         && let Some((nbr_system_id, nbr_circuit_id)) = three_way_adj.neighbor
-        && (nbr_system_id != instance.config.system_id.unwrap()
+        && (nbr_system_id != instance.state.system_id
             || nbr_circuit_id != iface.system.ifindex.unwrap())
     {
         return Err(AdjacencyRejectError::NeighborMismatch.into());
     }
 
     // Check for duplicate System-ID.
-    if hello.source == instance.config.system_id.unwrap() {
+    if hello.source == instance.state.system_id {
         return Err(AdjacencyRejectError::DuplicateSystemId.into());
     }
 
@@ -631,7 +631,7 @@ fn process_pdu_lsp(
     mut lsp: Lsp,
 ) -> Result<(), PduInputError> {
     let iface = &mut arenas.interfaces[iface_idx];
-    let system_id = instance.config.system_id.unwrap();
+    let system_id = instance.state.system_id;
     let mut reflood_list = Default::default();
 
     // Set the level based on the PDU type, and discard the LSP if the level
@@ -807,7 +807,7 @@ fn process_pdu_lsp(
                 && instance.config.purge_originator
             {
                 lsp.tlvs.add_purge_originator_id(
-                    instance.config.system_id.unwrap(),
+                    instance.state.system_id,
                     Some(adj.system_id),
                     instance.shared.hostname.clone(),
                 );
@@ -1365,10 +1365,7 @@ pub(crate) fn process_send_psnp(
     let ext_seqnum = iface.ext_seqnum_next(level);
     let pdu = Pdu::Snp(Snp::new(
         level,
-        LanId::from((
-            instance.config.system_id.unwrap(),
-            iface.state.circuit_id,
-        )),
+        LanId::from((instance.state.system_id, iface.state.circuit_id)),
         None,
         SnpTlvs::new(lsp_entries, ext_seqnum),
     ));
@@ -1401,10 +1398,8 @@ pub(crate) fn process_send_csnp(
     }
 
     // Set CSNP source.
-    let source = LanId::from((
-        instance.config.system_id.unwrap(),
-        iface.state.circuit_id,
-    ));
+    let source =
+        LanId::from((instance.state.system_id, iface.state.circuit_id));
 
     // Calculate maximum of LSP entries per PDU.
     let max_lsp_entries = SnpTlvs::max_lsp_entries(

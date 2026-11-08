@@ -394,7 +394,7 @@ fn lsp_build_tlvs_pseudo(
     level: LevelNumber,
     iface: &Interface,
 ) -> LspTlvs {
-    let system_id = instance.config.system_id.unwrap();
+    let system_id = instance.state.system_id;
     let metric_type = instance.config.metric_type.get(level);
     let mut is_reach = vec![];
     let mut ext_is_reach = vec![];
@@ -1173,7 +1173,7 @@ fn lsp_build_fragments(
     pseudonode_id: u8,
     mut tlvs: LspTlvs,
 ) -> Vec<Lsp> {
-    let system_id = instance.config.system_id.unwrap();
+    let system_id = instance.state.system_id;
     let auth = instance.config.auth.all.method(&instance.shared.keychains);
     let auth = auth.as_ref().and_then(|auth| auth.get_key_send());
     let max_len = instance.config.lsp_mtu as usize
@@ -1229,7 +1229,7 @@ fn lsp_propagate_l1_to_l2(
     l2_ext_ipv4_reach: &mut BTreeMap<Ipv4Network, Ipv4Reach>,
     l2_ipv6_reach: &mut BTreeMap<Ipv6Network, Ipv6Reach>,
 ) {
-    let system_id = instance.config.system_id.unwrap();
+    let system_id = instance.state.system_id;
     let metric_type = &instance.config.metric_type;
     let lsdb = instance.state.lsdb.get(LevelNumber::L1);
 
@@ -1668,7 +1668,7 @@ pub(crate) fn lsp_originate_all(
     arenas: &mut InstanceArenas,
     level: LevelNumber,
 ) {
-    let system_id = instance.config.system_id.unwrap();
+    let system_id = instance.state.system_id;
     let lsdb = instance.state.lsdb.get(level);
     let before: HashSet<_> = lsdb
         .iter_for_system_id(&arenas.lsp_entries, system_id)
@@ -1764,7 +1764,7 @@ pub(crate) fn lsp_purge(
     // Add the POI TLV if purge originator support is enabled.
     if instance.config.purge_originator {
         lsp.tlvs.add_purge_originator_id(
-            instance.config.system_id.unwrap(),
+            instance.state.system_id,
             None,
             instance.shared.hostname.clone(),
         );

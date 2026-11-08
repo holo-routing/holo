@@ -75,6 +75,8 @@ pub struct InstanceSys {
 
 #[derive(Debug)]
 pub struct InstanceState {
+    // Operational System ID.
+    pub system_id: SystemId,
     // Boot count.
     pub boot_count: u64,
     // Circuit ID allocator.
@@ -200,8 +202,8 @@ impl Instance {
     // northbound or southbound event.
     pub(crate) fn update(&mut self) {
         match self.is_ready() {
-            Ok(()) if !self.is_active() => {
-                self.start();
+            Ok(system_id) if !self.is_active() => {
+                self.start(system_id);
             }
             Err(reason) if self.is_active() => {
                 self.stop(reason);
@@ -211,12 +213,12 @@ impl Instance {
     }
 
     // Starts the IS-IS instance.
-    fn start(&mut self) {
+    fn start(&mut self, system_id: SystemId) {
         Debug::InstanceStart.log();
 
         // Create instance initial state.
         let boot_count = self.boot_count_increment();
-        let state = InstanceState::new(boot_count);
+        let state = InstanceState::new(system_id, boot_count);
         self.state = Some(state);
         let (mut instance, arenas) = self.as_up().unwrap();
 
@@ -278,13 +280,18 @@ impl Instance {
         self.state.is_some()
     }
 
-    // Returns whether the instance is ready for IS-IS operation.
-    fn is_ready(&self) -> Result<(), InstanceInactiveReason> {
-        if !self.config.enabled || self.config.system_id.is_none() {
+    // Returns the System ID to operate with if the instance is ready for IS-IS
+    // operation.
+    fn is_ready(&self) -> Result<SystemId, InstanceInactiveReason> {
+        if !self.config.enabled {
             return Err(InstanceInactiveReason::AdminDown);
         }
 
-        Ok(())
+        let Some(system_id) = self.config.system_id else {
+            return Err(InstanceInactiveReason::AdminDown);
+        };
+
+        Ok(system_id)
     }
 
     // Increments and stores the boot count for the instance in non-volatile
@@ -434,8 +441,9 @@ impl ProtocolInstance for Instance {
 // ===== impl InstanceState =====
 
 impl InstanceState {
-    fn new(boot_count: u64) -> InstanceState {
+    fn new(system_id: SystemId, boot_count: u64) -> InstanceState {
         InstanceState {
+            system_id,
             boot_count,
             circuit_id_allocator: Default::default(),
             hostnames: Default::default(),

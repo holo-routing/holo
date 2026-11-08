@@ -2771,7 +2771,6 @@ impl LsaVersion<Self> for Ospfv3 {
     type LsaHdr = LsaHdr;
     type LsaBody = LsaBody;
     type LsaRouterFlags = LsaRouterFlags;
-    type LsaRouterLink = LsaRouterLink;
     type PrefixOptions = PrefixOptions;
     type PrefixSid = PrefixSid;
     type AdjSid = AdjSid;

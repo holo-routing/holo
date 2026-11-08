@@ -66,14 +66,6 @@ pub struct SpfPartialComputation<V: Version> {
     pub external: BTreeSet<V::IpNetwork>,
 }
 
-#[derive(Debug, new)]
-pub struct SpfLink<'a, V: Version> {
-    pub parent: Option<(usize, &'a V::LsaRouterLink)>,
-    pub id: V::VertexId,
-    pub lsa: V::VertexLsa,
-    pub cost: u16,
-}
-
 #[derive(Debug)]
 pub struct SpfIntraAreaNetwork<'a, V: Version> {
     pub vertex: &'a Vertex<V>,
@@ -148,6 +140,7 @@ pub struct SpfLogEntry<V: Version> {
 pub trait SpfVersion<V: Version> {
     type VertexId: VertexIdVersion;
     type VertexLsa: VertexLsaVersion<V>;
+    type VertexEdge<'a>: VertexEdgeVersion<V>;
 
     // Determine which computations are necessary to handle the trigger LSAs
     // that are provided as input.
@@ -160,9 +153,7 @@ pub trait SpfVersion<V: Version> {
     fn calc_nexthops(
         area: &Area<V>,
         parent: &Vertex<V>,
-        parent_link: Option<(usize, &V::LsaRouterLink)>,
-        dest_id: V::VertexId,
-        dest_lsa: &V::VertexLsa,
+        edge: &Self::VertexEdge<'_>,
         interfaces: &Arena<Interface<V>>,
         neighbors: &Arena<Neighbor<V>>,
         extended_lsa: bool,
@@ -178,14 +169,14 @@ pub trait SpfVersion<V: Version> {
         lsa_entries: &Arena<LsaEntry<V>>,
     ) -> Option<V::VertexLsa>;
 
-    // Return iterator over all links of the provided SPF vertex.
-    fn vertex_lsa_links<'a>(
+    // Return iterator over all edges of the provided SPF vertex.
+    fn vertex_edges<'a>(
         vertex_lsa: &'a Self::VertexLsa,
         af: AddressFamily,
         area: &'a Area<V>,
         extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<V>>,
-    ) -> Box<dyn Iterator<Item = SpfLink<'a, V>> + 'a>;
+    ) -> Box<dyn Iterator<Item = Self::VertexEdge<'a>> + 'a>;
 
     // Return iterator over all intra-area networks.
     fn intra_area_networks<'a>(
@@ -242,6 +233,9 @@ where
 {
     // Create root SPF vertex.
     fn new_root(router_id: Ipv4Addr) -> Self;
+
+    // Return whether this is a router vertex.
+    fn is_router(&self) -> bool;
 }
 
 // OSPF version-specific code.
@@ -249,9 +243,6 @@ pub trait VertexLsaVersion<V: Version>
 where
     Self: Send + std::fmt::Debug,
 {
-    // Return whether this is a router vertex.
-    fn is_router(&self) -> bool;
-
     // Return the Router-ID, options and flags of this vertex, if it's a
     // router vertex.
     fn router(&self)
@@ -259,6 +250,22 @@ where
 
     // Return the Link State Origin of this vertex.
     fn origin(&self) -> LsaKey<V::LsaType>;
+}
+
+// OSPF version-specific code.
+pub trait VertexEdgeVersion<V: Version> {
+    // Return the ID of the vertex this edge leads to.
+    fn id(&self) -> V::VertexId;
+
+    // Return the cost of this edge.
+    fn cost(&self) -> u16;
+
+    // Return whether the vertex this edge leads to links back to the given
+    // vertex.
+    fn links_back_to(&self, vertex_id: V::VertexId) -> bool;
+
+    // Return the LSA of the vertex this edge leads to.
+    fn vertex_lsa(&self) -> V::VertexLsa;
 }
 
 // SPF Delay State Machine.
@@ -699,45 +706,35 @@ fn run_area<V>(
             }
         }
 
-        // Iterate over all links described by the vertex's LSA.
-        for link in V::vertex_lsa_links(
-            &vertex.lsa,
-            af,
-            area,
-            extended_lsa,
-            lsa_entries,
-        ) {
+        // Iterate over all edges of the vertex.
+        for edge in
+            V::vertex_edges(&vertex.lsa, af, area, extended_lsa, lsa_entries)
+        {
+            let dest_id = edge.id();
+
             // Check if the LSAs are mutually linked.
-            if !V::vertex_lsa_links(
-                &link.lsa,
-                af,
-                area,
-                extended_lsa,
-                lsa_entries,
-            )
-            .any(|link| link.id == vertex.id)
-            {
+            if !edge.links_back_to(vertex.id) {
                 continue;
             }
 
-            // Check if the link's vertex is already on the shortest-path tree.
-            if spt.contains_key(&link.id) {
+            // Check if the destination is already on the shortest-path tree.
+            if spt.contains_key(&dest_id) {
                 continue;
             }
 
-            // Calculate distance to the link's vertex.
-            let distance = vertex.distance.saturating_add(link.cost.into());
+            // Calculate distance to the destination.
+            let distance = vertex.distance.saturating_add(edge.cost().into());
 
             // Increment number of hops to the root.
             let mut hops = vertex.hops;
-            if link.lsa.is_router() {
+            if dest_id.is_router() {
                 hops = hops.saturating_add(1);
             }
 
-            // Add the link's vertex to the candidate list, unless a shorter
+            // Add the destination to the candidate list, unless a shorter
             // path to it is already known.
             let Some(cand_v) =
-                cand_list.entry(link.id, distance, hops, || link.lsa)
+                cand_list.entry(dest_id, distance, hops, || edge.vertex_lsa())
             else {
                 continue;
             };
@@ -746,9 +743,7 @@ fn run_area<V>(
             match calc_nexthops(
                 area,
                 vertex,
-                link.parent,
-                link.id,
-                &cand_v.lsa,
+                &edge,
                 interfaces,
                 neighbors,
                 extended_lsa,
@@ -773,9 +768,7 @@ fn run_area<V>(
 fn calc_nexthops<V>(
     area: &Area<V>,
     parent: &Vertex<V>,
-    parent_link: Option<(usize, &V::LsaRouterLink)>,
-    dest_id: V::VertexId,
-    dest_lsa: &V::VertexLsa,
+    edge: &V::VertexEdge<'_>,
     interfaces: &Arena<Interface<V>>,
     neighbors: &Arena<Neighbor<V>>,
     extended_lsa: bool,
@@ -790,9 +783,7 @@ where
         V::calc_nexthops(
             area,
             parent,
-            parent_link,
-            dest_id,
-            dest_lsa,
+            edge,
             interfaces,
             neighbors,
             extended_lsa,

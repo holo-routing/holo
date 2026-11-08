@@ -31,9 +31,9 @@ use crate::packet::lsa::{LsaHdrVersion, LsaKey, TypedLsa};
 use crate::route::{Nexthop, NexthopKey, Nexthops};
 use crate::spf::{
     SpfComputation, SpfExternalNetwork, SpfInterAreaNetwork,
-    SpfInterAreaRouter, SpfIntraAreaNetwork, SpfLink, SpfPartialComputation,
-    SpfRouterInfo, SpfTriggerLsa, SpfVersion, Vertex, VertexIdVersion,
-    VertexLsaVersion,
+    SpfInterAreaRouter, SpfIntraAreaNetwork, SpfPartialComputation,
+    SpfRouterInfo, SpfTriggerLsa, SpfVersion, Vertex, VertexEdgeVersion,
+    VertexIdVersion, VertexLsaVersion,
 };
 use crate::version::Ospfv2;
 
@@ -43,7 +43,7 @@ pub enum VertexId {
     Router { router_id: Ipv4Addr },
 }
 
-#[derive(Debug, EnumAsInner)]
+#[derive(Clone, Debug, EnumAsInner)]
 pub enum VertexLsa {
     Network(VertexLsaNetwork),
     Router(VertexLsaRouter),
@@ -55,21 +55,38 @@ pub type VertexLsaNetwork = TypedLsa<Ospfv2, kind::Network>;
 // Router-LSA of a router vertex.
 pub type VertexLsaRouter = TypedLsa<Ospfv2, kind::Router>;
 
+// Edge from a vertex to one of its neighbors, along with the neighbor's LSA.
+#[derive(Debug)]
+pub enum VertexEdge<'a> {
+    // Router-LSA link to a router or transit network.
+    Router {
+        // Position of the link among the non-stub links of the Router-LSA.
+        link_pos: usize,
+        link: &'a LsaRouterLink,
+        dest: VertexLsa,
+    },
+    // Router attached to a transit network.
+    Network {
+        network: &'a VertexLsaNetwork,
+        dest: VertexLsaRouter,
+    },
+}
+
 // ===== impl VertexId =====
 
 impl VertexIdVersion for VertexId {
     fn new_root(router_id: Ipv4Addr) -> Self {
         VertexId::Router { router_id }
     }
+
+    fn is_router(&self) -> bool {
+        matches!(self, VertexId::Router { .. })
+    }
 }
 
 // ===== impl VertexLsa =====
 
 impl VertexLsaVersion<Ospfv2> for VertexLsa {
-    fn is_router(&self) -> bool {
-        matches!(self, VertexLsa::Router(_))
-    }
-
     fn router(&self) -> Option<(Ipv4Addr, Options, LsaRouterFlags)> {
         let lsa = self.as_router()?;
         Some((lsa.hdr.adv_rtr, lsa.hdr.options, lsa.body().flags))
@@ -83,11 +100,121 @@ impl VertexLsaVersion<Ospfv2> for VertexLsa {
     }
 }
 
+// ===== impl VertexLsa =====
+
+impl VertexLsa {
+    // Returns the ID of the vertex.
+    fn id(&self) -> VertexId {
+        match self {
+            VertexLsa::Network(lsa) => lsa.id(),
+            VertexLsa::Router(lsa) => lsa.id(),
+        }
+    }
+
+    // Returns whether the vertex's LSA has a link to the given vertex.
+    fn links_to(&self, vertex_id: VertexId) -> bool {
+        match self {
+            VertexLsa::Network(lsa) => lsa.links_to(vertex_id),
+            VertexLsa::Router(lsa) => lsa.links_to(vertex_id),
+        }
+    }
+}
+
+// ===== impl VertexLsaNetwork =====
+
+impl VertexLsaNetwork {
+    // Returns the ID of the network vertex.
+    fn id(&self) -> VertexId {
+        VertexId::Network {
+            dr_addr: self.hdr.lsa_id,
+        }
+    }
+
+    // Returns whether the Network-LSA lists the given vertex as an attached
+    // router.
+    fn links_to(&self, vertex_id: VertexId) -> bool {
+        self.body().attached_rtrs.iter().any(|router_id| {
+            VertexId::Router {
+                router_id: *router_id,
+            } == vertex_id
+        })
+    }
+}
+
+// ===== impl VertexLsaRouter =====
+
+impl VertexLsaRouter {
+    // Finds the Router-LSA of the given router.
+    fn find(
+        router_id: Ipv4Addr,
+        area: &Area<Ospfv2>,
+        lsa_entries: &Arena<LsaEntry<Ospfv2>>,
+    ) -> Option<VertexLsaRouter> {
+        let lsa_key =
+            LsaKey::new(LsaTypeCode::Router.into(), router_id, router_id);
+        area.state
+            .lsdb
+            .get(lsa_entries, &lsa_key)
+            .map(|(_, lse)| &lse.data)
+            .filter(|lsa| !lsa.hdr.is_maxage())
+            .and_then(TypedLsa::new)
+    }
+
+    // Returns the ID of the router vertex.
+    fn id(&self) -> VertexId {
+        VertexId::Router {
+            router_id: self.hdr.adv_rtr,
+        }
+    }
+
+    // Returns whether the Router-LSA has a link to the given vertex.
+    fn links_to(&self, vertex_id: VertexId) -> bool {
+        self.body()
+            .links
+            .iter()
+            .filter_map(link_vertex_id)
+            .any(|link_vid| link_vid == vertex_id)
+    }
+}
+
+// ===== impl VertexEdge =====
+
+impl VertexEdgeVersion<Ospfv2> for VertexEdge<'_> {
+    fn id(&self) -> VertexId {
+        match self {
+            VertexEdge::Router { dest, .. } => dest.id(),
+            VertexEdge::Network { dest, .. } => dest.id(),
+        }
+    }
+
+    fn cost(&self) -> u16 {
+        match self {
+            VertexEdge::Router { link, .. } => link.metric,
+            VertexEdge::Network { .. } => 0,
+        }
+    }
+
+    fn links_back_to(&self, vertex_id: VertexId) -> bool {
+        match self {
+            VertexEdge::Router { dest, .. } => dest.links_to(vertex_id),
+            VertexEdge::Network { dest, .. } => dest.links_to(vertex_id),
+        }
+    }
+
+    fn vertex_lsa(&self) -> VertexLsa {
+        match self {
+            VertexEdge::Router { dest, .. } => dest.clone(),
+            VertexEdge::Network { dest, .. } => VertexLsa::Router(dest.clone()),
+        }
+    }
+}
+
 // ===== impl Ospfv2 =====
 
 impl SpfVersion<Self> for Ospfv2 {
     type VertexId = VertexId;
     type VertexLsa = VertexLsa;
+    type VertexEdge<'a> = VertexEdge<'a>;
 
     fn spf_computation_type(
         trigger_lsas: &[SpfTriggerLsa<Self>],
@@ -165,22 +292,24 @@ impl SpfVersion<Self> for Ospfv2 {
     fn calc_nexthops(
         area: &Area<Self>,
         parent: &Vertex<Self>,
-        parent_link: Option<(usize, &LsaRouterLink)>,
-        dest_id: VertexId,
-        dest_lsa: &VertexLsa,
+        edge: &VertexEdge<'_>,
         interfaces: &Arena<Interface<Self>>,
         neighbors: &Arena<Neighbor<Self>>,
         _extended_lsa: bool,
         _lsa_entries: &Arena<LsaEntry<Self>>,
     ) -> Result<Nexthops<Ipv4Addr>, Error<Self>> {
         let mut nexthops = Nexthops::new();
+        let dest_id = edge.id();
 
-        match &parent.lsa {
+        match edge {
             // The parent vertex is the root.
-            VertexLsa::Router(_parent_lsa) => {
+            VertexEdge::Router {
+                link_pos: parent_link_pos,
+                dest: dest_lsa,
+                ..
+            } => {
                 // The destination is either a directly connected network or
                 // directly connected router.
-                let (parent_link_pos, _parent_link) = parent_link.unwrap();
 
                 // Get nexthop interface based on the parent's Router-LSA link
                 // position.
@@ -189,7 +318,7 @@ impl SpfVersion<Self> for Ospfv2 {
                     .indexes()
                     .map(|iface_idx| (iface_idx, &interfaces[iface_idx]))
                     .filter(|(_, iface)| iface.state.neighbors.count() > 0)
-                    .nth(parent_link_pos)
+                    .nth(*parent_link_pos)
                     .ok_or(Error::SpfNexthopCalcError(dest_id))?;
 
                 // If the interface is a virtual link, do not resolve the
@@ -295,7 +424,10 @@ impl SpfVersion<Self> for Ospfv2 {
             }
             // The parent vertex is a network that directly connects the
             // calculating router to the destination router.
-            VertexLsa::Network(parent_lsa) => {
+            VertexEdge::Network {
+                network: parent_lsa,
+                dest: dest_lsa,
+            } => {
                 // The list of next hops is then determined by examining the
                 // destination's router-LSA. For each link in the router-LSA
                 // that points back to the parent network, the link's Link
@@ -305,7 +437,6 @@ impl SpfVersion<Self> for Ospfv2 {
                     parent_lsa.body().mask,
                 )
                 .map_err(|_| Error::SpfNexthopCalcError(dest_id))?;
-                let dest_lsa = dest_lsa.as_router().unwrap();
                 let dest_link = dest_lsa
                     .body()
                     .links
@@ -361,46 +492,29 @@ impl SpfVersion<Self> for Ospfv2 {
                     .map(VertexLsa::Network)
             }
             VertexId::Router { router_id } => {
-                let lsa_key = LsaKey::new(
-                    LsaTypeCode::Router.into(),
-                    router_id,
-                    router_id,
-                );
-                area.state
-                    .lsdb
-                    .get(lsa_entries, &lsa_key)
-                    .map(|(_, lse)| &lse.data)
-                    .filter(|lsa| !lsa.hdr.is_maxage())
-                    .and_then(TypedLsa::new)
+                VertexLsaRouter::find(router_id, area, lsa_entries)
                     .map(VertexLsa::Router)
             }
         }
     }
 
-    fn vertex_lsa_links<'a>(
+    fn vertex_edges<'a>(
         vertex_lsa: &'a VertexLsa,
         af: AddressFamily,
         area: &'a Area<Ospfv2>,
         _extended_lsa: bool,
         lsa_entries: &'a Arena<LsaEntry<Ospfv2>>,
-    ) -> Box<dyn Iterator<Item = SpfLink<'a, Ospfv2>> + 'a> {
+    ) -> Box<dyn Iterator<Item = VertexEdge<'a>> + 'a> {
         match vertex_lsa {
             VertexLsa::Network(lsa) => {
                 let iter = lsa.body().attached_rtrs.iter().filter_map(
                     move |router_id| {
-                        let link_vid = VertexId::Router {
-                            router_id: *router_id,
-                        };
-                        Ospfv2::vertex_lsa_find(
-                            af,
-                            link_vid,
+                        let dest = VertexLsaRouter::find(
+                            *router_id,
                             area,
-                            false,
                             lsa_entries,
-                        )
-                        .map(|link_vlsa| {
-                            SpfLink::new(None, link_vid, link_vlsa, 0)
-                        })
+                        )?;
+                        Some(VertexEdge::Network { network: lsa, dest })
                     },
                 );
                 Box::new(iter)
@@ -410,38 +524,22 @@ impl SpfVersion<Self> for Ospfv2 {
                     .body()
                     .links
                     .iter()
-                    .filter_map(|link| match link.link_type {
-                        LsaRouterLinkType::PointToPoint
-                        | LsaRouterLinkType::VirtualLink => {
-                            let link_vid = VertexId::Router {
-                                router_id: link.link_id,
-                            };
-                            Some((link, link_vid, link.metric))
-                        }
-                        LsaRouterLinkType::TransitNetwork => {
-                            let link_vid = VertexId::Network {
-                                dr_addr: link.link_id,
-                            };
-                            Some((link, link_vid, link.metric))
-                        }
-                        LsaRouterLinkType::StubNetwork => None,
+                    .filter_map(|link| {
+                        link_vertex_id(link).map(|link_vid| (link, link_vid))
                     })
                     .enumerate()
-                    .filter_map(move |(link_pos, (link, link_vid, cost))| {
-                        Ospfv2::vertex_lsa_find(
+                    .filter_map(move |(link_pos, (link, link_vid))| {
+                        let dest = Ospfv2::vertex_lsa_find(
                             af,
                             link_vid,
                             area,
                             false,
                             lsa_entries,
-                        )
-                        .map(|link_vlsa| {
-                            SpfLink::new(
-                                Some((link_pos, link)),
-                                link_vid,
-                                link_vlsa,
-                                cost,
-                            )
+                        )?;
+                        Some(VertexEdge::Router {
+                            link_pos,
+                            link,
+                            dest,
                         })
                     });
                 Box::new(iter)
@@ -663,6 +761,21 @@ impl SpfVersion<Self> for Ospfv2 {
 }
 
 // ===== helper functions =====
+
+// Returns the ID of the vertex a Router-LSA link points to, if any.
+fn link_vertex_id(link: &LsaRouterLink) -> Option<VertexId> {
+    match link.link_type {
+        LsaRouterLinkType::PointToPoint | LsaRouterLinkType::VirtualLink => {
+            Some(VertexId::Router {
+                router_id: link.link_id,
+            })
+        }
+        LsaRouterLinkType::TransitNetwork => Some(VertexId::Network {
+            dr_addr: link.link_id,
+        }),
+        LsaRouterLinkType::StubNetwork => None,
+    }
+}
 
 fn route_prefix_sids(
     area: &Area<Ospfv2>,

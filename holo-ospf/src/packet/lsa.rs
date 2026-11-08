@@ -83,7 +83,6 @@ pub trait LsaVersion<V: Version> {
     type LsaHdr: LsaHdrVersion<V>;
     type LsaBody: LsaBodyVersion<V>;
     type LsaRouterFlags: LsaRouterFlagsVersion;
-    type LsaRouterLink;
     type PrefixOptions: PrefixOptionsVersion;
     type PrefixSid: PrefixSidVersion;
     type AdjSid: AdjSidVersion;

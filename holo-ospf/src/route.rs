@@ -23,7 +23,7 @@ use crate::interface::Interface;
 use crate::lsdb::{LSA_INFINITY, LsaEntry};
 use crate::northbound::configuration::InstanceCfg;
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
-use crate::spf::{SpfPartialComputation, VertexLsaVersion};
+use crate::spf::{SpfPartialComputation, VertexIdVersion, VertexLsaVersion};
 use crate::version::Version;
 use crate::{bier, ibus, sr};
 
@@ -384,7 +384,7 @@ fn update_rib_intra_area<V>(
         // overwritten if and only if the newly found path is just as short and
         // the current routing table entry's Link State Origin has a smaller
         // Link State ID than the newly added vertex' LSA.
-        if !stub.vertex.lsa.is_router()
+        if !stub.vertex.id.is_router()
             && let btree_map::Entry::Occupied(o) = rib.entry(stub.prefix)
         {
             let curr_route = o.get();

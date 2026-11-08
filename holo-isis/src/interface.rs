@@ -627,6 +627,20 @@ impl Interface {
             protocols_supported.push(Nlpid::Spb as u8);
         }
 
+        // Set database fingerprints.
+        let mut db_fingerprint = Levels::default();
+        if instance.config.db_fingerprint_advertise {
+            for lsdb_level in self
+                .config
+                .levels()
+                .filter(|lsdb_level| level.intersects(lsdb_level))
+            {
+                let lsdb = instance.state.lsdb.get(lsdb_level);
+                *db_fingerprint.get_mut(lsdb_level) =
+                    Some(lsdb.fingerprint().as_tlv(lsdb_level));
+            }
+        }
+
         // Generate Hello PDU.
         let ext_seqnum = self.ext_seqnum_next(level);
         Hello::new(
@@ -644,6 +658,7 @@ impl Interface {
                 ipv4_addrs,
                 ipv6_addrs,
                 ext_seqnum,
+                db_fingerprint,
             ),
         )
     }
@@ -664,7 +679,8 @@ impl Interface {
                     .filter(|level| level_filter.intersects(level))
                 {
                     let hello = self.generate_hello(level, instance);
-                    let task = tasks::hello_interval(self, level, hello);
+                    let task =
+                        tasks::hello_interval(self, level, hello, instance);
                     *self.state.tasks.hello_interval_broadcast.get_mut(level) =
                         Some(task);
                 }
@@ -674,7 +690,7 @@ impl Interface {
             InterfaceType::PointToPoint => {
                 let level = LevelType::All;
                 let hello = self.generate_hello(level, instance);
-                let task = tasks::hello_interval(self, level, hello);
+                let task = tasks::hello_interval(self, level, hello, instance);
                 self.state.tasks.hello_interval_p2p = Some(task);
             }
         }

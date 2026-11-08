@@ -52,6 +52,7 @@ pub enum Event {
     InterfaceUpdate(InterfaceIndex),
     InstanceLevelTypeUpdate,
     InstanceTopologyUpdate,
+    InstanceUpdateHelloInterval,
     InterfaceDelete(InterfaceIndex),
     InterfaceReset(InterfaceIndex),
     InterfaceRestartNetwork(InterfaceIndex),
@@ -105,6 +106,7 @@ pub struct InstanceCfg {
     pub mt: HashMap<MtId, InstanceMtCfg>,
     pub summaries: JointPrefixMap<IpNetwork, SummaryCfg>,
     pub flooding_reduction: InstanceFloodingReductionCfg,
+    pub db_fingerprint_advertise: bool,
     pub att_suppress: bool,
     pub att_ignore: bool,
     pub sr: InstanceSrCfg,
@@ -571,6 +573,10 @@ fn apply_instance(instance: &mut Instance, change: ConfigChange, event_queue: &m
         ConfigChange::FloodingReductionAlgorithm(algo) => {
             instance.config.flooding_reduction.algo = algo;
             event_queue.insert(Event::RerunSpf);
+        }
+        ConfigChange::DatabaseFingerprintAdvertise(advertise) => {
+            instance.config.db_fingerprint_advertise = advertise;
+            event_queue.insert(Event::InstanceUpdateHelloInterval);
         }
         ConfigChange::TraceOptionsFlag(keys, change) => {
             apply_trace_options(instance, keys.name, change, event_queue)?;
@@ -1233,6 +1239,13 @@ fn process_event(instance: &mut Instance, event: Event) {
                 }
             }
         }
+        Event::InstanceUpdateHelloInterval => {
+            if let Some((instance, arenas)) = instance.as_up() {
+                for iface in arenas.interfaces.iter_mut().filter(|iface| iface.state.active && !iface.is_passive()) {
+                    iface.hello_interval_start(&instance, LevelType::All);
+                }
+            }
+        }
         Event::InterfaceUpdate(iface_idx) => {
             if let Some((mut instance, arenas)) = instance.as_up() {
                 let iface = &mut arenas.interfaces[iface_idx];
@@ -1699,6 +1712,7 @@ impl Default for InstanceCfg {
         let spf_hold_down = isis::spf_control::ietf_spf_delay::hold_down::DFLT;
         let spf_time_to_learn = isis::spf_control::ietf_spf_delay::time_to_learn::DFLT;
         let overload_status = isis::overload::status::DFLT;
+        let db_fingerprint_advertise = isis::database_fingerprint::advertise::DFLT;
         let att_suppress = isis::attached_bit::suppress_advertisement::DFLT;
         let att_ignore = isis::attached_bit::ignore_reception::DFLT;
 
@@ -1730,6 +1744,7 @@ impl Default for InstanceCfg {
             mt: Default::default(),
             summaries: Default::default(),
             flooding_reduction: Default::default(),
+            db_fingerprint_advertise,
             att_suppress,
             att_ignore,
             sr: Default::default(),

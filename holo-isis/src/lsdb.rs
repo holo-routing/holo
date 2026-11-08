@@ -52,10 +52,10 @@ use crate::packet::subtlvs::prefix::{
 };
 use crate::packet::subtlvs::spb::{IsidEntry, IsidFlags, SpbmSiStlv};
 use crate::packet::tlv::{
-    IpReachTlvEntry, Ipv4Reach, Ipv4ReachStlvs, Ipv6Reach, Ipv6ReachStlvs,
-    IsReach, IsReachStlvs, LegacyIpv4Reach, LegacyIsReach, MAX_NARROW_METRIC,
-    MtCapStlvs, MtCapabilityTlv, MtFlags, MultiTopologyEntry, RouterCapFlags,
-    RouterCapTlv,
+    DatabaseFingerprintTlv, IpReachTlvEntry, Ipv4Reach, Ipv4ReachStlvs,
+    Ipv6Reach, Ipv6ReachStlvs, IsReach, IsReachStlvs, LegacyIpv4Reach,
+    LegacyIsReach, MAX_NARROW_METRIC, MtCapStlvs, MtCapabilityTlv, MtFlags,
+    MultiTopologyEntry, RouterCapFlags, RouterCapTlv,
 };
 use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::spf::{SpfType, VertexId};
@@ -119,6 +119,16 @@ pub enum LspLogReason {
     ContentChange,
 }
 
+// LSDB fingerprint.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct LsdbFingerprint {
+    // XOR of the per-LSP components of all LSPs with non-zero remaining
+    // lifetime.
+    pub value: u64,
+    // Time when the fingerprint value last changed.
+    pub last_update: Option<Instant>,
+}
+
 // ===== impl LspEntry =====
 
 impl LspEntry {
@@ -140,6 +150,27 @@ impl LspEntry {
             refresh_timer: None,
             flags: Default::default(),
         }
+    }
+}
+
+// ===== impl LsdbFingerprint =====
+
+impl LsdbFingerprint {
+    // Returns the time elapsed, in seconds, since the fingerprint value last
+    // changed.
+    pub(crate) fn last_update_elapsed(&self) -> Option<u32> {
+        self.last_update.map(|last_update| {
+            u32::try_from(last_update.elapsed().as_secs()).unwrap_or(u32::MAX)
+        })
+    }
+
+    // Returns the Database Fingerprint TLV for the given level.
+    pub(crate) fn as_tlv(&self, level: LevelNumber) -> DatabaseFingerprintTlv {
+        DatabaseFingerprintTlv::new(
+            level,
+            self.value,
+            self.last_update_elapsed(),
+        )
     }
 }
 

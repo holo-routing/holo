@@ -105,6 +105,8 @@ pub static YANG_EMBEDDED_MODULES: Lazy<EmbeddedModules> = Lazy::new(|| {
             include_str!("../modules/ietf/ietf-ipv6-router-advertisements@2018-03-13.yang"),
         EmbeddedModuleKey::new("ietf-isis", Some("2022-10-19"), None, None) =>
             include_str!("../modules/ietf/ietf-isis@2022-10-19.yang"),
+        EmbeddedModuleKey::new("ietf-isis-db-fingerprint", Some("2026-10-13"), None, None) =>
+            include_str!("../modules/ietf/ietf-isis-db-fingerprint@2026-10-13.yang"),
         EmbeddedModuleKey::new("ietf-isis-flex-algo", Some("2026-07-11"), None, None) =>
             include_str!("../modules/ietf/ietf-isis-flex-algo@2026-07-11.yang"),
         EmbeddedModuleKey::new("ietf-isis-link-attr", Some("2026-07-11"), None, None) =>
@@ -287,6 +289,7 @@ pub mod implemented_modules {
         "iana-igp-metric-types",
         "ietf-bfd-types",
         "ietf-isis",
+        "ietf-isis-db-fingerprint",
         "ietf-isis-flex-algo",
         "ietf-isis-link-attr",
         "ietf-isis-msd",

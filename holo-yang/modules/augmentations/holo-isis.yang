@@ -229,6 +229,25 @@ module holo-isis {
       }
     }
 
+    container database-fingerprint {
+      description
+        "Configuration for IS-IS database fingerprinting.";
+      reference
+        "draft-westphal-lsr-isis-database-checksumming:
+         IS-IS Database Fingerprinting";
+      leaf advertise {
+        type boolean;
+        default false;
+        description
+          "When enabled, the Database Fingerprint TLV is included in
+           transmitted Hellos and CSNPs. The LSDB fingerprint is computed
+           regardless of this setting.
+
+           The TLV type has not yet been assigned by IANA, so a provisional
+           value is used, which might later be assigned to a different TLV.";
+      }
+    }
+
     container trace-options {
       description "Instance level trace options for IS-IS.";
 
@@ -528,33 +547,6 @@ module holo-isis {
       type yang:gauge32;
       description
         "The number of LSPs at this level with non-zero remaining lifetime.";
-    }
-
-    container fingerprint {
-      description
-        "Information about the LSDB fingerprint for this level.";
-
-      leaf value {
-        type uint64;
-        description
-          "A 64-bit fingerprint derived from the set of LSPs at this level.
-
-           The fingerprint is computed by XOR-combining a per-LSP value
-           for each LSP whose remaining lifetime is non-zero.
-
-           The fingerprint is intended for detecting potential LSDB
-           synchronization differences. Different values indicate
-           different LSDB contents; identical values do not guarantee
-           equivalence due to possible collisions.";
-      }
-
-      leaf last-update {
-        type uint32;
-        units "seconds";
-        description
-          "Time elapsed since the fingerprint for this level's LSDB was
-           last updated.";
-      }
     }
   }
 

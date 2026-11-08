@@ -12,11 +12,14 @@ use std::sync::LazyLock as Lazy;
 use const_addrs::ip4;
 use holo_isis::packet::pdu::{Hello, HelloTlvs, HelloVariant, Pdu};
 use holo_isis::packet::tlv::{
-    AreaAddressesTlv, ExtendedSeqNum, ExtendedSeqNumTlv, Ipv4AddressesTlv,
-    MtFlags, MultiTopologyEntry, MultiTopologyTlv, NeighborsTlv, PaddingTlv,
-    ProtocolsSupportedTlv, ThreeWayAdjState, ThreeWayAdjTlv,
+    AreaAddressesTlv, DatabaseFingerprintTlv, ExtendedSeqNum,
+    ExtendedSeqNumTlv, Ipv4AddressesTlv, MtFlags, MultiTopologyEntry,
+    MultiTopologyTlv, NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv,
+    ThreeWayAdjState, ThreeWayAdjTlv,
 };
-use holo_isis::packet::{AreaAddr, LanId, LevelType, SystemId};
+use holo_isis::packet::{
+    AreaAddr, LanId, LevelNumber, LevelType, Levels, SystemId,
+};
 use holo_utils::keychain::Key;
 use holo_utils::mac_addr::MacAddr;
 
@@ -200,6 +203,7 @@ static LAN_HELLO1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 }],
                 ipv6_addrs: vec![],
                 ext_seqnum: None,
+                db_fingerprint: Default::default(),
                 padding: vec![
                     PaddingTlv { length: 255 },
                     PaddingTlv { length: 255 },
@@ -394,6 +398,7 @@ static P2P_HELLO1: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 }],
                 ipv6_addrs: vec![],
                 ext_seqnum: None,
+                db_fingerprint: Default::default(),
                 padding: vec![
                     PaddingTlv { length: 255 },
                     PaddingTlv { length: 255 },
@@ -444,6 +449,7 @@ static P2P_HELLO2_CLEAR_TEXT: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
                     }],
                     ipv6_addrs: vec![],
                     ext_seqnum: None,
+                    db_fingerprint: Default::default(),
                     padding: vec![],
                     unknown: vec![],
                 },
@@ -492,6 +498,7 @@ static P2P_HELLO2_HMAC_MD5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
                         session: 0x00000001,
                         packet: 0x1234,
                     })),
+                    db_fingerprint: Default::default(),
                     padding: vec![],
                     unknown: vec![],
                 },
@@ -538,6 +545,7 @@ static P2P_HELLO2_HMAC_SHA256: Lazy<(Vec<u8>, Option<&Key>, Pdu)> =
                     }],
                     ipv6_addrs: vec![],
                     ext_seqnum: None,
+                    db_fingerprint: Default::default(),
                     padding: vec![],
                     unknown: vec![],
                 },
@@ -585,6 +593,119 @@ static P2P_HELLO3: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
                 }],
                 ipv6_addrs: vec![],
                 ext_seqnum: None,
+                db_fingerprint: Default::default(),
+                padding: vec![],
+                unknown: vec![],
+            },
+        )),
+    )
+});
+
+static P2P_HELLO4: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
+    (
+        vec![
+            0x83, 0x14, 0x01, 0x00, 0x11, 0x01, 0x00, 0x00, 0x03, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x06, 0x00, 0x09, 0x00, 0x50, 0x00, 0x81, 0x01,
+            0xcc, 0x01, 0x04, 0x03, 0x49, 0x00, 0x00, 0xf0, 0x0f, 0x00, 0x00,
+            0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00,
+            0x00, 0xc8, 0x84, 0x04, 0x0a, 0x00, 0x07, 0x06, 0xb2, 0x0e, 0x01,
+            0x00, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0x00, 0x00,
+            0x00, 0x3c, 0xb2, 0x0a, 0x02, 0x00, 0xfe, 0xdc, 0xba, 0x98, 0x76,
+            0x54, 0x32, 0x10,
+        ],
+        None,
+        Pdu::Hello(Hello::new(
+            LevelType::All,
+            LevelType::All,
+            SystemId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x06]),
+            9,
+            HelloVariant::P2P {
+                local_circuit_id: 0,
+            },
+            HelloTlvs {
+                protocols_supported: Some(ProtocolsSupportedTlv {
+                    list: vec![0xcc],
+                }),
+                area_addrs: vec![AreaAddressesTlv {
+                    list: vec![AreaAddr::from([0x49, 0x00, 0x00].as_slice())],
+                }],
+                multi_topology: vec![],
+                neighbors: vec![],
+                three_way_adj: Some(ThreeWayAdjTlv {
+                    state: ThreeWayAdjState::Up,
+                    local_circuit_id: Some(100),
+                    neighbor: Some((
+                        SystemId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x05]),
+                        200,
+                    )),
+                }),
+                ipv4_addrs: vec![Ipv4AddressesTlv {
+                    list: vec![ip4!("10.0.7.6")],
+                }],
+                ipv6_addrs: vec![],
+                ext_seqnum: None,
+                db_fingerprint: Levels {
+                    l1: Some(DatabaseFingerprintTlv {
+                        level: LevelNumber::L1,
+                        fingerprint: 0x0123456789abcdef,
+                        last_update: Some(60),
+                    }),
+                    l2: Some(DatabaseFingerprintTlv {
+                        level: LevelNumber::L2,
+                        fingerprint: 0xfedcba9876543210,
+                        last_update: None,
+                    }),
+                },
+                padding: vec![],
+                unknown: vec![],
+            },
+        )),
+    )
+});
+
+// Database Fingerprint TLV with a reserved Level value, which is ignored.
+static P2P_HELLO5: Lazy<(Vec<u8>, Option<&Key>, Pdu)> = Lazy::new(|| {
+    (
+        vec![
+            0x83, 0x14, 0x01, 0x00, 0x11, 0x01, 0x00, 0x00, 0x03, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x06, 0x00, 0x09, 0x00, 0x40, 0x00, 0x81, 0x01,
+            0xcc, 0x01, 0x04, 0x03, 0x49, 0x00, 0x00, 0xf0, 0x0f, 0x00, 0x00,
+            0x00, 0x00, 0x64, 0x00, 0x00, 0x00, 0x00, 0x00, 0x05, 0x00, 0x00,
+            0x00, 0xc8, 0x84, 0x04, 0x0a, 0x00, 0x07, 0x06, 0xb2, 0x0a, 0x03,
+            0x00, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef,
+        ],
+        None,
+        Pdu::Hello(Hello::new(
+            LevelType::All,
+            LevelType::All,
+            SystemId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x06]),
+            9,
+            HelloVariant::P2P {
+                local_circuit_id: 0,
+            },
+            HelloTlvs {
+                protocols_supported: Some(ProtocolsSupportedTlv {
+                    list: vec![0xcc],
+                }),
+                area_addrs: vec![AreaAddressesTlv {
+                    list: vec![AreaAddr::from([0x49, 0x00, 0x00].as_slice())],
+                }],
+                multi_topology: vec![],
+                neighbors: vec![],
+                three_way_adj: Some(ThreeWayAdjTlv {
+                    state: ThreeWayAdjState::Up,
+                    local_circuit_id: Some(100),
+                    neighbor: Some((
+                        SystemId::from([0x00, 0x00, 0x00, 0x00, 0x00, 0x05]),
+                        200,
+                    )),
+                }),
+                ipv4_addrs: vec![Ipv4AddressesTlv {
+                    list: vec![ip4!("10.0.7.6")],
+                }],
+                ipv6_addrs: vec![],
+                ext_seqnum: None,
+                db_fingerprint: Default::default(),
                 padding: vec![],
                 unknown: vec![],
             },
@@ -665,5 +786,23 @@ fn test_encode_p2p_hello3() {
 #[test]
 fn test_decode_p2p_hello3() {
     let (ref bytes, ref auth, ref hello) = *P2P_HELLO3;
+    test_decode_pdu(bytes, hello, auth);
+}
+
+#[test]
+fn test_encode_p2p_hello4() {
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO4;
+    test_encode_pdu(bytes, hello, auth);
+}
+
+#[test]
+fn test_decode_p2p_hello4() {
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO4;
+    test_decode_pdu(bytes, hello, auth);
+}
+
+#[test]
+fn test_decode_p2p_hello5() {
+    let (ref bytes, ref auth, ref hello) = *P2P_HELLO5;
     test_decode_pdu(bytes, hello, auth);
 }

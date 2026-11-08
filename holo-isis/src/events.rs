@@ -736,7 +736,7 @@ fn process_pdu_lsp(
                 level,
                 LanId::from((system_id, iface.state.circuit_id)),
                 None,
-                SnpTlvs::new([lsp.as_snp_entry()], ext_seqnum),
+                SnpTlvs::new([lsp.as_snp_entry()], ext_seqnum, None),
             ));
             iface.enqueue_pdu(pdu, level);
         }
@@ -1352,6 +1352,7 @@ pub(crate) fn process_send_psnp(
         instance.config.lsp_mtu as usize - Snp::PSNP_HEADER_LEN as usize,
         instance.config.auth.all.method(&instance.shared.keychains),
         iface.config.ext_seqnum_mode.get(level).is_some(),
+        false,
     ) {
         if let Some((_, lsp_entry)) =
             iface.state.ssn_list.get_mut(level).pop_first()
@@ -1368,7 +1369,7 @@ pub(crate) fn process_send_psnp(
         level,
         LanId::from((instance.state.system_id, iface.state.circuit_id)),
         None,
-        SnpTlvs::new(lsp_entries, ext_seqnum),
+        SnpTlvs::new(lsp_entries, ext_seqnum, None),
     ));
 
     // Enqueue PDU for transmission.
@@ -1407,7 +1408,15 @@ pub(crate) fn process_send_csnp(
         instance.config.lsp_mtu as usize - Snp::CSNP_HEADER_LEN as usize,
         instance.config.auth.all.method(&instance.shared.keychains),
         iface.config.ext_seqnum_mode.get(level).is_some(),
+        instance.config.db_fingerprint_advertise,
     );
+
+    // Set database fingerprint.
+    let lsdb = instance.state.lsdb.get(level);
+    let db_fingerprint = instance
+        .config
+        .db_fingerprint_advertise
+        .then(|| lsdb.fingerprint().as_tlv(level));
 
     // Closure to generate and send CSNP.
     let mut send_csnp = |level, source, start, end, lsp_entries: Vec<_>| {
@@ -1417,7 +1426,7 @@ pub(crate) fn process_send_csnp(
             level,
             source,
             Some((start, end)),
-            SnpTlvs::new(lsp_entries, ext_seqnum),
+            SnpTlvs::new(lsp_entries, ext_seqnum, db_fingerprint.clone()),
         ));
 
         // Enqueue PDU for transmission.
@@ -1427,7 +1436,6 @@ pub(crate) fn process_send_csnp(
     // Iterate over LSDB and send as many CSNPs as necessary.
     let mut start = LspId::from([0; 8]);
     let mut lsp_entries = vec![];
-    let lsdb = instance.state.lsdb.get(level);
     let mut lsdb_iter = lsdb
         .iter(&arenas.lsp_entries)
         .map(|lse| &lse.data)

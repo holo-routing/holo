@@ -8,8 +8,10 @@
 //
 
 use std::collections::{BTreeMap, BTreeSet, HashMap};
+use std::sync::Arc;
 use std::time::Instant;
 
+use arc_swap::ArcSwap;
 use generational_arena::Index;
 use holo_utils::mac_addr::MacAddr;
 use serde::{Deserialize, Serialize};
@@ -18,7 +20,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::adjacency::Adjacency;
 use crate::error::Error;
 use crate::interface::Interface;
-use crate::lsdb::LspEntry;
+use crate::lsdb::{LsdbFingerprint, LspEntry};
 use crate::packet::pdu::Lsp;
 use crate::packet::{LanId, LevelNumber, LevelType, LspId, SystemId};
 use crate::tasks::messages::input::LspPurgeMsg;
@@ -69,8 +71,8 @@ pub struct Lsdb {
     lspid_tree: BTreeMap<LspId, LspEntryIndex>,
     next_id: ObjectId,
     lsp_count: u32,
-    fingerprint: u64,
-    fingerprint_last_update: Option<Instant>,
+    // Shared with the Hello transmission tasks.
+    fingerprint: Arc<ArcSwap<LsdbFingerprint>>,
 }
 
 // ===== impl ObjectKey =====
@@ -529,8 +531,9 @@ impl Lsdb {
         let lsp = &lse.data;
         if !lsp.is_expired() {
             self.lsp_count += 1;
-            self.fingerprint ^= lsp.lsdb_fingerprint_component();
-            self.fingerprint_last_update = Some(Instant::now());
+            let fingerprint =
+                self.fingerprint().value ^ lsp.lsdb_fingerprint_component();
+            self.fingerprint_set(fingerprint);
         }
 
         (lse_idx, lse)
@@ -551,8 +554,9 @@ impl Lsdb {
         let lsp = &lse.data;
         if !lsp.is_expired() {
             self.lsp_count -= 1;
-            self.fingerprint ^= lsp.lsdb_fingerprint_component();
-            self.fingerprint_last_update = Some(Instant::now());
+            let fingerprint =
+                self.fingerprint().value ^ lsp.lsdb_fingerprint_component();
+            self.fingerprint_set(fingerprint);
         }
 
         // Remove LSP entry from the arena.
@@ -566,8 +570,7 @@ impl Lsdb {
         self.id_tree.clear();
         self.lspid_tree.clear();
         self.lsp_count = 0;
-        self.fingerprint = 0;
-        self.fingerprint_last_update = Some(Instant::now());
+        self.fingerprint_set(0);
     }
 
     // Returns a reference to the LSP entry corresponding to the given ID.
@@ -717,12 +720,25 @@ impl Lsdb {
     }
 
     // Returns the database fingerprint.
-    pub(crate) fn fingerprint(&self) -> u64 {
-        self.fingerprint
+    pub(crate) fn fingerprint(&self) -> LsdbFingerprint {
+        **self.fingerprint.load()
     }
 
-    // Returns the instant when the database fingerprint was last updated.
-    pub(crate) fn fingerprint_last_update(&self) -> Option<Instant> {
-        self.fingerprint_last_update
+    // Returns a shared handle to the database fingerprint.
+    pub(crate) fn fingerprint_shared(&self) -> Arc<ArcSwap<LsdbFingerprint>> {
+        self.fingerprint.clone()
+    }
+
+    // Updates the database fingerprint value.
+    //
+    // The last update time is reset only when the value changes.
+    fn fingerprint_set(&self, value: u64) {
+        if self.fingerprint.load().value == value {
+            return;
+        }
+        self.fingerprint.store(Arc::new(LsdbFingerprint {
+            value,
+            last_update: Some(Instant::now()),
+        }));
     }
 }

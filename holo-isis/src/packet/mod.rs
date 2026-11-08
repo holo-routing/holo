@@ -42,7 +42,8 @@ pub enum LevelNumber {
 }
 
 // Container for storing separate values for level 1 and level 2.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Deserialize, Serialize)]
 pub struct Levels<T> {
     pub l1: T,
     pub l2: T,
@@ -212,6 +213,23 @@ impl<T> Levels<T> {
             LevelNumber::L1 => &mut self.l1,
             LevelNumber::L2 => &mut self.l2,
         }
+    }
+
+    // Returns an iterator over the values of both levels.
+    pub(crate) fn iter(&self) -> impl Iterator<Item = &T> {
+        [&self.l1, &self.l2].into_iter()
+    }
+
+    // Returns a mutable iterator over the values of both levels.
+    pub(crate) fn iter_mut(&mut self) -> impl Iterator<Item = &mut T> {
+        [&mut self.l1, &mut self.l2].into_iter()
+    }
+}
+
+impl<T> Levels<Option<T>> {
+    // Returns whether no value is set for either level.
+    pub(crate) fn is_empty(&self) -> bool {
+        self.l1.is_none() && self.l2.is_none()
     }
 }
 

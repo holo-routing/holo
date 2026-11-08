@@ -57,6 +57,8 @@ pub enum TlvType {
     DynamicHostname = 137,
     Ipv6RouterId = 140,
     MtCapability = 144,
+    // FIXME: TBA in https://datatracker.ietf.org/doc/html/draft-westphal-lsr-isis-database-checksumming-01#section-6.1
+    DatabaseFingerprint = 178,
     MtIsReach = 222,
     MultiTopology = 229,
     Ipv6Addresses = 232,

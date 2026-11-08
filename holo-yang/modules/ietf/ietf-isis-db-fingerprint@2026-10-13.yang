@@ -1,0 +1,112 @@
+module ietf-isis-db-fingerprint {
+  yang-version 1.1;
+  namespace "urn:ietf:params:xml:ns:yang:ietf-isis-db-fingerprint";
+  prefix isis-db-fp;
+
+  import ietf-routing {
+    prefix rt;
+    reference
+      "RFC 8349: A YANG Data Model for Routing
+       Management (NMDA Version)";
+  }
+  import ietf-isis {
+    prefix isis;
+    reference
+      "RFC 9130: YANG Data Model for the IS-IS Protocol";
+  }
+
+  organization
+    "IETF LSR - LSR Working Group";
+  contact
+    "WG Web:   <https://datatracker.ietf.org/wg/lsr>
+     WG List:  <mailto:lsr@ietf.org>
+
+     Author:    Renato Westphal
+               <renato@netdef.org>
+     Author:    Tony Przygienda
+               <mailto:antoni.przygienda@hpe.com>
+    ";
+
+  description
+    "The YANG module augments the base IS-IS YANG data model with
+     operational state related to IS-IS LSDB fingerprinting.
+
+     Copyright (c) 2026 IETF Trust and the persons identified as
+     authors of the code.  All rights reserved.
+
+     Redistribution and use in source and binary forms, with or
+     without modification, is permitted pursuant to, and subject to
+     the license terms contained in, the Revised BSD License set
+     forth in Section 4.c of the IETF Trust's Legal Provisions
+     Relating to IETF Documents
+     (https://trustee.ietf.org/license-info).
+
+     This version of this YANG module is part of RFC XXXX
+     (https://www.rfc-editor.org/info/rfcXXXX); see the RFC itself
+     for full legal notices.
+
+     The key words 'MUST', 'MUST NOT', 'REQUIRED', 'SHALL', 'SHALL
+     NOT', 'SHOULD', 'SHOULD NOT', 'RECOMMENDED', 'NOT RECOMMENDED',
+     'MAY', and 'OPTIONAL' in this document are to be interpreted as
+     described in BCP 14 (RFC 2119) (RFC 8174) when, and only when,
+     they appear in all capitals, as shown here.";
+  reference
+    "RFC XXXX: IS-IS Database Fingerprinting";
+
+  revision 2026-10-13 {
+    description
+      "Initial Version";
+    reference
+      "RFC XXXX: IS-IS Database Fingerprinting";
+  }
+
+  /* LSDB fingerprint */
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis/isis:database/"
+        + "isis:levels" {
+    when "derived-from-or-self(../../../rt:type, 'isis:isis')" {
+      description
+        "This augment ISIS routing protocol when used";
+    }
+    description
+      "Augments the IS-IS LSDB with the per-level database
+       fingerprint.";
+    container fingerprint {
+      description
+        "Information about the LSDB fingerprint for this level.";
+      leaf value {
+        type uint64;
+        description
+          "A 64-bit fingerprint derived from the set of LSPs at this
+           level.
+
+           The fingerprint is computed by XOR-combining a per-LSP
+           component value for each LSP whose Remaining Lifetime is
+           non-zero. LSPs whose Remaining Lifetime is zero (including
+           purged LSPs retained during ZeroAgeLifetime) MUST be
+           excluded from the calculation. The per-LSP component value
+           is derived from the LSP identifier, the LSP checksum, and
+           the LSP length, as specified in Appendix A of RFC XXXX.
+
+           The fingerprint is intended for detecting potential LSDB
+           synchronization differences. Different values indicate
+           different LSDB contents; identical values do not guarantee
+           equivalence due to possible collisions.";
+      }
+      leaf last-update {
+        type uint32;
+        units "seconds";
+        description
+          "Time elapsed since the fingerprint value for this level's
+           LSDB last changed.
+
+           The fingerprint is recomputed whenever the contents of the
+           level's LSDB change. This leaf is reset to zero only when
+           such a recomputation yields a value that differs from the
+           previously computed one. A recomputation that yields the
+           same value does not reset this leaf.";
+      }
+    }
+  }
+}

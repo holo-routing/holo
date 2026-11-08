@@ -2072,9 +2072,10 @@ impl<'a> YangContainer<'a, Instance> for isis::database::levels::fingerprint::Fi
     type ParentListEntry = (LevelNumber, &'a Lsdb);
 
     fn new(_instance: &'a Instance, (_, lsdb): &Self::ParentListEntry) -> Option<Self> {
+        let fingerprint = lsdb.fingerprint();
         Some(Self {
-            value: Some(lsdb.fingerprint()),
-            last_update: lsdb.fingerprint_last_update().map(|time| time.elapsed().as_secs() as u32),
+            value: Some(fingerprint.value),
+            last_update: fingerprint.last_update_elapsed(),
         })
         .ignore_in_testing()
     }

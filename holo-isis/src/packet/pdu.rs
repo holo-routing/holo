@@ -29,18 +29,18 @@ use crate::packet::subtlvs::capability::{
     FloodingAlgoStlv, SrAlgoStlv, SrCapabilitiesStlv,
 };
 use crate::packet::tlv::{
-    AreaAddressesTlv, AuthenticationTlv, DynamicHostnameTlv, ExtendedSeqNum,
-    ExtendedSeqNumTlv, Ipv4AddressesTlv, Ipv4Reach, Ipv4ReachTlv,
-    Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach, Ipv6ReachTlv,
-    Ipv6RouterIdTlv, IsReach, IsReachTlv, LegacyIpv4Reach, LegacyIpv4ReachTlv,
-    LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv, LspEntriesTlv, LspEntry,
-    MtCapabilityTlv, MtFlags, MultiTopologyEntry, MultiTopologyTlv,
-    NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv, PurgeOriginatorIdTlv,
-    RouterCapTlv, TLV_HDR_SIZE, TLV_MAX_LEN, ThreeWayAdjTlv, Tlv, UnknownTlv,
-    tlv_entries_split, tlv_take_max,
+    AreaAddressesTlv, AuthenticationTlv, DatabaseFingerprintTlv,
+    DynamicHostnameTlv, ExtendedSeqNum, ExtendedSeqNumTlv, Ipv4AddressesTlv,
+    Ipv4Reach, Ipv4ReachTlv, Ipv4RouterIdTlv, Ipv6AddressesTlv, Ipv6Reach,
+    Ipv6ReachTlv, Ipv6RouterIdTlv, IsReach, IsReachTlv, LegacyIpv4Reach,
+    LegacyIpv4ReachTlv, LegacyIsReach, LegacyIsReachTlv, LspBufferSizeTlv,
+    LspEntriesTlv, LspEntry, MtCapabilityTlv, MtFlags, MultiTopologyEntry,
+    MultiTopologyTlv, NeighborsTlv, PaddingTlv, ProtocolsSupportedTlv,
+    PurgeOriginatorIdTlv, RouterCapTlv, TLV_HDR_SIZE, TLV_MAX_LEN,
+    ThreeWayAdjTlv, Tlv, UnknownTlv, tlv_entries_split, tlv_take_max,
 };
 use crate::packet::{
-    AreaAddr, LanId, LevelNumber, LevelType, LspId, SystemId, auth,
+    AreaAddr, LanId, LevelNumber, LevelType, Levels, LspId, SystemId, auth,
 };
 
 // IS-IS PDU.
@@ -83,6 +83,7 @@ pub enum HelloVariant {
 #[serde_with::apply(
     Option => #[serde(default, skip_serializing_if = "Option::is_none")],
     Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+    Levels<Option<_>> => #[serde(default, skip_serializing_if = "Levels::is_empty")],
 )]
 #[derive(Deserialize, Serialize)]
 pub struct HelloTlvs {
@@ -94,6 +95,8 @@ pub struct HelloTlvs {
     pub ipv4_addrs: Vec<Ipv4AddressesTlv>,
     pub ipv6_addrs: Vec<Ipv6AddressesTlv>,
     pub ext_seqnum: Option<ExtendedSeqNumTlv>,
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
+    pub db_fingerprint: Levels<Option<DatabaseFingerprintTlv>>,
     pub padding: Vec<PaddingTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
@@ -190,6 +193,8 @@ pub struct Snp {
 pub struct SnpTlvs {
     pub lsp_entries: Vec<LspEntriesTlv>,
     pub ext_seqnum: Option<ExtendedSeqNumTlv>,
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
+    pub db_fingerprint: Option<DatabaseFingerprintTlv>,
     pub unknown: Vec<UnknownTlv>,
 }
 
@@ -713,6 +718,35 @@ impl Hello {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::DatabaseFingerprint) => {
+                    match DatabaseFingerprintTlv::decode(tlv_len, &mut buf_tlv)
+                    {
+                        Ok(Some(tlv)) => {
+                            // In LAN Hellos, the TLV level must match the
+                            // level of the PDU.
+                            let level_mismatch = match hdr.pdu_type {
+                                PduType::HelloLanL1 => {
+                                    tlv.level != LevelNumber::L1
+                                }
+                                PduType::HelloLanL2 => {
+                                    tlv.level != LevelNumber::L2
+                                }
+                                _ => false,
+                            };
+                            if level_mismatch {
+                                continue;
+                            }
+
+                            // Keep only the first TLV for each level.
+                            let slot = tlvs.db_fingerprint.get_mut(tlv.level);
+                            if slot.is_none() {
+                                *slot = Some(tlv);
+                            }
+                        }
+                        Ok(None) => {}
+                        Err(error) => error.log(),
+                    }
+                }
                 Some(TlvType::ProtocolsSupported) => {
                     if tlvs.protocols_supported.is_some() {
                         continue;
@@ -817,6 +851,9 @@ impl Hello {
             if let Some(tlv) = &self.tlvs.ext_seqnum {
                 tlv.encode(&mut buf);
             }
+            for tlv in self.tlvs.db_fingerprint.iter().flatten() {
+                tlv.encode(&mut buf);
+            }
             for tlv in &self.tlvs.padding {
                 tlv.encode(&mut buf);
             }
@@ -852,6 +889,9 @@ impl Hello {
         if let Some(tlv) = &self.tlvs.ext_seqnum {
             total_tlv_len += tlv.len();
         }
+        for tlv in self.tlvs.db_fingerprint.iter().flatten() {
+            total_tlv_len += tlv.len();
+        }
 
         // Calculate the total padding required.
         let mut rem_padding = max_size as usize
@@ -880,6 +920,7 @@ impl HelloTlvs {
         ipv4_addrs: impl IntoIterator<Item = Ipv4Addr>,
         ipv6_addrs: impl IntoIterator<Item = Ipv6Addr>,
         ext_seqnum: Option<ExtendedSeqNum>,
+        db_fingerprint: Levels<Option<DatabaseFingerprintTlv>>,
     ) -> Self {
         HelloTlvs {
             protocols_supported: Some(ProtocolsSupportedTlv::from(
@@ -892,6 +933,7 @@ impl HelloTlvs {
             ipv4_addrs: tlv_entries_split(ipv4_addrs),
             ipv6_addrs: tlv_entries_split(ipv6_addrs),
             ext_seqnum: ext_seqnum.map(ExtendedSeqNumTlv::new),
+            db_fingerprint,
             padding: Default::default(),
             unknown: Default::default(),
         }
@@ -1382,7 +1424,13 @@ impl Lsp {
     pub(crate) fn lsdb_fingerprint_component(&self) -> u64 {
         let mut result: u64 = 0;
         let system_id: &[u8] = self.lsp_id.system_id.as_ref();
-        for i in system_id.iter().chain(&[self.lsp_id.pseudonode]) {
+        // The LSP ID is folded in full, including the fragment number, so that
+        // fragments of the same system and pseudonode contribute distinct
+        // values.
+        for i in system_id
+            .iter()
+            .chain(&[self.lsp_id.pseudonode, self.lsp_id.fragment])
+        {
             result <<= 8;
             result ^= *i as u64;
         }
@@ -1939,6 +1987,23 @@ impl Snp {
                         Err(error) => error.log(),
                     }
                 }
+                Some(TlvType::DatabaseFingerprint) => {
+                    if !matches!(
+                        hdr.pdu_type,
+                        PduType::CsnpL1 | PduType::CsnpL2
+                    ) {
+                        continue;
+                    }
+                    if tlvs.db_fingerprint.is_some() {
+                        continue;
+                    }
+                    match DatabaseFingerprintTlv::decode(tlv_len, &mut buf_tlv)
+                    {
+                        Ok(Some(tlv)) => tlvs.db_fingerprint = Some(tlv),
+                        Ok(None) => {}
+                        Err(error) => error.log(),
+                    }
+                }
                 _ => {
                     // Save unknown top-level TLV.
                     tlvs.unknown
@@ -1989,6 +2054,9 @@ impl Snp {
             if let Some(tlv) = &self.tlvs.ext_seqnum {
                 tlv.encode(&mut buf);
             }
+            if let Some(tlv) = &self.tlvs.db_fingerprint {
+                tlv.encode(&mut buf);
+            }
 
             pdu_encode_end(buf, len_pos, auth, None)
         })
@@ -1999,6 +2067,7 @@ impl SnpTlvs {
     pub(crate) fn new(
         lsp_entries: impl IntoIterator<Item = LspEntry>,
         ext_seqnum: Option<ExtendedSeqNum>,
+        db_fingerprint: Option<DatabaseFingerprintTlv>,
     ) -> Self {
         // Fragment TLVs as necessary.
         let lsp_entries = lsp_entries
@@ -2013,6 +2082,7 @@ impl SnpTlvs {
         SnpTlvs {
             lsp_entries,
             ext_seqnum: ext_seqnum.map(ExtendedSeqNumTlv::new),
+            db_fingerprint,
             unknown: Default::default(),
         }
     }
@@ -2023,6 +2093,7 @@ impl SnpTlvs {
         mut size: usize,
         auth: Option<AuthMethod>,
         ext_seqnum: bool,
+        db_fingerprint: bool,
     ) -> usize {
         let mut lsp_entries = 0;
 
@@ -2036,6 +2107,11 @@ impl SnpTlvs {
         // Reserve space for the ESN TLV.
         if ext_seqnum {
             size -= TLV_HDR_SIZE + ExtendedSeqNumTlv::SIZE;
+        }
+
+        // Reserve space for the Database Fingerprint TLV.
+        if db_fingerprint {
+            size -= TLV_HDR_SIZE + DatabaseFingerprintTlv::MAX_SIZE;
         }
 
         // Calculate how many full TLVs fit in the available size.

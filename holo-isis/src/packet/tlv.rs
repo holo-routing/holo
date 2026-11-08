@@ -43,7 +43,7 @@ use crate::packet::subtlvs::prefix::{
     PrefixAttrFlags, PrefixAttrFlagsStlv, PrefixSidStlv,
 };
 use crate::packet::subtlvs::spb::SpbmSiStlv;
-use crate::packet::{AreaAddr, LanId, LspId, SystemId, subtlvs};
+use crate::packet::{AreaAddr, LanId, LevelNumber, LspId, SystemId, subtlvs};
 
 // TLV header size.
 pub const TLV_HDR_SIZE: usize = 2;
@@ -187,6 +187,15 @@ pub struct ExtendedSeqNumTlv(ExtendedSeqNum);
 pub struct ExtendedSeqNum {
     pub session: u64,
     pub packet: u32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+#[derive(new)]
+#[derive(Deserialize, Serialize)]
+pub struct DatabaseFingerprintTlv {
+    pub level: LevelNumber,
+    pub fingerprint: u64,
+    pub last_update: Option<u32>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -891,6 +900,62 @@ impl ExtendedSeqNumTlv {
 impl Tlv for ExtendedSeqNumTlv {
     fn len(&self) -> usize {
         TLV_HDR_SIZE + Self::SIZE
+    }
+}
+
+// ===== impl DatabaseFingerprintTlv =====
+
+impl DatabaseFingerprintTlv {
+    const MIN_SIZE: usize = 10;
+    pub const MAX_SIZE: usize = 14;
+
+    pub(crate) fn decode(
+        tlv_len: u8,
+        buf: &mut Bytes,
+    ) -> TlvDecodeResult<Option<Self>> {
+        // Validate the TLV length.
+        if !matches!(tlv_len as usize, Self::MIN_SIZE | Self::MAX_SIZE) {
+            return Err(TlvDecodeError::InvalidLength(tlv_len));
+        }
+
+        let level = match buf.try_get_u8()? {
+            1 => LevelNumber::L1,
+            2 => LevelNumber::L2,
+            // Reserved Level values must be ignored on receipt.
+            _ => return Ok(None),
+        };
+        let _reserved = buf.try_get_u8()?;
+        let fingerprint = buf.try_get_u64()?;
+        let mut last_update = None;
+        if tlv_len as usize == Self::MAX_SIZE {
+            last_update = Some(buf.try_get_u32()?);
+        }
+
+        Ok(Some(DatabaseFingerprintTlv {
+            level,
+            fingerprint,
+            last_update,
+        }))
+    }
+
+    pub(crate) fn encode(&self, buf: &mut BytesMut) {
+        let start_pos = tlv_encode_start(buf, TlvType::DatabaseFingerprint);
+        buf.put_u8(self.level as u8);
+        buf.put_u8(0);
+        buf.put_u64(self.fingerprint);
+        if let Some(last_update) = self.last_update {
+            buf.put_u32(last_update);
+        }
+        tlv_encode_end(buf, start_pos);
+    }
+}
+
+impl Tlv for DatabaseFingerprintTlv {
+    fn len(&self) -> usize {
+        if self.last_update.is_some() {
+            return TLV_HDR_SIZE + Self::MAX_SIZE;
+        }
+        TLV_HDR_SIZE + Self::MIN_SIZE
     }
 }
 

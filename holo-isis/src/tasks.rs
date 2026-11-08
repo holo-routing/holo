@@ -310,6 +310,7 @@ pub(crate) fn hello_interval(
     iface: &Interface,
     level_type: impl Into<LevelType>,
     hello: Hello,
+    instance: &InstanceUpView<'_>,
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
@@ -322,6 +323,11 @@ pub(crate) fn hello_interval(
             l2: packet_counters.get(LevelNumber::L2).iih_out.clone(),
         };
         let ext_seqnum_next = iface.state.ext_seqnum.1.clone();
+        let lsdb = &instance.state.lsdb;
+        let lsdb_fingerprints = Levels {
+            l1: lsdb.get(LevelNumber::L1).fingerprint_shared(),
+            l2: lsdb.get(LevelNumber::L2).fingerprint_shared(),
+        };
         let net_tx_pdup = iface.state.net.as_ref().unwrap().net_tx_pdup.clone();
         IntervalTask::with_jitter(
             Duration::from_secs(interval.into()),
@@ -342,6 +348,12 @@ pub(crate) fn hello_interval(
                 if let Some(ext_seqnum) = &mut hello.tlvs.ext_seqnum {
                     ext_seqnum.get_mut().packet =
                         ext_seqnum_next.fetch_add(1, atomic::Ordering::Relaxed);
+                }
+
+                // Update Database Fingerprint TLVs.
+                for tlv in hello.tlvs.db_fingerprint.iter_mut().flatten() {
+                    let fingerprint = lsdb_fingerprints.get(tlv.level).load();
+                    *tlv = fingerprint.as_tlv(tlv.level);
                 }
 
                 async move {

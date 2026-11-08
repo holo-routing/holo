@@ -726,7 +726,6 @@ fn lsa_orig_ext_prefix(
             if let IpNetwork::V4(prefix) = prefix {
                 // Add Prefix-SID Sub-TLV.
                 let mut psid_flags = PrefixSidFlags::empty();
-                let mut prefix_sids = BTreeMap::new();
                 match prefix_sid.last_hop {
                     SidLastHopBehavior::ExpNull => {
                         psid_flags.insert(PrefixSidFlags::NP);
@@ -739,19 +738,18 @@ fn lsa_orig_ext_prefix(
                 }
                 let sid = Sid::Index(prefix_sid.index);
                 let algo = *algo as u8;
-                prefix_sids.insert(algo, PrefixSid::new(psid_flags, algo, sid));
-
-                prefixes.insert(
-                    *prefix,
-                    ExtPrefixTlv {
-                        route_type: ExtPrefixRouteType::IntraArea,
-                        af: 0,
-                        flags: LsaExtPrefixFlags::empty(),
-                        prefix: *prefix,
-                        prefix_sids,
-                        unknown_tlvs: vec![],
-                    },
-                );
+                prefixes
+                    .entry(*prefix)
+                    .or_insert_with(|| {
+                        ExtPrefixTlv::new(
+                            ExtPrefixRouteType::IntraArea,
+                            0,
+                            LsaExtPrefixFlags::empty(),
+                            *prefix,
+                        )
+                    })
+                    .prefix_sids
+                    .insert(algo, PrefixSid::new(psid_flags, algo, sid));
             }
         }
     }

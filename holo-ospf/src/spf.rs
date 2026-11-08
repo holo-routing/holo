@@ -4,8 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::cmp::Ordering;
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, btree_map};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -42,6 +41,15 @@ pub struct Vertex<V: Version> {
     pub hops: u16,
     #[new(default)]
     pub nexthops: Nexthops<V::IpAddr>,
+}
+
+// Candidate list of vertices that are pending insertion into the SPT.
+#[derive(Debug)]
+struct CandidateList<V: Version> {
+    // Pending vertices, keyed by their identifier.
+    vertices: BTreeMap<V::VertexId, Vertex<V>>,
+    // Pending vertices ordered by their distance to the root.
+    queue: BTreeSet<(u32, V::VertexId)>,
 }
 
 #[derive(Debug)]
@@ -286,6 +294,68 @@ pub mod fsm {
         HoldDownTimer,
         LearnTimer,
         ConfigChange,
+    }
+}
+
+// ===== impl CandidateList =====
+
+impl<V> CandidateList<V>
+where
+    V: Version,
+{
+    // Creates a candidate list seeded with the root vertex.
+    fn new(root_v: Vertex<V>) -> CandidateList<V> {
+        CandidateList {
+            queue: BTreeSet::from([(root_v.distance, root_v.id)]),
+            vertices: BTreeMap::from([(root_v.id, root_v)]),
+        }
+    }
+
+    // Removes and returns the vertex closest to the root.
+    fn pop_first(&mut self) -> Option<Vertex<V>> {
+        let (_, id) = self.queue.pop_first()?;
+        self.vertices.remove(&id)
+    }
+
+    // Returns a mutable reference to the entry of the given vertex, adding it
+    // to the candidate list if necessary.
+    //
+    // Returns `None` if the candidate list already contains a shorter path to
+    // that vertex.
+    fn entry(
+        &mut self,
+        id: V::VertexId,
+        distance: u32,
+        hops: u16,
+        lsa: impl FnOnce() -> V::VertexLsa,
+    ) -> Option<&mut Vertex<V>> {
+        match self.vertices.entry(id) {
+            btree_map::Entry::Vacant(v) => {
+                // Add the vertex to the candidate list.
+                let vertex = Vertex::new(id, lsa(), distance, hops);
+                self.queue.insert((distance, id));
+                Some(v.insert(vertex))
+            }
+            btree_map::Entry::Occupied(o) => {
+                let cand_v = o.into_mut();
+
+                // Ignore higher cost path.
+                if distance > cand_v.distance {
+                    return None;
+                }
+
+                // Update the vertex to use the shorter path.
+                if distance < cand_v.distance {
+                    self.queue.remove(&(cand_v.distance, id));
+                    self.queue.insert((distance, id));
+                    cand_v.distance = distance;
+                    cand_v.hops = hops;
+                    cand_v.nexthops.clear();
+                }
+
+                Some(cand_v)
+            }
+        }
     }
 }
 
@@ -611,16 +681,16 @@ fn run_area<V>(
 
     // Initialize SPT and candidate list.
     let mut spt = BTreeMap::new();
-    let mut cand_list = BTreeMap::new();
-    cand_list.insert((root_v.distance, root_v.id), root_v);
+    let mut cand_list = CandidateList::new(root_v);
 
     // Clear router's routing table.
     area.state.routers.clear();
 
     // Main SPF loop.
-    while let Some(((_, vertex_id), vertex)) = cand_list.pop_first() {
+    while let Some(vertex) = cand_list.pop_first() {
         // Add vertex to SPT.
-        spt.insert(vertex.id, vertex);
+        let vertex_id = vertex.id;
+        spt.insert(vertex_id, vertex);
         let vertex = spt.get(&vertex_id).unwrap();
 
         if vertex.lsa.is_router() {
@@ -676,30 +746,13 @@ fn run_area<V>(
                 hops = hops.saturating_add(1);
             }
 
-            // Check if this vertex is already present on the candidate list.
-            // TODO: optimize lookup.
-            if let Some((cand_key, cand_v)) = cand_list
-                .iter_mut()
-                .find(|(_, cand_v)| cand_v.id == link.id)
-            {
-                match distance.cmp(&cand_v.distance) {
-                    Ordering::Less => {
-                        // Remove vertex since its key has changed. It will be
-                        // re-added with the correct key below.
-                        let cand_key = *cand_key;
-                        cand_list.remove(&cand_key);
-                    }
-                    Ordering::Equal => {}
-                    Ordering::Greater => {
-                        // Ignore higher cost path.
-                        continue;
-                    }
-                }
-            }
-            let cand_v =
-                cand_list.entry((distance, link.id)).or_insert_with(|| {
-                    Vertex::new(link.id, link.lsa, distance, hops)
-                });
+            // Add the link's vertex to the candidate list, unless a shorter
+            // path to it is already known.
+            let Some(cand_v) =
+                cand_list.entry(link.id, distance, hops, || link.lsa)
+            else {
+                continue;
+            };
 
             // Update vertex's nexthops.
             match calc_nexthops(

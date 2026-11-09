@@ -170,6 +170,7 @@ fn process_nht_update_af<A>(
     if let Some(nht) = table.nht.get_mut(&addr) {
         nht.metric = metric;
         table.queued_prefixes.extend(nht.prefixes.keys());
+        table.updated_nexthops.insert(addr);
         instance.state.schedule_decision_process(instance.tx);
     }
 }

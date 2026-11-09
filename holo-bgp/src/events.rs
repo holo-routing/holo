@@ -804,6 +804,7 @@ where
     // Process each queued destination in the RIB.
     let table = A::table(&mut instance.state.rib.tables);
     let queued_prefixes = std::mem::take(&mut table.queued_prefixes);
+    let updated_nexthops = std::mem::take(&mut table.updated_nexthops);
     let mut reach = vec![];
     let mut unreach = vec![];
     for prefix in queued_prefixes.iter().copied() {
@@ -827,6 +828,7 @@ where
             prefix,
             dest,
             best_route.clone(),
+            &updated_nexthops,
             selection_cfg,
             mpath_cfg,
             &instance.config.distance,

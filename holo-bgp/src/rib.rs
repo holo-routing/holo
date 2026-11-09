@@ -51,6 +51,8 @@ pub struct RoutingTables {
 pub struct RoutingTable<A: AddressFamily> {
     pub prefixes: PrefixMap<A::IpNetwork, Destination>,
     pub queued_prefixes: BTreeSet<A::IpNetwork>,
+    // Nexthops whose resolution changed since the decision process last ran.
+    pub updated_nexthops: BTreeSet<IpAddr>,
     pub nht: HashMap<IpAddr, NhtEntry<A>>,
     pub prefix_counters: HashMap<PeerIndex, PrefixCounters>,
 }
@@ -271,6 +273,7 @@ where
         RoutingTable {
             prefixes: Default::default(),
             queued_prefixes: Default::default(),
+            updated_nexthops: Default::default(),
             nht: Default::default(),
             prefix_counters: Default::default(),
         }
@@ -1058,6 +1061,7 @@ pub(crate) fn loc_rib_update<A>(
     prefix: A::IpNetwork,
     dest: &mut Destination,
     best_route: Option<Box<BestRoute>>,
+    updated_nexthops: &BTreeSet<IpAddr>,
     selection_cfg: &RouteSelectionCfg,
     mpath_cfg: &MultipathCfg,
     distance_cfg: &DistanceCfg,
@@ -1076,6 +1080,12 @@ where
         let nexthops =
             compute_nexthops::<A>(dest, &best_route, selection_cfg, mpath_cfg);
 
+        // Get the administrative distance of the route.
+        let distance = match best_route.route_type {
+            RouteType::Internal => distance_cfg.internal,
+            RouteType::External => distance_cfg.external,
+        };
+
         // Return early if no change in Loc-RIB is needed.
         if let Some(local_route) = &dest.local
             && local_route.origin == best_route.origin
@@ -1084,6 +1094,16 @@ where
             && local_route.client_cluster_id == best_route.client_cluster_id
             && local_route.nexthops == nexthops
         {
+            // Install the route in the global RIB again if the resolution of
+            // any of its nexthops has changed.
+            if !local_route.origin.is_local()
+                && let Some(nexthops) = nexthops
+                && nexthops
+                    .iter()
+                    .any(|nexthop| updated_nexthops.contains(nexthop))
+            {
+                ibus::tx::route_install(ibus_tx, prefix, local_route, distance);
+            }
             return false;
         }
 
@@ -1099,15 +1119,7 @@ where
 
         // Install local route in the global RIB.
         if !local_route.origin.is_local() {
-            ibus::tx::route_install(
-                ibus_tx,
-                prefix,
-                &local_route,
-                match best_route.route_type {
-                    RouteType::Internal => distance_cfg.internal,
-                    RouteType::External => distance_cfg.external,
-                },
-            );
+            ibus::tx::route_install(ibus_tx, prefix, &local_route, distance);
         }
 
         // Insert local route into the Loc-RIB.

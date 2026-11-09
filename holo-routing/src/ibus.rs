@@ -259,9 +259,10 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
 // Cleans up all state associated with a disconnected client.
 pub(crate) fn disconnect(master: &mut Master, id: IbusClientId) {
     master.rib.subscriptions.remove(&id);
-    for nhte in master.rib.nht.values_mut() {
+    master.rib.nht.retain(|_, nhte| {
         nhte.subscriptions.remove(&id);
-    }
+        !nhte.subscriptions.is_empty()
+    });
     master.rib.route_remove_all_by_owner(id);
 }
 

@@ -62,8 +62,17 @@ bitflags! {
 
 #[derive(Clone, Debug, Default)]
 pub struct NhtEntry {
-    pub metric: Option<u32>,
+    pub resolution: Option<NhtResolution>,
     pub subscriptions: HashMap<usize, IbusSender>,
+}
+
+// Attributes of the route a tracked nexthop address resolves through that
+// matter to its subscribers.
+#[derive(Clone, Debug)]
+pub struct NhtResolution {
+    pub protocol: Protocol,
+    pub metric: u32,
+    pub nexthops: Box<[Nexthop]>,
 }
 
 #[derive(Debug)]
@@ -302,9 +311,9 @@ impl Rib {
     // Nexthop tracking registration.
     pub(crate) fn nht_add(&mut self, client: IbusClient, addr: IpAddr) {
         debug!(%addr, "nexthop tracking add");
-        let metric = self.nht_evaluate(&addr);
+        let resolution = self.nht_evaluate(&addr);
         let nhte = self.nht.entry(addr).or_default();
-        nhte.metric = metric;
+        nhte.resolution = resolution;
         nhte.subscriptions.insert(client.id, client.tx);
         ibus::notify_nht_update(addr, nhte);
     }
@@ -322,9 +331,9 @@ impl Rib {
     }
 
     // Evaluates the reachability of the given nexthop address and returns
-    // the metric of the route used to reach it.
-    fn nht_evaluate(&self, addr: &IpAddr) -> Option<u32> {
-        self.prefix_longest_match(addr).map(|route| route.metric)
+    // the route used to reach it.
+    fn nht_evaluate(&self, addr: &IpAddr) -> Option<NhtResolution> {
+        self.prefix_longest_match(addr).map(NhtResolution::new)
     }
 
     // Processes routes present in the update queue.
@@ -410,15 +419,27 @@ impl Rib {
         // Reevaluate all registered nexthops.
         let mut nht = std::mem::take(&mut self.nht);
         for (addr, nhte) in &mut nht {
-            let new_metric = self.nht_evaluate(addr);
-            if new_metric != nhte.metric {
-                debug!(
-                    %addr, old_metric = ?nhte.metric, ?new_metric,
-                    "nexthop tracking update"
-                );
-                nhte.metric = new_metric;
-                ibus::notify_nht_update(*addr, nhte);
+            // Check whether the route the address resolves through has
+            // another protocol, metric or nexthops. Moving to a route of
+            // another prefix doesn't count by itself, as nothing the
+            // subscribers get depends on the prefix.
+            let lpm = self.prefix_longest_match(addr);
+            let unchanged = match (&nhte.resolution, lpm) {
+                (Some(old), Some(route)) => old.matches(route),
+                (None, None) => true,
+                _ => false,
+            };
+            if unchanged {
+                continue;
             }
+
+            let new = lpm.map(NhtResolution::new);
+            debug!(
+                %addr, old = ?nhte.resolution, ?new,
+                "nexthop tracking update"
+            );
+            nhte.resolution = new;
+            ibus::notify_nht_update(*addr, nhte);
         }
         self.nht = nht;
     }
@@ -589,5 +610,25 @@ impl Route {
         for nh in self.nexthops.iter_mut() {
             nh.remove_labels();
         }
+    }
+}
+
+// ===== impl NhtResolution =====
+
+impl NhtResolution {
+    fn new(route: &Route) -> Self {
+        NhtResolution {
+            protocol: route.protocol,
+            metric: route.metric,
+            nexthops: route.nexthops.clone(),
+        }
+    }
+
+    // Returns whether the given route has the same protocol, metric and
+    // nexthops as the one recorded.
+    fn matches(&self, route: &Route) -> bool {
+        self.protocol == route.protocol
+            && self.metric == route.metric
+            && self.nexthops == route.nexthops
     }
 }

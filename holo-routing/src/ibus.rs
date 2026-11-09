@@ -316,7 +316,7 @@ pub(crate) fn notify_redistribute_del(
 pub(crate) fn notify_nht_update(addr: IpAddr, nhte: &NhtEntry) {
     let msg = IbusMsg::NexthopUpd {
         addr,
-        metric: nhte.metric,
+        metric: nhte.resolution.as_ref().map(|resolution| resolution.metric),
     };
     for ibus_tx in nhte.subscriptions.values() {
         send(ibus_tx, msg.clone());

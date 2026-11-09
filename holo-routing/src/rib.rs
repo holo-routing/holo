@@ -99,7 +99,7 @@ impl Rib {
 
     // Adds IP route to the RIB.
     pub(crate) fn ip_route_add(&mut self, msg: RouteMsg, owner: IbusClientId) {
-        let nexthops = self.resolve_nexthops(msg.nexthops);
+        let nexthops = self.resolve_nexthops(Some(msg.prefix), msg.nexthops);
         let rib_prefix = self.prefix_entry(msg.prefix);
 
         // A protocol has one route to a prefix, which is looked up by the
@@ -177,7 +177,7 @@ impl Rib {
         msg: LabelInstallMsg,
         owner: IbusClientId,
     ) {
-        let nexthops = self.resolve_nexthops(msg.nexthops);
+        let nexthops = self.resolve_nexthops(None, msg.nexthops);
         match self.mpls.entry(msg.label) {
             btree_map::Entry::Vacant(v) => {
                 // If the MPLS route does not exist, create a new entry.
@@ -333,7 +333,8 @@ impl Rib {
     // Evaluates the reachability of the given nexthop address and returns
     // the route used to reach it.
     fn nht_evaluate(&self, addr: &IpAddr) -> Option<NhtResolution> {
-        self.prefix_longest_match(addr).map(NhtResolution::new)
+        self.prefix_longest_match(addr, None)
+            .map(NhtResolution::new)
     }
 
     // Processes routes present in the update queue.
@@ -423,7 +424,7 @@ impl Rib {
             // another protocol, metric or nexthops. Moving to a route of
             // another prefix doesn't count by itself, as nothing the
             // subscribers get depends on the prefix.
-            let lpm = self.prefix_longest_match(addr);
+            let lpm = self.prefix_longest_match(addr, None);
             let unchanged = match (&nhte.resolution, lpm) {
                 (Some(old), Some(route)) => old.matches(route),
                 (None, None) => true,
@@ -454,15 +455,28 @@ impl Rib {
     // Returns the route to the given IP address: the active route of the
     // longest prefix that contains it, skipping prefixes without an active
     // route or whose active route is being withdrawn.
-    fn prefix_longest_match(&self, addr: &IpAddr) -> Option<&Route> {
+    //
+    // Two other kinds of prefixes are skipped as well:
+    // - The given prefix, if any, as resolving a route's nexthops through its
+    //   own prefix would make the route depend on itself once installed.
+    // - Prefixes whose active route has a recursive nexthop to the address,
+    //   as that route can only reach the address through whatever the address
+    //   itself resolves through.
+    fn prefix_longest_match(
+        &self,
+        addr: &IpAddr,
+        skip_prefix: Option<IpNetwork>,
+    ) -> Option<&Route> {
         self.ip
             .cover(&addr.to_host_prefix())
+            .filter(|(prefix, _)| Some(*prefix) != skip_prefix)
             .filter_map(|(_, routes)| {
                 routes
                     .iter()
                     .find(|route| route.flags.contains(RouteFlags::ACTIVE))
                     .filter(|route| !route.flags.contains(RouteFlags::REMOVED))
             })
+            .filter(|route| !route.has_recursive_nexthop(addr))
             .last()
     }
 
@@ -471,7 +485,14 @@ impl Rib {
     // Note that only one level of recursion is resolved. If the resolved
     // next-hops contain recursive next-hops themselves, those will not be
     // resolved further.
-    fn resolve_nexthops(&self, nexthops: Vec<Nexthop>) -> Box<[Nexthop]> {
+    //
+    // A route can't be resolved through its own prefix, as it would end up
+    // using its own next-hops once it becomes the best route for the prefix.
+    fn resolve_nexthops(
+        &self,
+        prefix: Option<IpNetwork>,
+        nexthops: Vec<Nexthop>,
+    ) -> Box<[Nexthop]> {
         nexthops
             .into_iter()
             .map(|mut nexthop| {
@@ -481,7 +502,8 @@ impl Rib {
                     labels,
                 } = &mut nexthop
                 {
-                    if let Some(route) = self.prefix_longest_match(addr) {
+                    if let Some(route) = self.prefix_longest_match(addr, prefix)
+                    {
                         if route.protocol == Protocol::DIRECT
                             && let Some(Nexthop::Interface { ifindex }) =
                                 route.nexthops.first()
@@ -617,6 +639,17 @@ impl Route {
         for nh in self.nexthops.iter_mut() {
             nh.remove_labels();
         }
+    }
+
+    // Returns whether the route has a recursive nexthop to the given address.
+    fn has_recursive_nexthop(&self, addr: &IpAddr) -> bool {
+        self.nexthops.iter().any(|nexthop| {
+            matches!(
+                nexthop,
+                Nexthop::Recursive { addr: nexthop_addr, .. }
+                    if nexthop_addr == addr
+            )
+        })
     }
 }
 

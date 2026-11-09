@@ -172,7 +172,8 @@ pub struct LabelInstallMsg {
     pub protocol: Protocol,
     pub label: Label,
     pub nexthops: Vec<Nexthop>,
-    pub route: Option<(Protocol, IpNetwork)>,
+    // IP prefix whose traffic also takes the outgoing labels, if any.
+    pub prefix: Option<IpNetwork>,
 }
 
 #[derive(Clone, Debug)]
@@ -180,7 +181,8 @@ pub struct LabelInstallMsg {
 pub struct LabelUninstallMsg {
     pub protocol: Protocol,
     pub label: Label,
-    pub route: Option<(Protocol, IpNetwork)>,
+    // IP prefix the MPLS route was installed with, if any.
+    pub prefix: Option<IpNetwork>,
 }
 
 // ===== impl Nexthop =====
@@ -207,13 +209,6 @@ impl Nexthop {
                 Nexthop::Interface { ifindex: ifindex2 },
             ) => ifindex1 == ifindex2,
             _ => false,
-        }
-    }
-
-    // Removes all labels from a `Nexthop::Address` variant.
-    pub fn remove_labels(&mut self) {
-        if let Nexthop::Address { labels, .. } = self {
-            *labels = Default::default();
         }
     }
 

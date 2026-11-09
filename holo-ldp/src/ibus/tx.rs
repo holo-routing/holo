@@ -42,8 +42,7 @@ pub(crate) fn fec_sync(ibus_tx: &IbusChannelsTx, fec: &Fec) {
     if local_label.is_reserved() {
         return;
     }
-    let protocol = fec.inner.protocol.unwrap();
-    let route = Some((protocol, *fec.inner.prefix));
+    let prefix = Some(*fec.inner.prefix);
 
     // Collect the nexthops that have a label.
     let nexthops = fec
@@ -64,7 +63,7 @@ pub(crate) fn fec_sync(ibus_tx: &IbusChannelsTx, fec: &Fec) {
         let msg = LabelUninstallMsg {
             protocol: Protocol::LDP,
             label: local_label,
-            route,
+            prefix,
         };
         ibus_tx.route_mpls_del(msg);
     } else {
@@ -72,7 +71,7 @@ pub(crate) fn fec_sync(ibus_tx: &IbusChannelsTx, fec: &Fec) {
             protocol: Protocol::LDP,
             label: local_label,
             nexthops,
-            route,
+            prefix,
         };
         ibus_tx.route_mpls_add(msg);
     }

@@ -31,6 +31,9 @@ use crate::interface::Interfaces;
 pub struct Rib {
     pub ip: JointPrefixMap<IpNetwork, Vec<Route>>,
     pub mpls: BTreeMap<Label, Route>,
+    // FTN (FEC-to-NHLFE map, RFC 3031): by IP prefix, the label of the MPLS
+    // route whose outgoing labels the prefix's traffic takes.
+    pub ftn: HashMap<IpNetwork, Label>,
     pub nht: HashMap<IpAddr, NhtEntry>,
     pub ip_update_queue: BTreeSet<IpNetwork>,
     pub mpls_update_queue: BTreeSet<Label>,
@@ -38,7 +41,7 @@ pub struct Rib {
     pub subscriptions: HashMap<usize, RedistributeSub>,
 }
 
-#[derive(Clone, Debug, new)]
+#[derive(Clone, Debug)]
 pub struct Route {
     pub protocol: Protocol,
     pub owner: IbusClientId,
@@ -48,6 +51,9 @@ pub struct Route {
     pub tag: Option<u32>,
     pub opaque_attrs: RouteOpaqueAttrs,
     pub nexthops: Box<[Nexthop]>,
+    // Nexthops as the owner installed them, kept aside while `nexthops` has
+    // the FTN labels applied.
+    pub owner_nexthops: Option<Box<[Nexthop]>>,
     pub last_updated: DateTime<Utc>,
     pub flags: RouteFlags,
 }
@@ -89,6 +95,7 @@ impl Rib {
         Self {
             ip: Default::default(),
             mpls: Default::default(),
+            ftn: Default::default(),
             nht: Default::default(),
             ip_update_queue: Default::default(),
             mpls_update_queue: Default::default(),
@@ -120,6 +127,7 @@ impl Rib {
                 route.tag = msg.tag;
                 route.opaque_attrs = msg.opaque_attrs;
                 route.nexthops = nexthops;
+                route.owner_nexthops = None;
                 route.last_updated = Utc::now();
                 route.flags.remove(RouteFlags::REMOVED);
                 (idx, route)
@@ -135,8 +143,6 @@ impl Rib {
                     msg.tag,
                     msg.opaque_attrs,
                     nexthops,
-                    Utc::now(),
-                    RouteFlags::empty(),
                 ),
             ),
         };
@@ -187,30 +193,18 @@ impl Rib {
             0,
             None,
             RouteOpaqueAttrs::None,
-            nexthops.clone(),
-            Utc::now(),
-            RouteFlags::empty(),
+            nexthops,
         );
         self.mpls.insert(msg.label, route);
 
         // Add MPLS route to the update queue.
         self.mpls_update_queue_add(msg.label);
 
-        // Check for the associated IP route.
-        if let Some((protocol, prefix)) = msg.route {
-            let Some(rib_prefix) = self.ip.get_mut(&prefix) else {
-                return;
-            };
-            if let Some(route) = rib_prefix
-                .iter_mut()
-                .find(|route| route.protocol == protocol)
-            {
-                // Update route's nexthop labels.
-                route.replace_nexthops_labels(&nexthops);
-
-                // Add IP route to the update queue.
-                self.ip_update_queue_add(prefix);
-            }
+        // Point the prefix's FTN entry to this MPLS route, and install the
+        // prefix's route again with the new labels.
+        if let Some(prefix) = msg.prefix {
+            self.ftn.insert(prefix, msg.label);
+            self.ip_update_queue_add(prefix);
         }
     }
 
@@ -230,21 +224,13 @@ impl Rib {
         // Add MPLS route to the update queue.
         self.mpls_update_queue_add(msg.label);
 
-        // Check for the associated IP route.
-        if let Some((protocol, prefix)) = msg.route {
-            let Some(rib_prefix) = self.ip.get_mut(&prefix) else {
-                return;
-            };
-            if let Some(route) = rib_prefix
-                .iter_mut()
-                .find(|route| route.protocol == protocol)
-            {
-                // Remove route's nexthop labels.
-                route.remove_nexthops_labels();
-
-                // Add IP route to the update queue.
-                self.ip_update_queue_add(prefix);
-            }
+        // Remove the prefix's FTN entry if it still points to this MPLS route,
+        // and install the prefix's route again without the labels.
+        if let Some(prefix) = msg.prefix
+            && self.ftn.get(&prefix) == Some(&msg.label)
+        {
+            self.ftn.remove(&prefix);
+            self.ip_update_queue_add(prefix);
         }
     }
 
@@ -285,6 +271,13 @@ impl Rib {
     ) {
         // Process IP update queue.
         while let Some(prefix) = self.ip_update_queue.pop_first() {
+            // Nexthops of the MPLS route the prefix's FTN entry points to,
+            // if any.
+            let ftn_nexthops = self
+                .ftn
+                .get(&prefix)
+                .and_then(|label| self.mpls.get(label))
+                .map(|route| &*route.nexthops);
             let rib_prefix = self.ip.entry(prefix).or_default();
 
             // Find the protocol of the old best route, if one exists.
@@ -303,6 +296,9 @@ impl Rib {
                     // Mark the route as the preferred one.
                     route.flags.insert(RouteFlags::ACTIVE);
 
+                    // Apply the prefix's FTN labels, if any.
+                    route.relabel(ftn_nexthops);
+
                     // Install the route in the dataplane.
                     if route.protocol != Protocol::DIRECT {
                         dataplane.ip_route_install(&prefix, route, interfaces);
@@ -315,6 +311,9 @@ impl Rib {
                 } else {
                     // Remove the preferred flag for other routes.
                     route.flags.remove(RouteFlags::ACTIVE);
+
+                    // Drop the FTN labels the route took while preferred.
+                    route.relabel(None);
                 }
             }
 
@@ -483,6 +482,7 @@ impl Rib {
 
     // Removes all IP and MPLS routes installed by the given client.
     pub(crate) fn route_remove_all_by_owner(&mut self, owner: IbusClientId) {
+        // Remove all IP routes owned by the given client.
         for (prefix, rib_prefix) in self.ip.iter_mut() {
             for route in rib_prefix.iter_mut() {
                 if route.owner == owner {
@@ -491,12 +491,27 @@ impl Rib {
                 }
             }
         }
+
+        // Remove all MPLS routes owned by the given client.
         for (label, route) in &mut self.mpls {
             if route.owner == owner {
                 route.flags.insert(RouteFlags::REMOVED);
                 self.mpls_update_queue.insert(*label);
             }
         }
+
+        // Remove all FTN entries corresponding to labels owned by the given
+        // client, and install the prefixes' routes again without the labels.
+        self.ftn.retain(|prefix, label| {
+            let keep = self
+                .mpls
+                .get(label)
+                .is_some_and(|route| route.owner != owner);
+            if !keep {
+                self.ip_update_queue.insert(*prefix);
+            }
+            keep
+        });
         let _ = self.update_queue_tx.send(());
     }
 
@@ -519,27 +534,59 @@ impl Rib {
 // ===== impl Route =====
 
 impl Route {
-    // Replaces the provided next hop labels from another set into this route.
-    //
-    // It matches and copies labels for existing nexthops and removes labels
-    // for unmatched nexthops.
-    fn replace_nexthops_labels(&mut self, other_nhs: &[Nexthop]) {
-        for nh in self.nexthops.iter_mut() {
-            if let Some(other_nh) = other_nhs
-                .iter()
-                .find(|other_nh| nh.matches_no_labels(other_nh))
-            {
-                nh.copy_labels(other_nh);
-            } else {
-                nh.remove_labels();
-            }
+    fn new(
+        protocol: Protocol,
+        owner: IbusClientId,
+        kind: RouteKind,
+        distance: u32,
+        metric: u32,
+        tag: Option<u32>,
+        opaque_attrs: RouteOpaqueAttrs,
+        nexthops: Box<[Nexthop]>,
+    ) -> Route {
+        Route {
+            protocol,
+            owner,
+            kind,
+            distance,
+            metric,
+            tag,
+            opaque_attrs,
+            nexthops,
+            owner_nexthops: None,
+            last_updated: Utc::now(),
+            flags: RouteFlags::empty(),
         }
     }
 
-    // Removes labels from all nexthops of the route.
-    fn remove_nexthops_labels(&mut self) {
-        for nh in self.nexthops.iter_mut() {
-            nh.remove_labels();
+    // Relabels the nexthops of the route: the outgoing labels of the given
+    // FTN nexthops are applied to the nexthops that match them, as the owner
+    // of the route installed them, in place of their own. Without FTN
+    // nexthops, the route is left with the nexthops of its owner.
+    fn relabel(&mut self, ftn_nexthops: Option<&[Nexthop]>) {
+        // Start over from the nexthops installed by the owner.
+        if let Some(owner_nexthops) = self.owner_nexthops.take() {
+            self.nexthops = owner_nexthops;
+        }
+        let Some(ftn_nexthops) = ftn_nexthops else {
+            return;
+        };
+
+        let mut nexthops = self.nexthops.clone();
+        for nexthop in nexthops.iter_mut() {
+            if let Some(ftn_nexthop) = ftn_nexthops
+                .iter()
+                .find(|ftn_nexthop| nexthop.matches_no_labels(ftn_nexthop))
+            {
+                nexthop.copy_labels(ftn_nexthop);
+            }
+        }
+
+        // Keep the owner's nexthops aside only if they were changed.
+        if nexthops != self.nexthops {
+            let owner_nexthops =
+                std::mem::replace(&mut self.nexthops, nexthops);
+            self.owner_nexthops = Some(owner_nexthops);
         }
     }
 

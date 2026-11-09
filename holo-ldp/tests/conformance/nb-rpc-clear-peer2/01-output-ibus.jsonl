@@ -1,1 +1,1 @@
-{"RouteMplsDel":{"protocol":"ldp","label":25,"route":["ospfv2","1.1.1.1/32"]}}
+{"RouteMplsDel":{"protocol":"ldp","label":25,"prefix":"1.1.1.1/32"}}

@@ -702,31 +702,23 @@ fn process_nbr_msg_address(
         let fec = instance.state.fecs.get_mut(prefix).unwrap();
         let old_fec_status = fec.is_operational();
 
-        for nexthop in fec.nexthops.values_mut() {
-            for addr in &addr_list {
-                if nexthop.addr != *addr {
-                    continue;
-                }
-
-                match msg.msg_type {
-                    AddressMessageType::Address => {
-                        nexthop.set_label(Some(mapping.label));
-                        ibus::tx::label_install(
-                            &instance.tx.ibus,
-                            &fec.inner,
-                            nexthop,
-                        );
-                    }
-                    AddressMessageType::AddressWithdraw => {
-                        ibus::tx::label_uninstall(
-                            &instance.tx.ibus,
-                            &fec.inner,
-                            nexthop,
-                        );
-                        nexthop.set_label(None);
-                    }
-                }
+        let label = match msg.msg_type {
+            AddressMessageType::Address => Some(mapping.label),
+            AddressMessageType::AddressWithdraw => None,
+        };
+        let mut changed = false;
+        for nexthop in fec
+            .nexthops
+            .values_mut()
+            .filter(|nexthop| addr_list.contains(&nexthop.addr))
+        {
+            if nexthop.get_label() != label {
+                nexthop.set_label(label);
+                changed = true;
             }
+        }
+        if changed {
+            ibus::tx::fec_sync(&instance.tx.ibus, fec);
         }
 
         if old_fec_status != fec.is_operational() {
@@ -835,6 +827,7 @@ pub(crate) fn process_nbr_msg_label_mapping(
 
     // LMp.9: does LSR have a previously received label mapping for FEC from
     // MsgSource for the LSP in question?
+    let mut changed = false;
     if let btree_map::Entry::Occupied(o) = nbr.rcvd_mappings.entry(prefix) {
         // LMp.10.
         let mapping = o.get();
@@ -846,12 +839,12 @@ pub(crate) fn process_nbr_msg_label_mapping(
                     continue;
                 }
 
-                ibus::tx::label_uninstall(
-                    &instance.tx.ibus,
-                    &fec.inner,
-                    nexthop,
-                );
+                if nexthop.get_label().is_none() {
+                    continue;
+                }
+
                 nexthop.set_label(None);
+                changed = true;
             }
             nbr.send_label_release(
                 &instance.state.msg_id,
@@ -863,7 +856,6 @@ pub(crate) fn process_nbr_msg_label_mapping(
 
     // LMp.11 - 12: consider multiple nexthops in order to support multipath.
     for nexthop in fec.nexthops.values_mut() {
-        // LMp.15: install FEC in the FIB.
         if !nbr.addr_list.contains(&nexthop.addr) {
             continue;
         }
@@ -874,9 +866,12 @@ pub(crate) fn process_nbr_msg_label_mapping(
         }
 
         nexthop.set_label(Some(label));
-        if fec.inner.local_label.is_some() {
-            ibus::tx::label_install(&instance.tx.ibus, &fec.inner, nexthop);
-        }
+        changed = true;
+    }
+
+    // LMp.15: install FEC in the FIB.
+    if changed {
+        ibus::tx::fec_sync(&instance.tx.ibus, fec);
     }
 
     if old_fec_status != fec.is_operational() {
@@ -1041,8 +1036,13 @@ fn process_nbr_msg_label_withdraw(
     let old_fec_status = fec.is_operational();
 
     // LWd.1: remove label from forwarding/switching use.
+    let mut changed = false;
     for nexthop in fec.nexthops.values_mut() {
         if !nbr.addr_list.contains(&nexthop.addr) {
+            continue;
+        }
+
+        if nexthop.get_label().is_none() {
             continue;
         }
 
@@ -1050,8 +1050,11 @@ fn process_nbr_msg_label_withdraw(
             continue;
         }
 
-        ibus::tx::label_uninstall(&instance.tx.ibus, &fec.inner, nexthop);
         nexthop.set_label(None);
+        changed = true;
+    }
+    if changed {
+        ibus::tx::fec_sync(&instance.tx.ibus, fec);
     }
 
     if old_fec_status != fec.is_operational() {
@@ -1102,8 +1105,13 @@ fn process_nbr_msg_label_withdraw_wcard(
         let old_fec_status = fec.is_operational();
 
         // LWd.1: remove label from forwarding/switching use.
+        let mut changed = false;
         for nexthop in fec.nexthops.values_mut() {
             if !nbr.addr_list.contains(&nexthop.addr) {
+                continue;
+            }
+
+            if nexthop.get_label().is_none() {
                 continue;
             }
 
@@ -1111,8 +1119,11 @@ fn process_nbr_msg_label_withdraw_wcard(
                 continue;
             }
 
-            ibus::tx::label_uninstall(&instance.tx.ibus, &fec.inner, nexthop);
             nexthop.set_label(None);
+            changed = true;
+        }
+        if changed {
+            ibus::tx::fec_sync(&instance.tx.ibus, fec);
         }
 
         if old_fec_status != fec.is_operational() {

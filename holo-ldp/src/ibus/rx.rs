@@ -217,6 +217,7 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
     fec.inner.protocol = Some(msg.protocol);
 
     // Find the nexthops that were deleted.
+    let mut changed = false;
     for nexthop_addr in fec.nexthops.keys().copied().collect::<Vec<_>>() {
         if !msg.nexthops.iter().any(|msg_nexthop| {
             if let Nexthop::Address { addr, .. } = *msg_nexthop {
@@ -225,10 +226,14 @@ pub(crate) fn process_route_add(instance: &mut Instance, msg: RouteMsg) {
                 false
             }
         }) {
-            let nexthop = &fec.nexthops[&nexthop_addr];
-            ibus::tx::label_uninstall(&instance.tx.ibus, &fec.inner, nexthop);
-            fec.nexthops.remove(&nexthop_addr);
+            let nexthop = fec.nexthops.remove(&nexthop_addr).unwrap();
+            changed |= nexthop.get_label().is_some();
         }
+    }
+
+    // Uninstall the labels of the deleted nexthops.
+    if changed {
+        ibus::tx::fec_sync(&instance.tx.ibus, fec);
     }
 
     if old_fec_status != fec.is_operational() {
@@ -273,9 +278,10 @@ pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
             nbr.send_label_withdraw(msg_id, fec);
         }
 
-        // Uninstall learned labels.
-        for nexthop in fec.nexthops.values() {
-            ibus::tx::label_uninstall(&instance.tx.ibus, &fec.inner, nexthop);
+        // Delete nexthops, uninstalling their labels if any had one.
+        fec.nexthops.clear();
+        if old_fec_status {
+            ibus::tx::fec_sync(&instance.tx.ibus, fec);
         }
 
         // Release FEC's local label.
@@ -284,9 +290,6 @@ pub(crate) fn process_route_del(instance: &mut Instance, msg: RouteKeyMsg) {
                 instance.shared.label_manager.lock().unwrap();
             label_manager.label_release(local_label);
         }
-
-        // Delete nexthops.
-        fec.nexthops.clear();
 
         if old_fec_status != fec.is_operational() {
             notification::mpls_ldp_fec_event(

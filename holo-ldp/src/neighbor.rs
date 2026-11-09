@@ -397,17 +397,16 @@ impl Neighbor {
                     let old_fec_status = fec.is_operational();
 
                     // Uninstall mapping received from this neighbor (if any).
-                    for nexthop in fec
-                        .nexthops
-                        .values_mut()
-                        .filter(|nexthop| nbr.addr_list.contains(&nexthop.addr))
-                    {
-                        ibus::tx::label_uninstall(
-                            &instance.tx.ibus,
-                            &fec.inner,
-                            nexthop,
-                        );
+                    let mut changed = false;
+                    for nexthop in fec.nexthops.values_mut().filter(|nexthop| {
+                        nbr.addr_list.contains(&nexthop.addr)
+                            && nexthop.get_label().is_some()
+                    }) {
                         nexthop.set_label(None);
+                        changed = true;
+                    }
+                    if changed {
+                        ibus::tx::fec_sync(&instance.tx.ibus, fec);
                     }
                     if old_fec_status != fec.is_operational() {
                         notification::mpls_ldp_fec_event(

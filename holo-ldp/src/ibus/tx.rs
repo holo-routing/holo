@@ -9,7 +9,7 @@ use holo_utils::ip::AddressFamily;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{self, LabelInstallMsg, LabelUninstallMsg};
 
-use crate::fec::{FecInner, Nexthop};
+use crate::fec::Fec;
 
 // ===== global functions =====
 
@@ -33,69 +33,49 @@ pub(crate) fn route_redistribute_unsub(ibus_tx: &IbusChannelsTx) {
     }
 }
 
-pub(crate) fn label_install(
-    ibus_tx: &IbusChannelsTx,
-    fec: &FecInner,
-    nexthop: &Nexthop,
-) {
-    let Some(local_label) = fec.local_label else {
+// Installs the labels learned for the nexthops of a FEC, replacing those
+// installed before, or uninstalls them once no nexthop has a label left.
+pub(crate) fn fec_sync(ibus_tx: &IbusChannelsTx, fec: &Fec) {
+    let Some(local_label) = fec.inner.local_label else {
         return;
     };
     if local_label.is_reserved() {
         return;
     }
-    let Some(remote_label) = nexthop.get_label() else {
-        return;
-    };
-    let protocol = fec.protocol.unwrap();
+    let protocol = fec.inner.protocol.unwrap();
+    let route = Some((protocol, *fec.inner.prefix));
 
-    // Fill-in message.
-    let msg = LabelInstallMsg {
-        protocol: Protocol::LDP,
-        label: local_label,
-        nexthops: [southbound::Nexthop::Address {
-            ifindex: nexthop.ifindex.unwrap(),
-            addr: nexthop.addr,
-            labels: [remote_label].into(),
-        }]
-        .into(),
-        route: Some((protocol, *fec.prefix)),
-        replace: false,
-    };
+    // Collect the nexthops that have a label.
+    let nexthops = fec
+        .nexthops
+        .values()
+        .filter_map(|nexthop| {
+            let label = nexthop.get_label()?;
+            Some(southbound::Nexthop::Address {
+                ifindex: nexthop.ifindex.unwrap(),
+                addr: nexthop.addr,
+                labels: [label].into(),
+            })
+        })
+        .collect::<Vec<_>>();
 
-    // Send message.
-    ibus_tx.route_mpls_add(msg);
-}
-
-pub(crate) fn label_uninstall(
-    ibus_tx: &IbusChannelsTx,
-    fec: &FecInner,
-    nexthop: &Nexthop,
-) {
-    let Some(local_label) = fec.local_label else {
-        return;
-    };
-    if local_label.is_reserved() {
-        return;
+    // Fill-in and send message.
+    if nexthops.is_empty() {
+        let msg = LabelUninstallMsg {
+            protocol: Protocol::LDP,
+            label: local_label,
+            nexthops: Vec::new(),
+            route,
+        };
+        ibus_tx.route_mpls_del(msg);
+    } else {
+        let msg = LabelInstallMsg {
+            protocol: Protocol::LDP,
+            label: local_label,
+            nexthops,
+            route,
+            replace: true,
+        };
+        ibus_tx.route_mpls_add(msg);
     }
-    let Some(remote_label) = nexthop.get_label() else {
-        return;
-    };
-    let protocol = fec.protocol.unwrap();
-
-    // Fill-in message.
-    let msg = LabelUninstallMsg {
-        protocol: Protocol::LDP,
-        label: local_label,
-        nexthops: [southbound::Nexthop::Address {
-            ifindex: nexthop.ifindex.unwrap(),
-            addr: nexthop.addr,
-            labels: [remote_label].into(),
-        }]
-        .into(),
-        route: Some((protocol, *fec.prefix)),
-    };
-
-    // Send message.
-    ibus_tx.route_mpls_del(msg);
 }

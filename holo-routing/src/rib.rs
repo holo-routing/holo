@@ -145,7 +145,9 @@ impl Rib {
 
     // Removes IP route from the RIB.
     pub(crate) fn ip_route_del(&mut self, msg: RouteKeyMsg) {
-        let rib_prefix = self.prefix_entry(msg.prefix);
+        let Some(rib_prefix) = self.ip.get_mut(&msg.prefix) else {
+            return;
+        };
 
         // Find IP route entry from the same advertising protocol.
         if let Some(route) = rib_prefix
@@ -204,7 +206,9 @@ impl Rib {
 
         // Check for the associated IP route.
         if let Some((protocol, prefix)) = msg.route {
-            let rib_prefix = self.prefix_entry(prefix);
+            let Some(rib_prefix) = self.ip.get_mut(&prefix) else {
+                return;
+            };
             if let Some(route) = rib_prefix
                 .iter_mut()
                 .find(|route| route.protocol == protocol)
@@ -243,7 +247,9 @@ impl Rib {
 
             // Check for the associated IP route.
             if let Some((protocol, prefix)) = msg.route {
-                let rib_prefix = self.prefix_entry(prefix);
+                let Some(rib_prefix) = self.ip.get_mut(&prefix) else {
+                    return;
+                };
                 if let Some(route) = rib_prefix
                     .iter_mut()
                     .find(|route| route.protocol == protocol)
@@ -268,7 +274,9 @@ impl Rib {
 
             // Check for the associated IP route.
             if let Some((protocol, prefix)) = msg.route {
-                let rib_prefix = self.prefix_entry(prefix);
+                let Some(rib_prefix) = self.ip.get_mut(&prefix) else {
+                    return;
+                };
                 if let Some(route) = rib_prefix
                     .iter_mut()
                     .find(|route| route.protocol == protocol)

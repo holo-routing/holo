@@ -173,7 +173,6 @@ pub struct LabelInstallMsg {
     pub label: Label,
     pub nexthops: Vec<Nexthop>,
     pub route: Option<(Protocol, IpNetwork)>,
-    pub replace: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -181,18 +180,12 @@ pub struct LabelInstallMsg {
 pub struct LabelUninstallMsg {
     pub protocol: Protocol,
     pub label: Label,
-    pub nexthops: Vec<Nexthop>,
     pub route: Option<(Protocol, IpNetwork)>,
 }
 
 // ===== impl Nexthop =====
 
 impl Nexthop {
-    // Compares two `Nexthop` instances for equality.
-    pub fn matches(&self, other: &Nexthop) -> bool {
-        self == other
-    }
-
     // Compares two `Nexthop` instances for equality, excluding the `labels`
     // field in the `Address` variant.
     pub fn matches_no_labels(&self, other: &Nexthop) -> bool {

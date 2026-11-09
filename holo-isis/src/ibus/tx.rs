@@ -83,7 +83,6 @@ pub(crate) fn route_install(
         let msg = LabelUninstallMsg {
             protocol: Protocol::ISIS,
             label: old_sr_label,
-            nexthops: Vec::new(),
             route: None,
         };
         ibus_tx.route_mpls_del(msg);
@@ -96,7 +95,6 @@ pub(crate) fn route_install(
             label: sr_label,
             nexthops,
             route: None,
-            replace: true,
         };
         ibus_tx.route_mpls_add(msg);
     }
@@ -119,7 +117,6 @@ pub(crate) fn route_uninstall(
         let msg = LabelUninstallMsg {
             protocol: Protocol::ISIS,
             label: sr_label,
-            nexthops: Vec::new(),
             route: None,
         };
         ibus_tx.route_mpls_del(msg);
@@ -142,7 +139,6 @@ pub(crate) fn adj_sid_install(
         }]
         .into(),
         route: None,
-        replace: true,
     };
     ibus_tx.route_mpls_add(msg);
 }
@@ -151,7 +147,6 @@ pub(crate) fn adj_sid_uninstall(ibus_tx: &IbusChannelsTx, label: Label) {
     let msg = LabelUninstallMsg {
         protocol: Protocol::ISIS,
         label,
-        nexthops: Default::default(),
         route: None,
     };
     ibus_tx.route_mpls_del(msg);

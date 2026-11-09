@@ -64,7 +64,6 @@ pub(crate) fn fec_sync(ibus_tx: &IbusChannelsTx, fec: &Fec) {
         let msg = LabelUninstallMsg {
             protocol: Protocol::LDP,
             label: local_label,
-            nexthops: Vec::new(),
             route,
         };
         ibus_tx.route_mpls_del(msg);
@@ -74,7 +73,6 @@ pub(crate) fn fec_sync(ibus_tx: &IbusChannelsTx, fec: &Fec) {
             label: local_label,
             nexthops,
             route,
-            replace: true,
         };
         ibus_tx.route_mpls_add(msg);
     }

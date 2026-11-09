@@ -85,7 +85,6 @@ pub(crate) fn route_install<V>(
         let msg = LabelUninstallMsg {
             protocol: V::PROTOCOL,
             label: old_sr_label,
-            nexthops: Vec::new(),
             route: None,
         };
         ibus_tx.route_mpls_del(msg);
@@ -98,7 +97,6 @@ pub(crate) fn route_install<V>(
             label: *sr_label,
             nexthops: nexthops.clone(),
             route: None,
-            replace: true,
         };
         ibus_tx.route_mpls_add(msg);
     }
@@ -133,7 +131,6 @@ pub(crate) fn route_uninstall<V>(
         let msg = LabelUninstallMsg {
             protocol: V::PROTOCOL,
             label: *sr_label,
-            nexthops: Vec::new(),
             route: None,
         };
         ibus_tx.route_mpls_del(msg);
@@ -170,7 +167,6 @@ pub(crate) fn adj_sid_install<V>(
         }]
         .into(),
         route: None,
-        replace: false,
     };
     ibus_tx.route_mpls_add(msg);
 }
@@ -182,7 +178,6 @@ where
     let msg = LabelUninstallMsg {
         protocol: V::PROTOCOL,
         label,
-        nexthops: Vec::new(),
         route: None,
     };
     ibus_tx.route_mpls_del(msg);

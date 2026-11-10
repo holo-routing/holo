@@ -150,12 +150,91 @@ pub(crate) fn update_rib_full<V>(
 ) where
     V: Version,
 {
-    let mut rib = BTreeMap::new();
-    let old_rib = std::mem::take(&mut instance.state.rib);
+    update_rib(None, None, instance, areas, interfaces, lsa_entries);
+}
+
+// Updates the affected routes after a partial SPF run.
+pub(crate) fn update_rib_partial<V>(
+    partial: &SpfPartialComputation<V>,
+    instance: &mut InstanceUpView<'_, V>,
+    areas: &mut Areas<V>,
+    interfaces: &Arena<Interface<V>>,
+    lsa_entries: &Arena<LsaEntry<V>>,
+) where
+    V: Version,
+{
+    // The route to a prefix is selected among the paths of all types to it,
+    // so all routes to the prefixes of the changed LSAs are recomputed, and
+    // not only those of the type of the changed LSAs.
+    let mut networks = partial
+        .intra
+        .iter()
+        .chain(&partial.inter_network)
+        .chain(&partial.external)
+        .copied()
+        .collect::<BTreeSet<_>>();
+
+    // A change to the route to an AS boundary router affects the routes to
+    // the prefixes of the AS-external-LSAs it originates.
+    if !partial.inter_router.is_empty() {
+        let extended_lsa = instance.config.extended_lsa;
+        networks.extend(
+            V::external_networks(
+                &instance.state.lsdb,
+                extended_lsa,
+                lsa_entries,
+            )
+            .filter(|lsa| partial.inter_router.contains(&lsa.adv_rtr))
+            .map(|lsa| lsa.prefix),
+        );
+    }
+
+    update_rib(
+        Some(&networks),
+        Some(&partial.inter_router),
+        instance,
+        areas,
+        interfaces,
+        lsa_entries,
+    );
+}
+
+// ===== helper functions =====
+
+// Recomputes the routes to the given networks and the inter-area routes to the
+// given routers, or to all of them when no filter is given.
+//
+// The routes being recomputed are first taken out of the RIB, so a partial run
+// computes them exactly as a full run would.
+fn update_rib<V>(
+    net_filter: Option<&BTreeSet<V::IpNetwork>>,
+    rtr_filter: Option<&BTreeSet<Ipv4Addr>>,
+    instance: &mut InstanceUpView<'_, V>,
+    areas: &mut Areas<V>,
+    interfaces: &Arena<Interface<V>>,
+    lsa_entries: &Arena<LsaEntry<V>>,
+) where
+    V: Version,
+{
+    // Take the routes to be recomputed out of the RIB.
+    let mut rib = std::mem::take(&mut instance.state.rib);
+    let old_rib = match net_filter {
+        Some(filter) => rib
+            .extract_if(.., |prefix, _| filter.contains(prefix))
+            .collect(),
+        None => std::mem::take(&mut rib),
+    };
+    let mut new_rib = BTreeMap::new();
 
     // Compute intra-area routes.
     for area in areas.iter_mut() {
-        update_rib_intra_area(&mut rib, None, area, instance, lsa_entries);
+        update_rib_intra_area(
+            &mut new_rib,
+            net_filter,
+            area,
+            instance,
+            lsa_entries,
+        );
     }
 
     // Compute inter-area routes.
@@ -168,13 +247,19 @@ pub(crate) fn update_rib_full<V>(
         }
 
         update_rib_inter_area_networks(
-            &mut rib,
-            None,
+            &mut new_rib,
+            net_filter,
             area,
             instance,
             lsa_entries,
         );
-        update_rib_inter_area_routers(None, area, instance, lsa_entries);
+
+        // Remove the inter-area routes to the routers being recomputed.
+        area.state.routers.retain(|router_id, route| {
+            route.path_type != PathType::InterArea
+                || rtr_filter.is_some_and(|filter| !filter.contains(router_id))
+        });
+        update_rib_inter_area_routers(rtr_filter, area, instance, lsa_entries);
     }
 
     // Check transit areas for potentially shorter paths.
@@ -182,161 +267,19 @@ pub(crate) fn update_rib_full<V>(
         .iter_mut()
         .filter(|area| area.state.transit_capability)
     {
-        update_rib_transit_area(&mut rib, area, instance, lsa_entries);
+        update_rib_transit_area(&mut new_rib, area, instance, lsa_entries);
     }
 
     // Compute external routes.
-    update_rib_external(&mut rib, None, instance, areas, lsa_entries);
+    update_rib_external(&mut new_rib, net_filter, instance, areas, lsa_entries);
 
     // Update OSPF routes in the global RIB.
-    update_global_rib(&mut rib, old_rib, instance, interfaces);
+    update_global_rib(&mut new_rib, old_rib, instance, interfaces);
 
     // Save updated RIB.
+    rib.extend(new_rib);
     instance.state.rib = rib;
 }
-
-// Updates the affected routes after a partial SPF run.
-pub(crate) fn update_rib_partial<V>(
-    partial: &mut SpfPartialComputation<V>,
-    instance: &mut InstanceUpView<'_, V>,
-    areas: &mut Areas<V>,
-    interfaces: &Arena<Interface<V>>,
-    lsa_entries: &Arena<LsaEntry<V>>,
-) where
-    V: Version,
-{
-    let mut partial_rib = BTreeMap::new();
-    let mut rib = std::mem::take(&mut instance.state.rib);
-    let mut old_rib = BTreeMap::new();
-
-    // Check for intra-area changes.
-    if !partial.intra.is_empty() {
-        // Remove affected intra-area routes from the RIB.
-        old_rib.extend(rib.extract_if(.., |prefix, route| {
-            partial.intra.contains(prefix)
-                && route.path_type == PathType::IntraArea
-        }));
-
-        // Recompute the affected intra-area routes.
-        //
-        // All areas need to be reevaluated to assure correct ECMP handling.
-        for area in areas.iter_mut() {
-            update_rib_intra_area(
-                &mut partial_rib,
-                Some(&partial.intra),
-                area,
-                instance,
-                lsa_entries,
-            );
-        }
-
-        // For destinations that are now newly unreachable, look for alternate
-        // inter-area or external paths.
-        partial.inter_network.extend(old_rib.keys());
-    }
-
-    // Check for inter-area changes.
-    if !partial.inter_network.is_empty() {
-        // Remove affected inter-area routes from the RIB.
-        old_rib.extend(rib.extract_if(.., |prefix, route| {
-            partial.inter_network.contains(prefix)
-                && route.path_type == PathType::InterArea
-        }));
-
-        // Recompute the affected inter-area routes.
-        let active_areas = areas.active_count(interfaces);
-        for area in areas.iter_mut() {
-            // If the router has active attachments to multiple areas, only
-            // backbone summary-LSAs are examined.
-            if active_areas > 1 && !area.is_backbone() {
-                continue;
-            }
-
-            update_rib_inter_area_networks(
-                &mut partial_rib,
-                Some(&partial.inter_network),
-                area,
-                instance,
-                lsa_entries,
-            );
-        }
-
-        // For destinations that are now newly unreachable, look for alternate
-        // external paths.
-        partial.external.extend(old_rib.keys());
-    }
-    if !partial.inter_router.is_empty() {
-        // Recompute the affected inter-area routes.
-        let active_areas = areas.active_count(interfaces);
-        for area in areas.iter_mut() {
-            // If the router has active attachments to multiple areas, only
-            // backbone summary-LSAs are examined.
-            if active_areas > 1 && !area.is_backbone() {
-                continue;
-            }
-
-            // Remove affected inter-area routes from the routers RIB.
-            area.state.routers.retain(|router_id, route| {
-                !partial.inter_router.contains(router_id)
-                    || route.path_type != PathType::InterArea
-            });
-
-            update_rib_inter_area_routers(
-                Some(&partial.inter_router),
-                area,
-                instance,
-                lsa_entries,
-            );
-        }
-    }
-
-    // Check transit areas for potentially shorter paths.
-    for area in areas
-        .iter_mut()
-        .filter(|area| area.state.transit_capability)
-    {
-        update_rib_transit_area(&mut rib, area, instance, lsa_entries);
-    }
-
-    // Check for external changes.
-    if !partial.inter_router.is_empty() || !partial.external.is_empty() {
-        // Changes in any Type-4 LSAs require all AS-external LSAs to be
-        // reevaluated.
-        let reevaluate_all = !partial.inter_router.is_empty();
-
-        // Remove affected external routes from the RIB.
-        old_rib.extend(rib.extract_if(.., |prefix, route| {
-            (reevaluate_all || partial.external.contains(prefix))
-                && matches!(
-                    route.path_type,
-                    PathType::Type1External | PathType::Type2External
-                )
-        }));
-
-        // Recompute the affected external routes.
-        let filter = if reevaluate_all {
-            None
-        } else {
-            Some(&partial.external)
-        };
-        update_rib_external(
-            &mut partial_rib,
-            filter,
-            instance,
-            areas,
-            lsa_entries,
-        );
-    }
-
-    // Update OSPF routes in the global RIB.
-    update_global_rib(&mut partial_rib, old_rib, instance, interfaces);
-
-    // Save updated RIB.
-    rib.extend(partial_rib);
-    instance.state.rib = rib;
-}
-
-// ===== helper functions =====
 
 // Computes intra-area routes.
 fn update_rib_intra_area<V>(

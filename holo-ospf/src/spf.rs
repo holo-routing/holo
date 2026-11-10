@@ -589,7 +589,7 @@ fn compute_spf<V>(
     let trigger_lsas = std::mem::take(&mut instance.state.spf_trigger_lsas);
 
     // Check the required SPF computations depending on which LSAs have changed.
-    let mut spf_computation_type = match force_full_run {
+    let spf_computation_type = match force_full_run {
         true => SpfComputation::Full,
         false => V::spf_computation_type(&trigger_lsas),
     };
@@ -613,7 +613,7 @@ fn compute_spf<V>(
         Debug::<V>::SpfStart(spf_log_type).log();
     }
 
-    match &mut spf_computation_type {
+    match &spf_computation_type {
         SpfComputation::Full => {
             // Calculate shortest-path trees.
             for area in areas.iter_mut() {

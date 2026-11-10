@@ -54,6 +54,7 @@ use crate::packet::tlv::{self, TlvDecodeInfo, TlvKind, TlvType};
 //
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct AddressMsg {
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub msg_id: u32,
     pub msg_type: AddressMessageType,
     pub addr_list: TlvAddressList,

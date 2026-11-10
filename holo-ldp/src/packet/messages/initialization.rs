@@ -43,6 +43,7 @@ use crate::packet::tlv::{self, TlvDecodeInfo, TlvKind, TlvType};
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize)]
 pub struct InitMsg {
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub msg_id: u32,
     pub params: TlvCommonSessParams,
     pub cap_dynamic: Option<TlvCapDynamic>,

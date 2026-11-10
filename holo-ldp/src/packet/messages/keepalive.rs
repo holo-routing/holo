@@ -30,6 +30,7 @@ use crate::packet::message::{
 //
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct KeepaliveMsg {
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub msg_id: u32,
 }
 

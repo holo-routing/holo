@@ -38,6 +38,7 @@ use crate::packet::tlv::{TlvDecodeInfo, TlvKind, TlvType};
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize)]
 pub struct CapabilityMsg {
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub msg_id: u32,
     pub twcard_fec: Option<TlvCapTwcardFec>,
     pub unrec_notif: Option<TlvCapUnrecNotif>,

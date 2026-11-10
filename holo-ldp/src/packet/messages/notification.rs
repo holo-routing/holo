@@ -40,6 +40,7 @@ use crate::packet::tlv::{self, TlvDecodeInfo, TlvKind, TlvType};
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize)]
 pub struct NotifMsg {
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub msg_id: u32,
     pub status: TlvStatus,
     pub ext_status: Option<TlvExtStatus>,

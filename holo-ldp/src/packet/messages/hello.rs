@@ -42,6 +42,7 @@ use crate::packet::tlv::{self, TlvDecodeInfo, TlvKind, TlvType};
 #[skip_serializing_none]
 #[derive(Deserialize, Serialize)]
 pub struct HelloMsg {
+    #[cfg_attr(feature = "testing", serde(skip_serializing))]
     pub msg_id: u32,
     pub params: TlvCommonHelloParams,
     pub ipv4_addr: Option<TlvIpv4TransAddr>,

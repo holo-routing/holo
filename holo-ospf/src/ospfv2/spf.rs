@@ -248,7 +248,7 @@ impl SpfVersion<Self> for Ospfv2 {
         // Check Type-3 Summary LSA changes.
         let inter_network = trigger_lsas
             .iter()
-            .map(|tlsa| &tlsa.new)
+            .flat_map(SpfTriggerLsa::old_and_new)
             .filter_map(|lsa| {
                 lsa.body
                     .as_summary_network()
@@ -262,7 +262,7 @@ impl SpfVersion<Self> for Ospfv2 {
         // Check Type-4 Summary LSA changes.
         let inter_router = trigger_lsas
             .iter()
-            .map(|tlsa| &tlsa.new)
+            .flat_map(SpfTriggerLsa::old_and_new)
             .filter_map(|lsa| lsa.body.as_summary_router().map(|_| lsa.hdr))
             .map(|lsa_hdr| lsa_hdr.lsa_id)
             .collect::<BTreeSet<_>>();
@@ -270,7 +270,7 @@ impl SpfVersion<Self> for Ospfv2 {
         // Check AS-External LSA changes.
         let external = trigger_lsas
             .iter()
-            .map(|tlsa| &tlsa.new)
+            .flat_map(SpfTriggerLsa::old_and_new)
             .filter_map(|lsa| {
                 lsa.body
                     .as_as_external()

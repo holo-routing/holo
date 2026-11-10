@@ -292,6 +292,21 @@ pub mod fsm {
     }
 }
 
+// ===== impl SpfTriggerLsa =====
+
+impl<V> SpfTriggerLsa<V>
+where
+    V: Version,
+{
+    // Returns the old and new versions of the changed LSA.
+    //
+    // An LSA can be reoriginated describing a different destination, so the
+    // destinations affected by the change are those of both versions.
+    pub(crate) fn old_and_new(&self) -> impl Iterator<Item = &Arc<Lsa<V>>> {
+        self.old.iter().chain(std::iter::once(&self.new))
+    }
+}
+
 // ===== impl CandidateList =====
 
 impl<V> CandidateList<V>

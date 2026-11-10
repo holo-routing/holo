@@ -271,12 +271,9 @@ impl SpfVersion<Self> for Ospfv3 {
         }
 
         // Check Intra-Area-Prefix LSA changes.
-        //
-        // For that to work, for each changed Intra-Area-Prefix LSA, we merge
-        // the prefixes from the old and new version of the LSA.
         let intra = trigger_lsas
             .iter()
-            .flat_map(|tlsa| std::iter::once(&tlsa.new).chain(tlsa.old.iter()))
+            .flat_map(SpfTriggerLsa::old_and_new)
             .filter_map(|lsa| lsa.body.as_intra_area_prefix())
             .flat_map(|lsa_body| {
                 lsa_body.prefixes.iter().map(move |prefix| prefix.value)
@@ -286,7 +283,7 @@ impl SpfVersion<Self> for Ospfv3 {
         // Check Inter-Area-Prefix LSA changes.
         let inter_network = trigger_lsas
             .iter()
-            .map(|tlsa| &tlsa.new)
+            .flat_map(SpfTriggerLsa::old_and_new)
             .filter_map(|lsa| lsa.body.as_inter_area_prefix())
             .map(|lsa_body| lsa_body.prefix)
             .collect();
@@ -294,7 +291,7 @@ impl SpfVersion<Self> for Ospfv3 {
         // Check Inter-Area-Router LSA changes.
         let inter_router = trigger_lsas
             .iter()
-            .map(|tlsa| &tlsa.new)
+            .flat_map(SpfTriggerLsa::old_and_new)
             .filter_map(|lsa| lsa.body.as_inter_area_router())
             .map(|lsa_body| lsa_body.router_id)
             .collect::<BTreeSet<_>>();
@@ -302,7 +299,7 @@ impl SpfVersion<Self> for Ospfv3 {
         // Check AS-External LSA changes.
         let external = trigger_lsas
             .iter()
-            .map(|tlsa| &tlsa.new)
+            .flat_map(SpfTriggerLsa::old_and_new)
             .filter_map(|lsa| lsa.body.as_as_external())
             .map(|lsa_body| lsa_body.prefix)
             .collect();

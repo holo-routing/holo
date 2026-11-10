@@ -874,7 +874,8 @@ fn update_global_rib<V>(
             old_sr_label = old_route.sr_label;
 
             // Skip reinstalling the route if it hasn't changed.
-            if old_route.metric() == route.metric()
+            if old_route.path_type == route.path_type
+                && old_route.metric() == route.metric()
                 && old_route.tag == route.tag
                 && old_route.sr_label == route.sr_label
                 && old_route.nexthops == route.nexthops

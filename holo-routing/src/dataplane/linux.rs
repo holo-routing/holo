@@ -48,10 +48,10 @@ pub struct LinuxDataplane {
 // Netlink request enqueued for asynchronous execution.
 #[derive(Debug)]
 enum NetlinkRequest {
-    IpRouteInstall(RouteMessage),
-    IpRouteUninstall(RouteMessage),
-    MplsRouteInstall(RouteMessage),
-    MplsRouteUninstall(RouteMessage),
+    IpRouteInstall(IpNetwork, RouteMessage),
+    IpRouteUninstall(IpNetwork, RouteMessage),
+    MplsRouteInstall(Label, RouteMessage),
+    MplsRouteUninstall(Label, RouteMessage),
 }
 
 // ===== impl LinuxDataplane =====
@@ -137,7 +137,7 @@ impl Dataplane for LinuxDataplane {
             .build();
 
         // Enqueue netlink request.
-        let _ = self.tx.send(NetlinkRequest::IpRouteInstall(msg));
+        let _ = self.tx.send(NetlinkRequest::IpRouteInstall(*prefix, msg));
     }
 
     fn ip_route_uninstall(&self, prefix: &IpNetwork, protocol: Protocol) {
@@ -151,7 +151,7 @@ impl Dataplane for LinuxDataplane {
             .build();
 
         // Enqueue netlink request.
-        let _ = self.tx.send(NetlinkRequest::IpRouteUninstall(msg));
+        let _ = self.tx.send(NetlinkRequest::IpRouteUninstall(*prefix, msg));
     }
 
     fn mpls_route_install(
@@ -180,7 +180,9 @@ impl Dataplane for LinuxDataplane {
             .build();
 
         // Enqueue netlink request.
-        let _ = self.tx.send(NetlinkRequest::MplsRouteInstall(msg));
+        let _ = self
+            .tx
+            .send(NetlinkRequest::MplsRouteInstall(local_label, msg));
     }
 
     fn mpls_route_uninstall(&self, local_label: Label, protocol: Protocol) {
@@ -198,7 +200,9 @@ impl Dataplane for LinuxDataplane {
             .build();
 
         // Enqueue netlink request.
-        let _ = self.tx.send(NetlinkRequest::MplsRouteUninstall(msg));
+        let _ = self
+            .tx
+            .send(NetlinkRequest::MplsRouteUninstall(local_label, msg));
     }
 
     // Purges stale routes that may have been left behind by a previous Holo
@@ -247,13 +251,13 @@ impl Dataplane for LinuxDataplane {
 impl NetlinkRequest {
     async fn execute(self, handle: &Handle) {
         match self {
-            NetlinkRequest::IpRouteInstall(msg) => {
+            NetlinkRequest::IpRouteInstall(prefix, msg) => {
                 let request = handle.route().add(msg).replace();
                 if let Err(error) = request.execute().await {
-                    error!(%error, "failed to install route");
+                    error!(%prefix, %error, "failed to install route");
                 }
             }
-            NetlinkRequest::IpRouteUninstall(msg) => {
+            NetlinkRequest::IpRouteUninstall(prefix, msg) => {
                 let request = handle.route().del(msg);
                 if let Err(error) = request.execute().await
                     // Ignore "No such process" error (route is already gone).
@@ -266,16 +270,16 @@ impl NetlinkRequest {
                         if code == ESRCH
                     )
                 {
-                    error!(%error, "failed to uninstall route");
+                    error!(%prefix, %error, "failed to uninstall route");
                 }
             }
-            NetlinkRequest::MplsRouteInstall(msg) => {
+            NetlinkRequest::MplsRouteInstall(label, msg) => {
                 let request = handle.route().add(msg).replace();
                 if let Err(error) = request.execute().await {
-                    error!(%error, "failed to install MPLS route");
+                    error!(%label, %error, "failed to install MPLS route");
                 }
             }
-            NetlinkRequest::MplsRouteUninstall(msg) => {
+            NetlinkRequest::MplsRouteUninstall(label, msg) => {
                 let request = handle.route().del(msg);
                 if let Err(error) = request.execute().await
                     // Ignore "No such process" error (route is already gone).
@@ -288,7 +292,7 @@ impl NetlinkRequest {
                         if code == ESRCH
                     )
                 {
-                    error!(%error, "failed to uninstall MPLS route");
+                    error!(%label, %error, "failed to uninstall MPLS route");
                 }
             }
         }

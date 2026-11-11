@@ -123,7 +123,7 @@ impl Dataplane for LinuxDataplane {
             IpNetwork::V6(_) => AddressFamily::Inet6,
         };
         let nexthops = netlink_nexthops(af, route.nexthops.iter(), interfaces);
-        let msg = RouteMessageBuilder::<IpAddr>::new()
+        let mut builder = RouteMessageBuilder::<IpAddr>::new()
             .destination_prefix(prefix.ip(), prefix.prefix())
             .unwrap()
             .protocol(protocol)
@@ -132,9 +132,14 @@ impl Dataplane for LinuxDataplane {
                 RouteKind::Blackhole => RouteType::BlackHole,
                 RouteKind::Unreachable => RouteType::Unreachable,
                 RouteKind::Prohibit => RouteType::Prohibit,
-            })
-            .multipath(nexthops)
-            .build();
+            });
+
+        // Blackhole, unreachable and prohibit routes have no nexthops, and the
+        // kernel rejects an empty multipath attribute.
+        if !nexthops.is_empty() {
+            builder = builder.multipath(nexthops);
+        }
+        let msg = builder.build();
 
         // Enqueue netlink request.
         let _ = self.tx.send(NetlinkRequest::IpRouteInstall(*prefix, msg));

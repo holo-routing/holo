@@ -77,6 +77,7 @@ pub struct NhtEntry {
 #[derive(Clone, Debug)]
 pub struct NhtResolution {
     pub protocol: Protocol,
+    pub kind: RouteKind,
     pub metric: u32,
     pub nexthops: Box<[Nexthop]>,
 }
@@ -106,7 +107,20 @@ impl Rib {
 
     // Adds IP route to the RIB.
     pub(crate) fn ip_route_add(&mut self, msg: RouteMsg, owner: IbusClientId) {
-        let nexthops = self.resolve_nexthops(Some(msg.prefix), msg.nexthops);
+        let (nexthops, resolving_kind) =
+            self.resolve_nexthops(Some(msg.prefix), msg.nexthops);
+
+        // A unicast route left with nothing to forward through, as its
+        // nexthops resolved through a route that discards traffic, discards
+        // it too. Remote triggered black hole filtering relies on this.
+        let kind = if msg.kind == RouteKind::Unicast
+            && !has_forwarding_nexthop(&nexthops)
+        {
+            resolving_kind
+        } else {
+            msg.kind
+        };
+
         let rib_prefix = self.prefix_entry(msg.prefix);
 
         // A protocol has one route to a prefix, which is looked up by the
@@ -121,7 +135,7 @@ impl Rib {
                 // Update the existing IP route with the new information.
                 let mut route = rib_prefix.remove(idx);
                 route.owner = owner;
-                route.kind = msg.kind;
+                route.kind = kind;
                 route.distance = msg.distance;
                 route.metric = msg.metric;
                 route.tag = msg.tag;
@@ -137,7 +151,7 @@ impl Rib {
                 Route::new(
                     msg.protocol,
                     owner,
-                    msg.kind,
+                    kind,
                     msg.distance,
                     msg.metric,
                     msg.tag,
@@ -184,7 +198,8 @@ impl Rib {
         msg: LabelInstallMsg,
         owner: IbusClientId,
     ) {
-        let nexthops = self.resolve_nexthops(None, msg.nexthops);
+        // MPLS routes are always unicast, so the resolving kind goes unused.
+        let (nexthops, _) = self.resolve_nexthops(None, msg.nexthops);
         let route = Route::new(
             msg.protocol,
             owner,
@@ -372,8 +387,8 @@ impl Rib {
         let mut nht = std::mem::take(&mut self.nht);
         for (addr, nhte) in &mut nht {
             // Check whether the route the address resolves through has
-            // another protocol, metric or nexthops. Moving to a route of
-            // another prefix doesn't count by itself, as nothing the
+            // another protocol, kind, metric or nexthops. Moving to a route
+            // of another prefix doesn't count by itself, as nothing the
             // subscribers get depends on the prefix.
             let lpm = self.prefix_longest_match(addr, None);
             let unchanged = match (&nhte.resolution, lpm) {
@@ -439,12 +454,18 @@ impl Rib {
     //
     // A route can't be resolved through its own prefix, as it would end up
     // using its own next-hops once it becomes the best route for the prefix.
+    //
+    // Next-hops resolving through a route that discards traffic resolve to
+    // nothing, as that route has no next-hops. The kind of the first such
+    // route is returned along with the next-hops, or unicast if there's none,
+    // so that the caller can discard traffic the same way.
     fn resolve_nexthops(
         &self,
         prefix: Option<IpNetwork>,
         nexthops: Vec<Nexthop>,
-    ) -> Box<[Nexthop]> {
-        nexthops
+    ) -> (Box<[Nexthop]>, RouteKind) {
+        let mut resolving_kind = RouteKind::Unicast;
+        let nexthops = nexthops
             .into_iter()
             .map(|mut nexthop| {
                 if let Nexthop::Recursive {
@@ -470,6 +491,9 @@ impl Rib {
                         } else {
                             // Copy next-hops of the resolving route.
                             *resolved = route.resolved_nexthops();
+                            if resolving_kind == RouteKind::Unicast {
+                                resolving_kind = route.kind;
+                            }
                         }
                     } else {
                         warn!(%addr, "failed to resolve recursive nexthop");
@@ -477,7 +501,9 @@ impl Rib {
                 }
                 nexthop
             })
-            .collect()
+            .collect();
+
+        (nexthops, resolving_kind)
     }
 
     // Adds IP route to the update queue.
@@ -637,10 +663,7 @@ impl Route {
         }
 
         if self.kind == RouteKind::Unicast
-            && !self.nexthops.iter().any(|nexthop| match nexthop {
-                Nexthop::Recursive { resolved, .. } => !resolved.is_empty(),
-                _ => true,
-            })
+            && !has_forwarding_nexthop(&self.nexthops)
         {
             return false;
         }
@@ -655,16 +678,29 @@ impl NhtResolution {
     fn new(route: &Route) -> Self {
         NhtResolution {
             protocol: route.protocol,
+            kind: route.kind,
             metric: route.metric,
             nexthops: route.nexthops.clone(),
         }
     }
 
-    // Returns whether the given route has the same protocol, metric and
-    // nexthops as the one recorded.
+    // Returns whether the given route has the same protocol, kind, metric
+    // and nexthops as the one recorded.
     fn matches(&self, route: &Route) -> bool {
         self.protocol == route.protocol
+            && self.kind == route.kind
             && self.metric == route.metric
             && self.nexthops == route.nexthops
     }
+}
+
+// ===== helper functions =====
+
+// Returns whether any of the given nexthops can forward traffic, once the
+// recursive ones are replaced by the nexthops they resolved to.
+fn has_forwarding_nexthop(nexthops: &[Nexthop]) -> bool {
+    nexthops.iter().any(|nexthop| match nexthop {
+        Nexthop::Recursive { resolved, .. } => !resolved.is_empty(),
+        _ => true,
+    })
 }

@@ -482,9 +482,9 @@ impl Rib {
 
     // Resolves the recursive next-hops in the provided set of next-hops.
     //
-    // Note that only one level of recursion is resolved. If the resolved
-    // next-hops contain recursive next-hops themselves, those will not be
-    // resolved further.
+    // Note that only one level of recursion is resolved. Recursive next-hops
+    // of the resolving route are replaced by the next-hops they were resolved
+    // to, so that resolved next-hops never nest.
     //
     // A route can't be resolved through its own prefix, as it would end up
     // using its own next-hops once it becomes the best route for the prefix.
@@ -518,7 +518,7 @@ impl Rib {
                             .into();
                         } else {
                             // Copy next-hops of the resolving route.
-                            resolved.clone_from(&route.nexthops);
+                            *resolved = route.resolved_nexthops();
                         }
                     } else {
                         warn!(%addr, "failed to resolve recursive nexthop");
@@ -650,6 +650,21 @@ impl Route {
                     if nexthop_addr == addr
             )
         })
+    }
+
+    // Returns the nexthops of the route, with the recursive ones replaced by
+    // the nexthops they were resolved to.
+    fn resolved_nexthops(&self) -> Box<[Nexthop]> {
+        let mut nexthops = vec![];
+        for nexthop in &self.nexthops {
+            match nexthop {
+                Nexthop::Recursive { resolved, .. } => {
+                    nexthops.extend_from_slice(resolved)
+                }
+                _ => nexthops.push(nexthop.clone()),
+            }
+        }
+        nexthops.into()
     }
 }
 

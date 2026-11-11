@@ -42,7 +42,7 @@ impl<'a> YangList<'a, Instance> for bgp::global::afi_safis::afi_safi::AfiSafi {
 
     fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let _ = instance.state.as_ref()?;
-        let iter = AFI_SAFIS.into_iter().filter(|afi_safi| instance.config.afi_safi.contains_key(afi_safi));
+        let iter = AFI_SAFIS.into_iter();
         Some(iter)
     }
 
@@ -131,19 +131,14 @@ impl<'a> YangList<'a, Instance> for bgp::neighbors::neighbor::afi_safis::afi_saf
     type ListEntry = (&'a Neighbor, AfiSafi);
 
     fn iter(_instance: &'a Instance, &nbr: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        // If the peer doesn't support BGP capabilities, the IPv4 unicast
-        // address-family is enabled by default.
-        if nbr.capabilities_nego.is_empty() {
-            let iter = std::iter::once((nbr, AfiSafi::Ipv4Unicast));
-            return Some(Box::new(iter) as Box<dyn Iterator<Item = _> + 'a>);
-        }
-
-        let iter = nbr.capabilities_nego.iter().filter_map(move |cap| {
-            let (afi, safi) = cap.as_multi_protocol()?;
-            let afi_safi = afi_safi_tuple(*afi, *safi)?;
-            Some((nbr, afi_safi))
-        });
-        Some(Box::new(iter))
+        let iter = AFI_SAFIS
+            .into_iter()
+            .filter(move |afi_safi| match afi_safi {
+                AfiSafi::Ipv4Unicast => nbr.is_af_enabled(Afi::Ipv4, Safi::Unicast),
+                AfiSafi::Ipv6Unicast => nbr.is_af_enabled(Afi::Ipv6, Safi::Unicast),
+            })
+            .map(move |afi_safi| (nbr, afi_safi));
+        Some(iter)
     }
 
     fn new(_instance: &'a Instance, (_, afi_safi): &Self::ListEntry) -> Self {
@@ -545,7 +540,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::AfiSafi {
 
     fn iter(instance: &'a Instance, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let _ = instance.state.as_ref()?;
-        let iter = AFI_SAFIS.into_iter().filter(|afi_safi| instance.config.afi_safi.contains_key(afi_safi));
+        let iter = AFI_SAFIS.into_iter();
         Some(iter)
     }
 
@@ -618,7 +613,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv4_unicast:
         if *afi_safi != AfiSafi::Ipv4Unicast {
             return None;
         }
-        let iter = instance.neighbors.values().filter(|nbr| nbr.state == fsm::State::Established);
+        let iter = instance.neighbors.values().filter(|nbr| nbr.state == fsm::State::Established && nbr.is_af_enabled(Afi::Ipv4, Safi::Unicast));
         Some(iter)
     }
 
@@ -892,7 +887,7 @@ impl<'a> YangList<'a, Instance> for bgp::rib::afi_safis::afi_safi::ipv6_unicast:
         if *afi_safi != AfiSafi::Ipv6Unicast {
             return None;
         }
-        let iter = instance.neighbors.values().filter(|nbr| nbr.state == fsm::State::Established);
+        let iter = instance.neighbors.values().filter(|nbr| nbr.state == fsm::State::Established && nbr.is_af_enabled(Afi::Ipv6, Safi::Unicast));
         Some(iter)
     }
 

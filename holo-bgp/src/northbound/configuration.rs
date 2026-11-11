@@ -28,7 +28,7 @@ use crate::northbound::yang_gen::config::{
     NeighborAfiSafiChange, NeighborAfiSafiEntryChange, NeighborChange, NeighborEntryChange, NeighborTraceOptionsFlagChange, NeighborTraceOptionsFlagEntryChange,
 };
 use crate::packet::iana::{CeaseSubcode, ErrorCode};
-use crate::packet::message::{Message, NotificationMsg};
+use crate::packet::message::{Capability, Message, NotificationMsg};
 use crate::rib::RouteOrigin;
 
 #[derive(Debug)]
@@ -41,6 +41,8 @@ pub enum Event {
     NeighborDelete(IpAddr),
     NeighborReset(IpAddr, NotificationMsg),
     NeighborUpdateAuth(IpAddr),
+    NeighborUpdateAfiSafi(IpAddr),
+    AfiSafiUpdate,
     RedistributeIbusSub(Protocol, AddressFamily),
     RedistributeDelete(Protocol, AddressFamily, AfiSafi),
     UpdateTraceOptions,
@@ -150,7 +152,7 @@ pub struct NeighborTransportCfg {
 
 #[derive(Debug)]
 pub struct NeighborAfiSafiCfg {
-    pub enabled: bool,
+    pub enabled: Option<bool>,
     pub prefix_limit: PrefixLimitCfg,
     pub send_default_route: bool,
     pub apply_policy: ApplyPolicyCfg,
@@ -402,15 +404,18 @@ fn apply_afi_safi(instance: &mut Instance, afi_safi: AfiSafi, change: GlobalAfiS
     match change {
         GlobalAfiSafiChange::Create => {
             instance.config.afi_safi.insert(afi_safi, Default::default());
+            event_queue.insert(Event::AfiSafiUpdate);
         }
         GlobalAfiSafiChange::Delete => {
             instance.config.afi_safi.remove(&afi_safi);
+            event_queue.insert(Event::AfiSafiUpdate);
         }
         GlobalAfiSafiChange::Entry(change) => {
             let afi_safi_cfg = instance.config.afi_safi.get_mut(&afi_safi).ok_or(ApplyError::EntryNotFound)?;
             match change {
                 GlobalAfiSafiEntryChange::Enabled(enabled) => {
                     afi_safi_cfg.enabled = enabled;
+                    event_queue.insert(Event::AfiSafiUpdate);
                 }
                 GlobalAfiSafiEntryChange::RouteSelectionOptionsAlwaysCompareMed(compare) => {
                     afi_safi_cfg.route_selection.always_compare_med = compare;
@@ -674,7 +679,7 @@ fn apply_neighbor(instance: &mut Instance, nbr_addr: IpAddr, change: NeighborCha
                     nbr.config.prefix_limit.idle_time = idle_time;
                 }
                 NeighborEntryChange::AfiSafi(keys, change) => {
-                    apply_neighbor_afi_safi(nbr, keys.name, change)?;
+                    apply_neighbor_afi_safi(nbr, keys.name, change, event_queue)?;
                 }
                 NeighborEntryChange::TraceOptionsFlag(keys, change) => {
                     apply_neighbor_trace_options(nbr, keys.name, change, event_queue)?;
@@ -686,19 +691,22 @@ fn apply_neighbor(instance: &mut Instance, nbr_addr: IpAddr, change: NeighborCha
     Ok(())
 }
 
-fn apply_neighbor_afi_safi(nbr: &mut Neighbor, afi_safi: AfiSafi, change: NeighborAfiSafiChange) -> Result<(), ApplyError> {
+fn apply_neighbor_afi_safi(nbr: &mut Neighbor, afi_safi: AfiSafi, change: NeighborAfiSafiChange, event_queue: &mut BTreeSet<Event>) -> Result<(), ApplyError> {
     match change {
         NeighborAfiSafiChange::Create => {
             nbr.config.afi_safi.insert(afi_safi, Default::default());
+            event_queue.insert(Event::NeighborUpdateAfiSafi(nbr.remote_addr));
         }
         NeighborAfiSafiChange::Delete => {
             nbr.config.afi_safi.remove(&afi_safi);
+            event_queue.insert(Event::NeighborUpdateAfiSafi(nbr.remote_addr));
         }
         NeighborAfiSafiChange::Entry(change) => {
             let afi_safi_cfg = nbr.config.afi_safi.get_mut(&afi_safi).ok_or(ApplyError::EntryNotFound)?;
             match change {
                 NeighborAfiSafiEntryChange::Enabled(enabled) => {
                     afi_safi_cfg.enabled = enabled;
+                    event_queue.insert(Event::NeighborUpdateAfiSafi(nbr.remote_addr));
                 }
                 NeighborAfiSafiEntryChange::ApplyPolicyImportPolicy(op, policy) => match op {
                     ConfigOp::Create => {
@@ -869,6 +877,23 @@ fn process_event(instance: &mut Instance, event: Event) {
                 network::listen_socket_md5sig_update(&listener.socket, &nbr_addr, key.as_deref());
             }
         }
+        Event::NeighborUpdateAfiSafi(nbr_addr) => {
+            let Some((mut instance, neighbors)) = instance.as_up() else {
+                return;
+            };
+            let nbr = neighbors.get_mut(&nbr_addr).unwrap();
+
+            afi_safi_update(nbr, &mut instance);
+        }
+        Event::AfiSafiUpdate => {
+            let Some((mut instance, neighbors)) = instance.as_up() else {
+                return;
+            };
+
+            for nbr in neighbors.values_mut() {
+                afi_safi_update(nbr, &mut instance);
+            }
+        }
         Event::RedistributeIbusSub(protocol, af) => {
             instance.tx.ibus.route_redistribute_sub(protocol, Some(af));
         }
@@ -944,6 +969,23 @@ fn process_event(instance: &mut Instance, event: Event) {
     }
 }
 
+// Address families are only negotiated in the OPEN messages, so reset the
+// neighbor's session if it advertised another set than the one now enabled.
+// Sessions that haven't sent an OPEN yet will advertise the new set once they
+// do.
+fn afi_safi_update(nbr: &mut Neighbor, instance: &mut InstanceUpView<'_>) {
+    if nbr.state < fsm::State::OpenSent {
+        return;
+    }
+
+    let enabled = nbr.mp_capabilities(instance.config);
+    let advertised = nbr.capabilities_adv.iter().filter(|cap| matches!(cap, Capability::MultiProtocol { .. }));
+    if !advertised.eq(&enabled) {
+        let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
+        nbr.fsm_event(instance, fsm::Event::Stop(Some(msg)));
+    }
+}
+
 fn redistribute_delete<A>(instance: &mut InstanceUpView<'_>, protocol: Protocol)
 where
     A: crate::af::AddressFamily,
@@ -987,6 +1029,18 @@ impl Provider for Instance {
 }
 
 // ===== configuration helpers =====
+
+impl NeighborCfg {
+    // Returns whether the address family is enabled for the neighbor. Unless
+    // the neighbor sets it, the global setting applies.
+    pub(crate) fn afi_safi_enabled(&self, instance_cfg: &InstanceCfg, afi_safi: AfiSafi) -> bool {
+        self.afi_safi
+            .get(&afi_safi)
+            .and_then(|afi_safi_cfg| afi_safi_cfg.enabled)
+            .or_else(|| instance_cfg.afi_safi.get(&afi_safi).map(|afi_safi_cfg| afi_safi_cfg.enabled))
+            .unwrap_or(false)
+    }
+}
 
 impl TraceOptionPacketResolved {
     pub(crate) fn tx(&self, msg: &Message) -> bool {
@@ -1132,10 +1186,8 @@ impl Default for NeighborTransportCfg {
 
 impl Default for NeighborAfiSafiCfg {
     fn default() -> NeighborAfiSafiCfg {
-        let enabled = bgp::neighbors::neighbor::afi_safis::afi_safi::enabled::DFLT;
-
         NeighborAfiSafiCfg {
-            enabled,
+            enabled: None,
             prefix_limit: Default::default(),
             send_default_route: false,
             apply_policy: Default::default(),

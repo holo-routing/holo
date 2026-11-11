@@ -13,7 +13,7 @@ use std::time::Duration;
 use arbitrary::Arbitrary;
 use chrono::{DateTime, Utc};
 use holo_protocol::InstanceChannelsTx;
-use holo_utils::bgp::{AfiSafi, RouteType, WellKnownCommunities};
+use holo_utils::bgp::{RouteType, WellKnownCommunities};
 use holo_utils::ibus::IbusChannelsTx;
 use holo_utils::socket::{TTL_MAX, TcpConnInfo, TcpStream};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
@@ -957,22 +957,7 @@ impl Neighbor {
         .into();
 
         // Multiprotocol capabilities.
-        if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv4Unicast)
-            && afi_safi.enabled
-        {
-            capabilities.insert(Capability::MultiProtocol {
-                afi: Afi::Ipv4,
-                safi: Safi::Unicast,
-            });
-        }
-        if let Some(afi_safi) = self.config.afi_safi.get(&AfiSafi::Ipv6Unicast)
-            && afi_safi.enabled
-        {
-            capabilities.insert(Capability::MultiProtocol {
-                afi: Afi::Ipv6,
-                safi: Safi::Unicast,
-            });
-        }
+        capabilities.extend(self.mp_capabilities(instance_cfg));
 
         // Keep track of the advertised capabilities.
         self.capabilities_adv.clone_from(&capabilities);
@@ -985,6 +970,35 @@ impl Neighbor {
             identifier,
             capabilities,
         })
+    }
+
+    // Returns the multiprotocol capabilities of the address families enabled
+    // for this neighbor.
+    pub(crate) fn mp_capabilities(
+        &self,
+        instance_cfg: &InstanceCfg,
+    ) -> BTreeSet<Capability> {
+        [
+            self.mp_capability::<Ipv4Unicast>(instance_cfg),
+            self.mp_capability::<Ipv6Unicast>(instance_cfg),
+        ]
+        .into_iter()
+        .flatten()
+        .collect()
+    }
+
+    // Returns the multiprotocol capability of the given address family, if
+    // it's enabled for this neighbor.
+    fn mp_capability<A>(&self, instance_cfg: &InstanceCfg) -> Option<Capability>
+    where
+        A: AddressFamily,
+    {
+        self.config
+            .afi_safi_enabled(instance_cfg, A::AFI_SAFI)
+            .then_some(Capability::MultiProtocol {
+                afi: A::AFI,
+                safi: A::SAFI,
+            })
     }
 
     // Processes the received OPEN message while in the OpenSent state.
@@ -1454,12 +1468,17 @@ impl Neighbor {
         }
 
         // If the peer doesn't support BGP capabilities, the IPv4 unicast
-        // address-family is enabled by default.
+        // address-family is enabled as long as it's enabled locally.
         if self.capabilities_nego.is_empty()
             && afi == Afi::Ipv4
             && safi == Safi::Unicast
         {
-            return true;
+            return self.capabilities_adv.contains(
+                &Capability::MultiProtocol {
+                    afi: Afi::Ipv4,
+                    safi: Safi::Unicast,
+                },
+            );
         }
 
         false

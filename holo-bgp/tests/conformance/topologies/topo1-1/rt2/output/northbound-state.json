@@ -14,6 +14,12 @@
                     "statistics": {
                       "total-prefixes": 4
                     }
+                  },
+                  {
+                    "name": "iana-bgp-types:ipv6-unicast",
+                    "statistics": {
+                      "total-prefixes": 0
+                    }
                   }
                 ]
               },
@@ -526,6 +532,9 @@
                         ]
                       }
                     }
+                  },
+                  {
+                    "name": "iana-bgp-types:ipv6-unicast"
                   }
                 ]
               }

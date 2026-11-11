@@ -290,9 +290,14 @@ impl Rib {
             rib_prefix
                 .retain(|route| !route.flags.contains(RouteFlags::REMOVED));
 
-            // Select and (re)install the best route for this prefix.
+            // Select the best route for this prefix: the first one, as they're
+            // sorted by distance, that can be used to reach it.
+            let best_idx =
+                rib_prefix.iter().position(|route| route.is_usable());
+
+            // (Re)install the best route, if any.
             for (idx, route) in rib_prefix.iter_mut().enumerate() {
-                if idx == 0 {
+                if Some(idx) == best_idx {
                     // Mark the route as the preferred one.
                     route.flags.insert(RouteFlags::ACTIVE);
 
@@ -317,21 +322,23 @@ impl Rib {
                 }
             }
 
-            // Check if there are no routes left for this prefix.
-            if rib_prefix.is_empty() {
-                if let Some(protocol) = old_best_protocol {
-                    // Uninstall the old best route from the dataplane.
-                    if protocol != Protocol::DIRECT {
-                        dataplane.ip_route_uninstall(&prefix, protocol);
-                    }
-
-                    // Notify protocol instances about the deleted route.
-                    for sub in self.subscriptions.values() {
-                        ibus::notify_redistribute_del(sub, prefix, protocol);
-                    }
+            // Check if no route can be used for this prefix anymore.
+            if best_idx.is_none()
+                && let Some(protocol) = old_best_protocol
+            {
+                // Uninstall the old best route from the dataplane.
+                if protocol != Protocol::DIRECT {
+                    dataplane.ip_route_uninstall(&prefix, protocol);
                 }
 
-                // Remove prefix entry from the RIB.
+                // Notify protocol instances about the deleted route.
+                for sub in self.subscriptions.values() {
+                    ibus::notify_redistribute_del(sub, prefix, protocol);
+                }
+            }
+
+            // Remove the prefix entry from the RIB once it has no routes left.
+            if rib_prefix.is_empty() {
                 self.ip.remove(&prefix);
             }
         }
@@ -352,8 +359,13 @@ impl Rib {
                 continue;
             }
 
-            // Install the route in the dataplane.
-            dataplane.mpls_route_install(label, route, interfaces);
+            // Install the route in the dataplane, or uninstall any earlier
+            // version of it if it can't be used anymore.
+            if route.is_usable() {
+                dataplane.mpls_route_install(label, route, interfaces);
+            } else {
+                dataplane.mpls_route_uninstall(label, route.protocol);
+            }
         }
 
         // Reevaluate all registered nexthops.
@@ -393,7 +405,7 @@ impl Rib {
 
     // Returns the route to the given IP address: the active route of the
     // longest prefix that contains it, skipping prefixes without an active
-    // route or whose active route is being withdrawn.
+    // route that can be used.
     //
     // Two other kinds of prefixes are skipped as well:
     // - The given prefix, if any, as resolving a route's nexthops through its
@@ -413,7 +425,7 @@ impl Rib {
                 routes
                     .iter()
                     .find(|route| route.flags.contains(RouteFlags::ACTIVE))
-                    .filter(|route| !route.flags.contains(RouteFlags::REMOVED))
+                    .filter(|route| route.is_usable())
             })
             .filter(|route| !route.has_recursive_nexthop(addr))
             .last()
@@ -614,6 +626,26 @@ impl Route {
             }
         }
         nexthops.into()
+    }
+
+    // Returns whether the route can be used. It can't once it's withdrawn, nor
+    // when it's meant to forward traffic but none of its nexthops can, as when
+    // its recursive nexthops failed to resolve.
+    fn is_usable(&self) -> bool {
+        if self.flags.contains(RouteFlags::REMOVED) {
+            return false;
+        }
+
+        if self.kind == RouteKind::Unicast
+            && !self.nexthops.iter().any(|nexthop| match nexthop {
+                Nexthop::Recursive { resolved, .. } => !resolved.is_empty(),
+                _ => true,
+            })
+        {
+            return false;
+        }
+
+        true
     }
 }
 

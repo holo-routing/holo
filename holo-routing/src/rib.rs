@@ -451,12 +451,19 @@ impl Rib {
         self.ip.entry(prefix).or_default()
     }
 
-    // Returns the longest matching route for the given IP address.
+    // Returns the route to the given IP address: the active route of the
+    // longest prefix that contains it, skipping prefixes without an active
+    // route or whose active route is being withdrawn.
     fn prefix_longest_match(&self, addr: &IpAddr) -> Option<&Route> {
-        let (_, lpm) = self.ip.get_lpm(&addr.to_host_prefix())?;
-        lpm.first()
-            .filter(|route| route.flags.contains(RouteFlags::ACTIVE))
-            .filter(|route| !route.flags.contains(RouteFlags::REMOVED))
+        self.ip
+            .cover(&addr.to_host_prefix())
+            .filter_map(|(_, routes)| {
+                routes
+                    .iter()
+                    .find(|route| route.flags.contains(RouteFlags::ACTIVE))
+                    .filter(|route| !route.flags.contains(RouteFlags::REMOVED))
+            })
+            .last()
     }
 
     // Resolves the recursive next-hops in the provided set of next-hops.

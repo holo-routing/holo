@@ -531,6 +531,8 @@ impl Lsdb {
         let lsp = &lse.data;
         if !lsp.is_expired() {
             self.lsp_count += 1;
+        }
+        if lsp.contributes_to_lsdb_fingerprint() {
             let fingerprint =
                 self.fingerprint().value ^ lsp.lsdb_fingerprint_component();
             self.fingerprint_set(fingerprint);
@@ -554,6 +556,8 @@ impl Lsdb {
         let lsp = &lse.data;
         if !lsp.is_expired() {
             self.lsp_count -= 1;
+        }
+        if lsp.contributes_to_lsdb_fingerprint() {
             let fingerprint =
                 self.fingerprint().value ^ lsp.lsdb_fingerprint_component();
             self.fingerprint_set(fingerprint);

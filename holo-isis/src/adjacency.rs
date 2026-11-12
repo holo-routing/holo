@@ -231,11 +231,14 @@ impl Adjacency {
             }
         }
 
+        // Transitions Up -> * || * -> Up
+        if self.state == AdjacencyState::Up || new_state == AdjacencyState::Up {
+            // Schedule LSP reorigination.
+            self.schedule_lsp_origination(instance);
+        }
+
         // Effectively transition to the new state.
         self.state = new_state;
-
-        // Schedule LSP reorigination.
-        self.schedule_lsp_origination(instance);
     }
 
     // Schedules LSP reorigination for all levels where the adjacency exists.

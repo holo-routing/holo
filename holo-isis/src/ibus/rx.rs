@@ -8,7 +8,7 @@
 //
 
 use std::collections::BTreeMap;
-use std::net::Ipv4Addr;
+use std::net::{IpAddr, Ipv4Addr};
 use std::sync::Arc;
 
 use holo_utils::bfd;
@@ -102,6 +102,12 @@ pub(crate) fn process_addr_add(instance: &mut Instance, msg: AddressMsg) {
                 iface.hello_interval_start(&instance, LevelType::All);
             }
 
+            if let IpAddr::V6(addr) = msg.addr.ip()
+                && addr.is_unicast_link_local()
+            {
+                return;
+            }
+
             // Schedule LSP reorigination.
             instance.schedule_lsp_origination(LevelType::All);
         }
@@ -126,6 +132,12 @@ pub(crate) fn process_addr_del(instance: &mut Instance, msg: AddressMsg) {
             // Update Hello Tx task(s).
             if !iface.is_passive() {
                 iface.hello_interval_start(&instance, LevelType::All);
+            }
+
+            if let IpAddr::V6(addr) = msg.addr.ip()
+                && addr.is_unicast_link_local()
+            {
+                return;
             }
 
             // Schedule LSP reorigination.

@@ -255,7 +255,7 @@ impl SpfVersion<Self> for Ospfv2 {
                     .map(move |lsa_body| (lsa.hdr, lsa_body))
             })
             .filter_map(|(lsa_hdr, lsa_body)| {
-                Ipv4Network::with_netmask(lsa_hdr.lsa_id, lsa_body.mask).ok()
+                lsa_prefix(lsa_hdr.lsa_id, lsa_body.mask)
             })
             .collect();
 
@@ -277,7 +277,7 @@ impl SpfVersion<Self> for Ospfv2 {
                     .map(move |lsa_body| (lsa.hdr, lsa_body))
             })
             .filter_map(|(lsa_hdr, lsa_body)| {
-                Ipv4Network::with_netmask(lsa_hdr.lsa_id, lsa_body.mask).ok()
+                lsa_prefix(lsa_hdr.lsa_id, lsa_body.mask)
             })
             .collect();
 
@@ -557,14 +557,11 @@ impl SpfVersion<Self> for Ospfv2 {
         for vertex in area.state.spt.values() {
             match &vertex.lsa {
                 VertexLsa::Network(lsa) => {
-                    let Some(prefix) = Ipv4Network::with_netmask(
-                        lsa.hdr.lsa_id,
-                        lsa.body().mask,
-                    )
-                    .ok() else {
+                    let Some(prefix) =
+                        lsa_prefix(lsa.hdr.lsa_id, lsa.body().mask)
+                    else {
                         continue;
                     };
-                    let prefix = prefix.apply_mask();
                     let prefix_sids = route_prefix_sids(
                         area,
                         lsa.hdr.adv_rtr,
@@ -591,12 +588,8 @@ impl SpfVersion<Self> for Ospfv2 {
                                 link.link_type == LsaRouterLinkType::StubNetwork
                             })
                             .filter_map(|link| {
-                                let prefix = Ipv4Network::with_netmask(
-                                    link.link_id,
-                                    link.link_data,
-                                )
-                                .ok()?;
-                                let prefix = prefix.apply_mask();
+                                let prefix =
+                                    lsa_prefix(link.link_id, link.link_data)?;
                                 let metric = link.metric;
                                 let prefix_sids = route_prefix_sids(
                                     area,
@@ -633,9 +626,7 @@ impl SpfVersion<Self> for Ospfv2 {
             .iter_typed(lsa_entries, kind::SummaryNetwork)
             .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
             .filter_map(|(lsa_hdr, lsa_body)| {
-                let prefix =
-                    Ipv4Network::with_netmask(lsa_hdr.lsa_id, lsa_body.mask)
-                        .ok()?;
+                let prefix = lsa_prefix(lsa_hdr.lsa_id, lsa_body.mask)?;
                 let prefix_sids = route_prefix_sids(
                     area,
                     lsa_hdr.adv_rtr,
@@ -677,9 +668,7 @@ impl SpfVersion<Self> for Ospfv2 {
         lsdb.iter_typed(lsa_entries, kind::AsExternal)
             .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
             .filter_map(|(lsa_hdr, lsa_body)| {
-                let prefix =
-                    Ipv4Network::with_netmask(lsa_hdr.lsa_id, lsa_body.mask)
-                        .ok()?;
+                let prefix = lsa_prefix(lsa_hdr.lsa_id, lsa_body.mask)?;
 
                 Some(SpfExternalNetwork {
                     adv_rtr: lsa_hdr.adv_rtr,
@@ -761,6 +750,17 @@ impl SpfVersion<Self> for Ospfv2 {
 }
 
 // ===== helper functions =====
+
+// Returns the prefix described by an address and mask carried in an LSA, with
+// the host bits cleared.
+//
+// Host bits may be set in a Link State ID to give unique IDs to LSAs describing
+// networks with the same address but different masks (RFC 2328, Appendix E).
+fn lsa_prefix(addr: Ipv4Addr, mask: Ipv4Addr) -> Option<Ipv4Network> {
+    Ipv4Network::with_netmask(addr, mask)
+        .ok()
+        .map(|prefix| prefix.apply_mask())
+}
 
 // Returns the ID of the vertex a Router-LSA link points to, if any.
 fn link_vertex_id(link: &LsaRouterLink) -> Option<VertexId> {

@@ -237,8 +237,20 @@ impl Interface {
         // Mark interface as active.
         self.state.active = true;
 
-        // Schedule LSP reorigination.
-        instance.schedule_lsp_origination(self.config.level_type.resolved);
+        let ipv4_count = self.system.addr_list.ipv4().len();
+        let ipv6_count = self
+            .system
+            .addr_list
+            .ipv6()
+            .iter()
+            .filter(|addr| !addr.ip().is_unicast_link_local())
+            .count();
+
+        // Schedule LSP generation if at least one IP address exists
+        if ipv4_count > 0 || ipv6_count > 0 {
+            // Schedule LSP reorigination.
+            instance.schedule_lsp_origination(self.config.level_type.resolved);
+        }
 
         Ok(())
     }

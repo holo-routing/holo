@@ -18,6 +18,15 @@ module holo-ietf-routing-deviations {
    * Added constraints
    */
 
+  deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol" {
+    deviate add {
+      must 'not(derived-from-or-self(rt:type, "rt:static")) or rt:name = "main"' {
+        error-message
+          "The static protocol instance must be named \"main\".";
+      }
+    }
+  }
+
   deviation "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/rt:type" {
     deviate add {
       must 'not(derived-from-or-self(., "rt:direct"))' {

@@ -54,6 +54,13 @@ pub enum RouteDestination {
     Label(Label),
 }
 
+// What a recursive nexthop resolved to.
+#[derive(Debug)]
+pub enum ResolvedNexthop<'a> {
+    Nexthop(&'a Nexthop),
+    Special(NexthopSpecial),
+}
+
 // ===== YANG impls =====
 
 impl<'a> YangList<'a, Master> for routing::control_plane_protocols::control_plane_protocol::ControlPlaneProtocol<'a> {
@@ -181,8 +188,12 @@ impl<'a> YangContainer<'a, Master> for routing::ribs::rib::routes::route::next_h
         let mut v6ur_next_hop_address = None;
         let mut special_next_hop = None;
 
-        match route.kind {
-            RouteKind::Unicast if route.nexthops.len() == 1 => {
+        // Routes that discard traffic have no nexthops, except those whose
+        // recursive nexthops resolved through such a route. Those keep their
+        // nexthops, with the special nexthop shown as what they resolved to.
+        match route.nexthops.len() {
+            0 => special_next_hop = nexthop_special(route.kind),
+            1 => {
                 let nexthop = route.nexthops.first().unwrap();
                 match nexthop {
                     Nexthop::Address {
@@ -213,9 +224,6 @@ impl<'a> YangContainer<'a, Master> for routing::ribs::rib::routes::route::next_h
                     },
                 }
             }
-            RouteKind::Blackhole => special_next_hop = Some(NexthopSpecial::Blackhole),
-            RouteKind::Unreachable => special_next_hop = Some(NexthopSpecial::Unreachable),
-            RouteKind::Prohibit => special_next_hop = Some(NexthopSpecial::Prohibit),
             _ => (),
         }
 
@@ -255,20 +263,70 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::m
     }
 }
 
-impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::next_hop_list::next_hop::NextHop<'a> {
+impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::resolved_next_hop::ResolvedNextHop<'a> {
     type ParentListEntry = (RouteDestination, &'a Route);
-    type ListEntry = &'a Nexthop;
+    type ListEntry = ResolvedNexthop<'a>;
 
     fn iter(_master: &'a Master, (_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        if route.nexthops.len() > 1 {
-            let iter = route.nexthops.iter();
-            Some(iter)
+        if route.nexthops.len() == 1
+            && let Nexthop::Recursive {
+                resolved, ..
+            } = route.nexthops.first().unwrap()
+        {
+            Some(resolved_nexthops(route, resolved))
         } else {
             None
         }
     }
 
     fn new(master: &'a Master, nexthop: &Self::ListEntry) -> Self {
+        let (outgoing_interface, address, special_next_hop) = resolved_nexthop_attrs(master, nexthop);
+        Self {
+            outgoing_interface,
+            address,
+            special_next_hop,
+        }
+    }
+}
+
+impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::resolved_next_hop::mpls_label_stack::entry::Entry {
+    type ParentListEntry = ResolvedNexthop<'a>;
+    type ListEntry = (usize, &'a Label);
+
+    fn iter(_master: &'a Master, nexthop: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        if let ResolvedNexthop::Nexthop(Nexthop::Address {
+            labels, ..
+        }) = nexthop
+        {
+            let iter = labels.iter().enumerate();
+            Some(iter)
+        } else {
+            None
+        }
+    }
+
+    fn new(_master: &'a Master, (id, label): &Self::ListEntry) -> Self {
+        Self {
+            id: *id as u8,
+            label: Some(**label),
+        }
+    }
+}
+
+impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::next_hop_list::next_hop::NextHop<'a> {
+    type ParentListEntry = (RouteDestination, &'a Route);
+    type ListEntry = (&'a Route, &'a Nexthop);
+
+    fn iter(_master: &'a Master, &(_, route): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        if route.nexthops.len() > 1 {
+            let iter = route.nexthops.iter().map(move |nexthop| (route, nexthop));
+            Some(iter)
+        } else {
+            None
+        }
+    }
+
+    fn new(master: &'a Master, (_, nexthop): &Self::ListEntry) -> Self {
         let outgoing_interface = if let Nexthop::Address {
             ifindex, ..
         }
@@ -301,13 +359,62 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::n
 }
 
 impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::next_hop_list::next_hop::mpls_label_stack::entry::Entry {
-    type ParentListEntry = &'a Nexthop;
+    type ParentListEntry = (&'a Route, &'a Nexthop);
     type ListEntry = (usize, &'a Label);
 
-    fn iter(_master: &'a Master, nexthop: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_master: &'a Master, (_, nexthop): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         if let Nexthop::Address {
             labels, ..
         } = nexthop
+        {
+            let iter = labels.iter().enumerate();
+            Some(iter)
+        } else {
+            None
+        }
+    }
+
+    fn new(_master: &'a Master, (id, label): &Self::ListEntry) -> Self {
+        Self {
+            id: *id as u8,
+            label: Some(**label),
+        }
+    }
+}
+
+impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::next_hop_list::next_hop::resolved_next_hop::ResolvedNextHop<'a> {
+    type ParentListEntry = (&'a Route, &'a Nexthop);
+    type ListEntry = ResolvedNexthop<'a>;
+
+    fn iter(_master: &'a Master, &(route, nexthop): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        if let Nexthop::Recursive {
+            resolved, ..
+        } = nexthop
+        {
+            Some(resolved_nexthops(route, resolved))
+        } else {
+            None
+        }
+    }
+
+    fn new(master: &'a Master, nexthop: &Self::ListEntry) -> Self {
+        let (outgoing_interface, address, special_next_hop) = resolved_nexthop_attrs(master, nexthop);
+        Self {
+            outgoing_interface,
+            address,
+            special_next_hop,
+        }
+    }
+}
+
+impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::next_hop::next_hop_list::next_hop::resolved_next_hop::mpls_label_stack::entry::Entry {
+    type ParentListEntry = ResolvedNexthop<'a>;
+    type ListEntry = (usize, &'a Label);
+
+    fn iter(_master: &'a Master, nexthop: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        if let ResolvedNexthop::Nexthop(Nexthop::Address {
+            labels, ..
+        }) = nexthop
         {
             let iter = labels.iter().enumerate();
             Some(iter)
@@ -400,17 +507,11 @@ impl<'a> YangContainer<'a, Master> for routing::next_hop_tracking::next_hop::res
 
     fn new(_master: &'a Master, (_, nhte): &Self::ParentListEntry) -> Option<Self> {
         let resolution = nhte.resolution.as_ref()?;
-        let special_next_hop = match resolution.kind {
-            RouteKind::Unicast => None,
-            RouteKind::Blackhole => Some(NexthopSpecial::Blackhole),
-            RouteKind::Unreachable => Some(NexthopSpecial::Unreachable),
-            RouteKind::Prohibit => Some(NexthopSpecial::Prohibit),
-        };
         Some(Self {
             prefix: Some(resolution.prefix),
             protocol: Some(resolution.protocol),
             metric: Some(resolution.metric),
-            special_next_hop,
+            special_next_hop: nexthop_special(resolution.kind),
         })
     }
 }
@@ -432,23 +533,64 @@ impl<'a> YangList<'a, Master> for routing::next_hop_tracking::next_hop::resoluti
     }
 
     fn new(master: &'a Master, nexthop: &Self::ListEntry) -> Self {
-        let (ifindex, address) = match nexthop {
-            Nexthop::Address {
-                ifindex,
-                addr,
-                ..
-            } => (Some(*ifindex), Some(*addr)),
-            Nexthop::Interface {
-                ifindex,
-            } => (Some(*ifindex), None),
-            Nexthop::Recursive {
-                addr, ..
-            } => (None, Some(*addr)),
-        };
-        let outgoing_interface = ifindex.and_then(|ifindex| master.interfaces.get_by_ifindex(ifindex)).map(|iface| Cow::Borrowed(iface.name.as_str()));
+        let (outgoing_interface, address) = nexthop_attrs(master, nexthop);
         Self {
             outgoing_interface,
             address,
         }
+    }
+}
+
+// ===== helper functions =====
+
+// Returns the name of the outgoing interface and the address of a nexthop.
+fn nexthop_attrs<'a>(master: &'a Master, nexthop: &Nexthop) -> (Option<Cow<'a, str>>, Option<IpAddr>) {
+    let (ifindex, address) = match nexthop {
+        Nexthop::Address {
+            ifindex,
+            addr,
+            ..
+        } => (Some(*ifindex), Some(*addr)),
+        Nexthop::Interface {
+            ifindex,
+        } => (Some(*ifindex), None),
+        Nexthop::Recursive {
+            addr, ..
+        } => (None, Some(*addr)),
+    };
+    let outgoing_interface = ifindex.and_then(|ifindex| master.interfaces.get_by_ifindex(ifindex)).map(|iface| Cow::Borrowed(iface.name.as_str()));
+    (outgoing_interface, address)
+}
+
+// Returns what a recursive nexthop of the given route resolved to.
+//
+// Resolving through a route that discards traffic yields no nexthops. A
+// route left with nothing else to forward through takes the kind of that
+// route, so an empty resolution is shown as the special nexthop of the
+// route's own kind.
+fn resolved_nexthops<'a>(route: &'a Route, resolved: &'a [Nexthop]) -> impl ListIterator<'a, ResolvedNexthop<'a>> {
+    let special = if resolved.is_empty() { nexthop_special(route.kind) } else { None };
+    resolved.iter().map(ResolvedNexthop::Nexthop).chain(special.map(ResolvedNexthop::Special))
+}
+
+// Returns the name of the outgoing interface, the address and the special
+// nexthop of what a recursive nexthop resolved to.
+fn resolved_nexthop_attrs<'a>(master: &'a Master, nexthop: &ResolvedNexthop<'_>) -> (Option<Cow<'a, str>>, Option<IpAddr>, Option<NexthopSpecial>) {
+    match nexthop {
+        ResolvedNexthop::Nexthop(nexthop) => {
+            let (outgoing_interface, address) = nexthop_attrs(master, nexthop);
+            (outgoing_interface, address, None)
+        }
+        ResolvedNexthop::Special(special) => (None, None, Some(*special)),
+    }
+}
+
+// Returns the special nexthop of routes of the given kind.
+fn nexthop_special(kind: RouteKind) -> Option<NexthopSpecial> {
+    match kind {
+        RouteKind::Unicast => None,
+        RouteKind::Blackhole => Some(NexthopSpecial::Blackhole),
+        RouteKind::Unreachable => Some(NexthopSpecial::Unreachable),
+        RouteKind::Prohibit => Some(NexthopSpecial::Prohibit),
     }
 }

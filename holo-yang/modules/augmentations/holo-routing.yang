@@ -17,6 +17,10 @@ module holo-routing {
     prefix "rt";
   }
 
+  import ietf-routing-types {
+    prefix "rt-types";
+  }
+
   import ietf-bier {
     prefix "bier";
   }
@@ -27,6 +31,78 @@ module holo-routing {
   description
     "This module defines augment statements for the ietf-routing
     module.";
+
+  grouping resolved-next-hops {
+    description
+      "Next hops a recursive next hop resolved to.";
+    list resolved-next-hop {
+      description
+        "Next hop of the route the address of the recursive next hop
+         resolves through. Traffic follows these next hops.";
+      choice next-hop-options {
+        description
+          "Options for resolved next hops.";
+        case simple-next-hop {
+          description
+            "Next hop traffic is forwarded through.";
+          leaf outgoing-interface {
+            type if:interface-ref;
+            description
+              "Name of the outgoing interface.";
+          }
+          leaf address {
+            type inet:ip-address;
+            description
+              "Address of the next hop.";
+          }
+          container mpls-label-stack {
+            description
+              "MPLS label stack pushed onto the traffic forwarded
+               through the next hop.";
+            list entry {
+              key "id";
+              description
+                "MPLS label stack entry.";
+              leaf id {
+                type uint8;
+                description
+                  "Position of the entry in the label stack. The entry
+                   with the smallest identifier is the top of the
+                   stack.";
+              }
+              leaf label {
+                type rt-types:mpls-label;
+                description
+                  "Label value.";
+              }
+            }
+          }
+        }
+        case special-next-hop {
+          description
+            "The route the address resolves through discards traffic,
+             and so does the route with the recursive next hop.";
+          uses rt:special-next-hop;
+        }
+      }
+    }
+  }
+
+  augment "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/"
+        + "rt:next-hop-options/rt:simple-next-hop" {
+    description
+      "Next hops the route's single recursive next hop resolved to.";
+    uses resolved-next-hops;
+  }
+
+  augment "/rt:routing/rt:ribs/rt:rib/rt:routes/rt:route/rt:next-hop/"
+        + "rt:next-hop-options/rt:next-hop-list/rt:next-hop-list/"
+        + "rt:next-hop" {
+    description
+      "Next hops a recursive next hop in the route's list resolved
+       to.";
+    uses resolved-next-hops;
+  }
 
   augment "/rt:routing" {
     container birts {

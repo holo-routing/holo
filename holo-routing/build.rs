@@ -123,6 +123,20 @@ static LEAF_TYPES: &[(&str, TypeSpec)] = &[
             copy_semantics: true,
         },
     ),
+    (
+        "/ietf-routing:routing/ribs/rib/routes/route/next-hop/holo-routing:resolved-next-hop/special-next-hop",
+        TypeSpec {
+            rust_type: "NexthopSpecial",
+            copy_semantics: true,
+        },
+    ),
+    (
+        "/ietf-routing:routing/ribs/rib/routes/route/next-hop/next-hop-list/next-hop/holo-routing:resolved-next-hop/special-next-hop",
+        TypeSpec {
+            rust_type: "NexthopSpecial",
+            copy_semantics: true,
+        },
+    ),
 ];
 
 fn main() {

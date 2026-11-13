@@ -96,6 +96,13 @@ static LEAF_TYPES: &[(&str, TypeSpec)] = &[
         },
     ),
     (
+        "/ietf-routing:routing/holo-routing:next-hop-tracking/next-hop/resolution/special-next-hop",
+        TypeSpec {
+            rust_type: "NexthopSpecial",
+            copy_semantics: true,
+        },
+    ),
+    (
         "/ietf-routing:routing/ietf-segment-routing:segment-routing/ietf-segment-routing-mpls:sr-mpls/bindings/connected-prefix-sid-map/connected-prefix-sid/last-hop-behavior",
         TypeSpec {
             rust_type: "SidLastHopBehavior",

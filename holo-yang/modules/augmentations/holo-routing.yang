@@ -8,6 +8,11 @@ module holo-routing {
     reference "RFC 6991: Common YANG Data Types";
   }
 
+  import ietf-interfaces {
+    prefix "if";
+    reference "RFC 8343: A YANG Data Model for Interface Management";
+  }
+
   import ietf-routing {
     prefix "rt";
   }
@@ -61,6 +66,61 @@ module holo-routing {
               config false;
               type inet:ip-address;
               description "Neighbor BFR prefix";
+            }
+          }
+        }
+      }
+    }
+
+    container next-hop-tracking {
+      config false;
+      description
+        "Next-hop addresses whose reachability is tracked on behalf of
+         routing protocols.";
+      list next-hop {
+        key "address";
+        description
+          "Tracked next-hop address.";
+        leaf address {
+          type inet:ip-address;
+          description
+            "Next-hop address.";
+        }
+        container resolution {
+          description
+            "Route the next-hop address resolves through. Absent when
+             the address is unreachable.";
+          leaf prefix {
+            type inet:ip-prefix;
+            description
+              "Destination prefix of the route.";
+          }
+          leaf protocol {
+            type identityref {
+              base rt:routing-protocol;
+            }
+            description
+              "Routing protocol from which the route originated.";
+          }
+          leaf metric {
+            type uint32;
+            description
+              "Metric of the route.";
+          }
+          uses rt:special-next-hop;
+          list next-hop {
+            description
+              "Next hop of the route. Recursive next hops are replaced
+               by the next hops they resolved to.";
+            leaf outgoing-interface {
+              type if:interface-ref;
+              description
+                "Name of the outgoing interface.";
+            }
+            leaf address {
+              type inet:ip-address;
+              description
+                "Address of the next hop.";
             }
           }
         }

@@ -72,10 +72,10 @@ pub struct NhtEntry {
     pub subscriptions: HashMap<usize, IbusSender>,
 }
 
-// Attributes of the route a tracked nexthop address resolves through that
-// matter to its subscribers.
+// Attributes of the route a tracked nexthop address resolves through.
 #[derive(Clone, Debug)]
 pub struct NhtResolution {
+    pub prefix: IpNetwork,
     pub protocol: Protocol,
     pub kind: RouteKind,
     pub metric: u32,
@@ -275,7 +275,7 @@ impl Rib {
     // the route used to reach it.
     fn nht_evaluate(&self, addr: &IpAddr) -> Option<NhtResolution> {
         self.prefix_longest_match(addr, None)
-            .map(NhtResolution::new)
+            .map(|(prefix, route)| NhtResolution::new(prefix, route))
     }
 
     // Processes routes present in the update queue.
@@ -391,8 +391,12 @@ impl Rib {
             // of another prefix doesn't count by itself, as nothing the
             // subscribers get depends on the prefix.
             let lpm = self.prefix_longest_match(addr, None);
-            let unchanged = match (&nhte.resolution, lpm) {
-                (Some(old), Some(route)) => old.matches(route),
+            let unchanged = match (&mut nhte.resolution, lpm) {
+                (Some(old), Some((prefix, route))) if old.matches(route) => {
+                    // Keep the prefix up to date.
+                    old.prefix = prefix;
+                    true
+                }
                 (None, None) => true,
                 _ => false,
             };
@@ -400,7 +404,8 @@ impl Rib {
                 continue;
             }
 
-            let new = lpm.map(NhtResolution::new);
+            let new =
+                lpm.map(|(prefix, route)| NhtResolution::new(prefix, route));
             debug!(
                 %addr, old = ?nhte.resolution, ?new,
                 "nexthop tracking update"
@@ -418,9 +423,9 @@ impl Rib {
         self.ip.entry(prefix).or_default()
     }
 
-    // Returns the route to the given IP address: the active route of the
-    // longest prefix that contains it, skipping prefixes without an active
-    // route that can be used.
+    // Returns the route to the given IP address, along with its prefix: the
+    // active route of the longest prefix that contains the address, skipping
+    // prefixes without an active route that can be used.
     //
     // Two other kinds of prefixes are skipped as well:
     // - The given prefix, if any, as resolving a route's nexthops through its
@@ -432,17 +437,18 @@ impl Rib {
         &self,
         addr: &IpAddr,
         skip_prefix: Option<IpNetwork>,
-    ) -> Option<&Route> {
+    ) -> Option<(IpNetwork, &Route)> {
         self.ip
             .cover(&addr.to_host_prefix())
             .filter(|(prefix, _)| Some(*prefix) != skip_prefix)
-            .filter_map(|(_, routes)| {
+            .filter_map(|(prefix, routes)| {
                 routes
                     .iter()
                     .find(|route| route.flags.contains(RouteFlags::ACTIVE))
                     .filter(|route| route.is_usable())
+                    .map(|route| (prefix, route))
             })
-            .filter(|route| !route.has_recursive_nexthop(addr))
+            .filter(|(_, route)| !route.has_recursive_nexthop(addr))
             .last()
     }
 
@@ -474,7 +480,8 @@ impl Rib {
                     labels,
                 } = &mut nexthop
                 {
-                    if let Some(route) = self.prefix_longest_match(addr, prefix)
+                    if let Some((_, route)) =
+                        self.prefix_longest_match(addr, prefix)
                     {
                         if route.protocol == Protocol::DIRECT
                             && let Some(Nexthop::Interface { ifindex }) =
@@ -675,8 +682,9 @@ impl Route {
 // ===== impl NhtResolution =====
 
 impl NhtResolution {
-    fn new(route: &Route) -> Self {
+    fn new(prefix: IpNetwork, route: &Route) -> Self {
         NhtResolution {
+            prefix,
             protocol: route.protocol,
             kind: route.kind,
             metric: route.metric,

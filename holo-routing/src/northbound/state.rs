@@ -20,7 +20,7 @@ use ipnetwork::{Ipv4Network, Ipv6Network};
 
 use crate::northbound::configuration::NexthopSpecial;
 use crate::northbound::yang_gen::{self, routing};
-use crate::rib::{Route, RouteFlags};
+use crate::rib::{NhtEntry, Route, RouteFlags};
 use crate::{InstanceId, Master};
 
 impl Provider for Master {
@@ -374,6 +374,81 @@ impl<'a> YangList<'a, Master> for routing::birts::birt::bfr_id::birt_entry::Birt
             bsl: bsl.into(),
             bfr_prefix,
             bfr_nbr,
+        }
+    }
+}
+
+impl<'a> YangList<'a, Master> for routing::next_hop_tracking::next_hop::NextHop {
+    type ParentListEntry = ();
+    type ListEntry = (&'a IpAddr, &'a NhtEntry);
+
+    fn iter(master: &'a Master, _: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let mut entries = master.rib.nht.iter().collect::<Vec<_>>();
+        entries.sort_by_key(|(addr, _)| *addr);
+        Some(entries.into_iter())
+    }
+
+    fn new(_master: &'a Master, (addr, _): &Self::ListEntry) -> Self {
+        Self {
+            address: **addr,
+        }
+    }
+}
+
+impl<'a> YangContainer<'a, Master> for routing::next_hop_tracking::next_hop::resolution::Resolution {
+    type ParentListEntry = (&'a IpAddr, &'a NhtEntry);
+
+    fn new(_master: &'a Master, (_, nhte): &Self::ParentListEntry) -> Option<Self> {
+        let resolution = nhte.resolution.as_ref()?;
+        let special_next_hop = match resolution.kind {
+            RouteKind::Unicast => None,
+            RouteKind::Blackhole => Some(NexthopSpecial::Blackhole),
+            RouteKind::Unreachable => Some(NexthopSpecial::Unreachable),
+            RouteKind::Prohibit => Some(NexthopSpecial::Prohibit),
+        };
+        Some(Self {
+            prefix: Some(resolution.prefix),
+            protocol: Some(resolution.protocol),
+            metric: Some(resolution.metric),
+            special_next_hop,
+        })
+    }
+}
+
+impl<'a> YangList<'a, Master> for routing::next_hop_tracking::next_hop::resolution::next_hop::NextHop<'a> {
+    type ParentListEntry = (&'a IpAddr, &'a NhtEntry);
+    type ListEntry = &'a Nexthop;
+
+    fn iter(_master: &'a Master, &(_, nhte): &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let resolution = nhte.resolution.as_ref()?;
+        // Show recursive nexthops as the nexthops they resolved to.
+        let iter = resolution.nexthops.iter().flat_map(|nexthop| match nexthop {
+            Nexthop::Recursive {
+                resolved, ..
+            } => resolved.iter(),
+            _ => std::slice::from_ref(nexthop).iter(),
+        });
+        Some(iter)
+    }
+
+    fn new(master: &'a Master, nexthop: &Self::ListEntry) -> Self {
+        let (ifindex, address) = match nexthop {
+            Nexthop::Address {
+                ifindex,
+                addr,
+                ..
+            } => (Some(*ifindex), Some(*addr)),
+            Nexthop::Interface {
+                ifindex,
+            } => (Some(*ifindex), None),
+            Nexthop::Recursive {
+                addr, ..
+            } => (None, Some(*addr)),
+        };
+        let outgoing_interface = ifindex.and_then(|ifindex| master.interfaces.get_by_ifindex(ifindex)).map(|iface| Cow::Borrowed(iface.name.as_str()));
+        Self {
+            outgoing_interface,
+            address,
         }
     }
 }

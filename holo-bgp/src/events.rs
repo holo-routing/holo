@@ -96,6 +96,7 @@ pub(crate) fn process_tcp_connect(
     // If BoT, init TLS connection.
     if nbr.config.transport.tls_cfg.is_some() {
         nbr.tls_connect(
+            instance,
             stream,
             &conn_info,
             &instance.tx.protocol_input.tls_connect,
@@ -233,7 +234,7 @@ pub(crate) fn process_nbr_msg(
             }
         }
         Err(error) => match error {
-            NbrRxError::TcpConnClosed => {
+            NbrRxError::TcpConnClosed | NbrRxError::TlsError => {
                 if nbr.colliding.is_some() {
                     nbr.colliding_promote(instance);
                 } else {
@@ -290,7 +291,9 @@ fn process_nbr_colliding_msg(
                 }
             }
         }
-        Err(NbrRxError::TcpConnClosed) => nbr.colliding_close(None),
+        Err(NbrRxError::TcpConnClosed) | Err(NbrRxError::TlsError) => {
+            nbr.colliding_close(None)
+        }
         Err(NbrRxError::MsgDecodeError(error)) => {
             nbr.colliding_close(Some(NotificationMsg::from(error)));
         }

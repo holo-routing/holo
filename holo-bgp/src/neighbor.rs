@@ -1254,12 +1254,15 @@ impl Neighbor {
 
     pub(crate) fn tls_connect(
         &mut self,
+        instance: &mut InstanceUpView<'_>,
         tcp_stream: TcpStream,
         conn_info: &TcpConnInfo,
         tls_connectp: &Sender<TlsConnectMsg>,
     ) {
         if let Err(e) = self.tls() {
             e.log();
+            let event = fsm::Event::ConnFail;
+            self.fsm_event(instance, event);
         } else if let Some(tls) = &self.tls {
             let task = tasks::tls_connect(
                 self,

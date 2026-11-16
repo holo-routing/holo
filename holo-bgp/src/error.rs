@@ -46,6 +46,7 @@ pub enum IoError {
 pub enum NbrRxError {
     TcpConnClosed,
     MsgDecodeError(DecodeError),
+    TlsError,
 }
 
 // TLS configuration IO errors.
@@ -208,7 +209,7 @@ impl std::error::Error for IoError {
 impl NbrRxError {
     pub(crate) fn log(&self) {
         match self {
-            NbrRxError::TcpConnClosed => {
+            NbrRxError::TcpConnClosed | NbrRxError::TlsError => {
                 warn!("{}", self);
             }
             NbrRxError::MsgDecodeError(error) => {
@@ -223,6 +224,9 @@ impl std::fmt::Display for NbrRxError {
         match self {
             NbrRxError::TcpConnClosed => {
                 write!(f, "connection closed by remote end")
+            }
+            NbrRxError::TlsError => {
+                write!(f, "fatal TLS error")
             }
             NbrRxError::MsgDecodeError(..) => {
                 write!(f, "failed to decode BGP message")

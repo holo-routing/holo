@@ -5,6 +5,7 @@
 //
 
 use std::collections::BTreeSet;
+use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
@@ -296,6 +297,9 @@ pub(crate) async fn nbr_write_loop<T>(
                 IoError::TcpSendError(error).log();
             }
         }
+
+        // The tx channel is closed. Gracefully close the transport stream.
+        let _ = stream.shutdown().await;
     }
     #[cfg(network_backend = "null")]
     {
@@ -334,8 +338,27 @@ where
                 }
                 Ok(_) => {}
                 Err(error) => {
+                    let error_kind = error.kind();
                     IoError::TcpRecvError(error).log();
-                    continue;
+                    let error = match error_kind {
+                        ErrorKind::UnexpectedEof => {
+                            // Emitted by TLS when TCP connection has been
+                            // closed without a clean TLS session shutdown.
+                            NbrRxError::TcpConnClosed
+                        }
+                        ErrorKind::InvalidData => {
+                            // Emitted by TlsStream on TLS-specific error.
+                            NbrRxError::TlsError
+                        }
+                        _ => continue,
+                    };
+                    let msg = NbrRxMsg {
+                        nbr_addr,
+                        conn_info: Some(conn_info),
+                        msg: Err(error),
+                    };
+                    nbr_msg_rxp.send(msg).await?;
+                    return Ok(());
                 }
             };
 

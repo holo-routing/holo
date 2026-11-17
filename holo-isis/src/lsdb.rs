@@ -1707,6 +1707,8 @@ pub(crate) fn lsp_originate_all(
         .collect();
     let mut after = HashSet::new();
 
+    let mut updated = false;
+
     // Build updated local LSP.
     for lsp in lsp_build(instance, arenas, level) {
         after.insert(lsp.lsp_id);
@@ -1724,6 +1726,8 @@ pub(crate) fn lsp_originate_all(
         {
             continue;
         }
+
+        updated = true;
 
         // Log LSP origination.
         if instance.config.trace_opts.lsdb {
@@ -1746,8 +1750,10 @@ pub(crate) fn lsp_originate_all(
         instance.tx.protocol_input.lsp_purge(level, lse.id, reason);
     }
 
-    // Update time of last LSP origination.
-    instance.state.lsp_orig_last = Some(Instant::now());
+    if updated {
+        // Update time of last LSP origination.
+        instance.state.lsp_orig_last = Some(Instant::now());
+    }
 }
 
 pub(crate) fn lsp_originate(

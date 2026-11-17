@@ -12,9 +12,6 @@ use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 use tokio::time::sleep;
-use tokio_rustls::rustls::crypto::ring::default_provider;
-use tokio_rustls::rustls::pki_types::ServerName;
-use tokio_rustls::rustls::{ClientConfig, DEFAULT_VERSIONS, ServerConfig};
 use tracing::{Instrument, debug_span, error};
 
 use crate::debug::Debug;
@@ -289,7 +286,7 @@ pub(crate) fn tcp_listener(
 // TLS accept task.
 pub(crate) fn tls_accept(
     nbr: &Neighbor,
-    tls: NeighborTlsState,
+    tls_state: Arc<NeighborTlsState>,
     tls_accept: &Sender<messages::input::TlsAcceptMsg>,
     stream: TcpStream,
     conn_info: &TcpConnInfo,
@@ -299,39 +296,28 @@ pub(crate) fn tls_accept(
         let span = debug_span!("neighbor", addr = %nbr.remote_addr);
         let _span_guard = span.enter();
 
-        let tls = tls.clone();
         let tls_accept = tls_accept.clone();
         let conn_info = conn_info.clone();
 
         Task::spawn(
             async move {
-                // TODO: Enable mutual TLS
-                if let Ok(builder) = ServerConfig::builder_with_provider(
-                    Arc::new(default_provider()),
+                let result = network::tls_accept(
+                    tls_state.server_config.clone(),
+                    stream,
                 )
-                .with_protocol_versions(DEFAULT_VERSIONS)
-                    && let Ok(config) =
-                        builder.with_no_client_auth().with_single_cert(
-                            tls.certs.clone(),
-                            tls.pkey.clone_key(),
-                        )
-                {
-                    let config = Arc::new(config);
-                    let result = network::tls_accept(config, stream).await;
+                .await;
 
-                    match result {
-                        Ok(stream) => {
-                            let _ = tls_accept
-                                .send(messages::input::TlsAcceptMsg {
-                                    stream: Some(stream),
-                                    conn_info,
-                                })
-                                .await;
-                        }
-                        Err(e) => {
-                            NbrTlsError::TlsIoError(conn_info.remote_addr, e)
-                                .log();
-                        }
+                match result {
+                    Ok(stream) => {
+                        let _ = tls_accept
+                            .send(messages::input::TlsAcceptMsg {
+                                stream: Some(stream),
+                                conn_info,
+                            })
+                            .await;
+                    }
+                    Err(e) => {
+                        NbrTlsError::TlsIoError(conn_info.remote_addr, e).log();
                     }
                 }
             }
@@ -347,7 +333,7 @@ pub(crate) fn tls_accept(
 // TLS connect task.
 pub(crate) fn tls_connect(
     nbr: &Neighbor,
-    tls_state: NeighborTlsState,
+    tls_state: Arc<NeighborTlsState>,
     tls_connect: &Sender<messages::input::TlsConnectMsg>,
     tcp_stream: TcpStream,
     conn_info: &TcpConnInfo,
@@ -357,44 +343,29 @@ pub(crate) fn tls_connect(
         let span = debug_span!("neighbor", addr = %nbr.remote_addr);
         let _span_guard = span.enter();
 
-        let tls_cfg = nbr.config.transport.tls_cfg.clone();
         let tls_connect = tls_connect.clone();
         let conn_info = conn_info.clone();
-        let tls_state = tls_state.clone();
 
         Task::spawn(
             async move {
-                if let Some(tls_cfg) = tls_cfg
-                    && let Ok(sni) = ServerName::try_from(tls_cfg.sni.as_str())
-                        .map(|s| s.to_owned())
-                    && let Ok(builder) = ClientConfig::builder_with_provider(
-                        Arc::new(default_provider()),
-                    )
-                    .with_protocol_versions(DEFAULT_VERSIONS)
-                {
-                    // TODO: Enable mutual TLS + move config generation in
-                    // neighbor.tls().
-                    let config = builder
-                        .with_root_certificates(tls_state.root_store.clone())
-                        .with_no_client_auth();
-                    let config = Arc::new(config);
+                let result = network::tls_connect(
+                    tls_state.client_config.clone(),
+                    tcp_stream,
+                    tls_state.sni.clone(),
+                )
+                .await;
 
-                    let result =
-                        network::tls_connect(config, tcp_stream, sni).await;
-
-                    match result {
-                        Ok(stream) => {
-                            let _ = tls_connect
-                                .send(messages::input::TlsConnectMsg {
-                                    stream: Some(stream),
-                                    conn_info,
-                                })
-                                .await;
-                        }
-                        Err(e) => {
-                            NbrTlsError::TlsIoError(conn_info.remote_addr, e)
-                                .log();
-                        }
+                match result {
+                    Ok(stream) => {
+                        let _ = tls_connect
+                            .send(messages::input::TlsConnectMsg {
+                                stream: Some(stream),
+                                conn_info,
+                            })
+                            .await;
+                    }
+                    Err(e) => {
+                        NbrTlsError::TlsIoError(conn_info.remote_addr, e).log();
                     }
                 }
             }

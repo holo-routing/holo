@@ -30,6 +30,9 @@ use crate::tasks::messages::output::NbrTxMsg;
 
 const BGP_PORT: u16 = 179;
 
+// BGP over TLS ALPN
+pub(crate) const BOT_ALPN: &[u8; 5] = b"botls";
+
 // ===== global functions =====
 
 pub(crate) fn listen_socket(
@@ -218,6 +221,25 @@ pub(crate) async fn connect(
     }
 }
 
+#[cfg(network_backend = "linux")]
+async fn tls_alpn_check(
+    mut stream: TlsStream<TcpStream>,
+) -> Result<TlsStream<TcpStream>, std::io::Error> {
+    let (_, conn) = stream.get_ref();
+    if conn.alpn_protocol() != Some(BOT_ALPN) {
+        // Enforce draft-wirtgen-bgp-tls-05 §3 and §4.5: Both the active and
+        // passive peer must specify the "botls" ALPN. If it is not the case,
+        // shutdown the TLS stream.
+        let _ = stream.shutdown().await;
+        Err(std::io::Error::new(
+            ErrorKind::InvalidData,
+            tokio_rustls::rustls::Error::NoApplicationProtocol,
+        ))
+    } else {
+        Ok(stream)
+    }
+}
+
 pub(crate) async fn tls_accept(
     config: Arc<ServerConfig>,
     tcp_stream: TcpStream,
@@ -229,8 +251,12 @@ pub(crate) async fn tls_accept(
         let stream = acceptor
             .accept(tcp_stream)
             .await
+            .map(TlsStream::Server)
             .map_err(TlsIoError::AcceptError)?;
-        Ok(TlsStream::Server(stream))
+
+        tls_alpn_check(stream)
+            .await
+            .map_err(TlsIoError::AcceptError)
     }
     #[cfg(network_backend = "null")]
     {
@@ -247,11 +273,15 @@ pub(crate) async fn tls_connect(
     {
         // TODO: Add timer
         let connector = TlsConnector::from(config);
-        let tls = connector
+        let stream = connector
             .connect(sni, tcp_stream)
             .await
+            .map(TlsStream::Client)
             .map_err(TlsIoError::ConnectError)?;
-        Ok(TlsStream::Client(tls))
+
+        tls_alpn_check(stream)
+            .await
+            .map_err(TlsIoError::ConnectError)
     }
     #[cfg(network_backend = "null")]
     {

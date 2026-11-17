@@ -7,8 +7,9 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use serde::{Deserialize, Serialize};
-use tokio_rustls::rustls::Error as StoreError;
+use tokio_rustls::rustls::Error as TlsError;
 use tokio_rustls::rustls::pki_types::pem::Error as PemError;
+use tokio_rustls::rustls::server::VerifierBuilderError;
 use tracing::{error, warn, warn_span};
 
 use crate::packet::error::DecodeError;
@@ -59,12 +60,21 @@ pub enum TlsIoError {
     ConnectError(std::io::Error),
 }
 
+#[derive(Debug)]
+pub enum TlsCfgError {
+    InvalidSni,
+    InvalidTlsCfg,
+    InvalidTlsServerCfg(TlsError),
+    InvalidTlsClientCfg(TlsError),
+    InvalidWebPkiVerifier(VerifierBuilderError),
+}
+
 // Neighbor TLS configuration errors.
 #[derive(Debug)]
 pub enum NbrTlsError {
     TlsIoError(IpAddr, TlsIoError),
-    InvalidTlsCfg(IpAddr),
-    CertStore(IpAddr, StoreError),
+    TlsCfgError(IpAddr, TlsCfgError),
+    CertStore(IpAddr, TlsError),
 }
 
 // ===== impl Error =====
@@ -292,6 +302,47 @@ impl std::error::Error for TlsIoError {
     }
 }
 
+// ===== impl TlsCfgError =====
+
+impl TlsCfgError {
+    pub(crate) fn log(&self) {
+        match self {
+            Self::InvalidSni | Self::InvalidTlsCfg => {
+                warn!("{}", self);
+            }
+            Self::InvalidTlsServerCfg(error)
+            | Self::InvalidTlsClientCfg(error) => {
+                warn!(error = %with_source(error), "{}", self);
+            }
+            Self::InvalidWebPkiVerifier(error) => {
+                warn!(error = %with_source(error), "{}", self);
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for TlsCfgError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidSni => {
+                write!(f, "invalid SNI configuration")
+            }
+            Self::InvalidTlsCfg => {
+                write!(f, "invalid TLS configuration")
+            }
+            Self::InvalidTlsServerCfg(..) => {
+                write!(f, "failed to build TLS server configuration")
+            }
+            Self::InvalidTlsClientCfg(..) => {
+                write!(f, "failed to build TLS client configuration")
+            }
+            Self::InvalidWebPkiVerifier(..) => {
+                write!(f, "failed to build the client certificate verifier")
+            }
+        }
+    }
+}
+
 // ===== impl NbrTlsError =====
 
 impl NbrTlsError {
@@ -300,8 +351,8 @@ impl NbrTlsError {
             Self::TlsIoError(addr, error) => {
                 warn_span!("neighbor", %addr).in_scope(|| error.log())
             }
-            Self::InvalidTlsCfg(addr) => {
-                warn_span!("neighbor", %addr).in_scope(|| warn!("{}", self));
+            Self::TlsCfgError(addr, error) => {
+                warn_span!("neighbor", %addr).in_scope(|| error.log());
             }
             Self::CertStore(addr, error) => warn_span!("neighbor", %addr)
                 .in_scope(|| warn!(error = %with_source(error), "{}", self)),
@@ -313,9 +364,7 @@ impl std::fmt::Display for NbrTlsError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::TlsIoError(_, error) => error.fmt(f),
-            Self::InvalidTlsCfg(..) => {
-                write!(f, "invalid TLS configuration")
-            }
+            Self::TlsCfgError(_, error) => error.fmt(f),
             Self::CertStore(_, error) => {
                 write!(f, "failed to add certificate to store: {error:?}")
             }

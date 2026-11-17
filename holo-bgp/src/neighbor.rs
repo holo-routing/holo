@@ -20,14 +20,22 @@ use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use num_traits::{FromPrimitive, ToPrimitive};
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::{Sender, UnboundedSender};
-use tokio_rustls::rustls::RootCertStore;
+use tokio_rustls::rustls::client::Resumption;
+use tokio_rustls::rustls::crypto::ring::default_provider;
 use tokio_rustls::rustls::pki_types::pem::PemObject;
-use tokio_rustls::rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use tokio_rustls::rustls::pki_types::{
+    CertificateDer, PrivateKeyDer, ServerName,
+};
+use tokio_rustls::rustls::server::{
+    NoServerSessionStorage, WebPkiClientVerifier,
+};
+use tokio_rustls::rustls::{ClientConfig, RootCertStore, ServerConfig};
 
 use crate::af::{AddressFamily, Ipv4Unicast, Ipv6Unicast};
 use crate::debug::Debug;
-use crate::error::{Error, NbrTlsError, TlsIoError};
+use crate::error::{Error, NbrTlsError, TlsCfgError, TlsIoError};
 use crate::instance::{Instance, InstanceUpView};
+use crate::network::BOT_ALPN;
 use crate::northbound::configuration::{
     InstanceCfg, NeighborCfg, NeighborTlsCfg,
 };
@@ -53,11 +61,11 @@ use crate::{events, rib, tasks};
 // Large hold-time used during session initialization.
 const LARGE_HOLDTIME: u16 = 240;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct NeighborTlsState {
-    pub root_store: RootCertStore,
-    pub certs: Vec<CertificateDer<'static>>,
-    pub pkey: Arc<PrivateKeyDer<'static>>,
+    pub server_config: Arc<ServerConfig>,
+    pub client_config: Arc<ClientConfig>,
+    pub sni: ServerName<'static>,
 }
 
 // BGP neighbor.
@@ -84,7 +92,7 @@ pub struct Neighbor {
     pub tasks: NeighborTasks,
     pub update_queues: NeighborUpdateQueues,
     pub msg_txp: Option<UnboundedSender<NbrTxMsg>>,
-    pub tls: Option<NeighborTlsState>,
+    pub tls: Option<Arc<NeighborTlsState>>,
 }
 
 // Which end of a TCP connection opened it.
@@ -328,14 +336,16 @@ impl Neighbor {
 
     fn tls(&mut self) -> Result<(), NbrTlsError> {
         let tls_cfg: &NeighborTlsCfg =
-            self.config
-                .transport
-                .tls_cfg
-                .as_ref()
-                .ok_or(NbrTlsError::InvalidTlsCfg(self.remote_addr))?;
+            self.config.transport.tls_cfg.as_ref().ok_or(
+                NbrTlsError::TlsCfgError(
+                    self.remote_addr,
+                    TlsCfgError::InvalidTlsCfg,
+                ),
+            )?;
 
-        // For now, draft-wirtgen-bgp-tls-05 does not specify how to handle certificate rotation.
-        // We ban it completely for this first implementation.
+        // For now, draft-wirtgen-bgp-tls-05 does not specify how to handle
+        // certificate rotation. We ban it completely for this first
+        // implementation.
         // FIXME: Handle TLS certificate rotation when specified.
         if self.tls.is_some() {
             return Ok(());
@@ -364,7 +374,7 @@ impl Neighbor {
             my_certs.push(cert);
         }
 
-        // Fill CertStore
+        // Fill CertStore.
         let mut root_store = RootCertStore::empty();
         for ca_cert in chain {
             let cert = ca_cert.map_err(|e| {
@@ -378,13 +388,102 @@ impl Neighbor {
                 .map_err(|e| NbrTlsError::CertStore(self.remote_addr, e))?;
         }
 
-        // TODO: Build ServerConfig here and wrap it in arc, if needed.
+        let sni = ServerName::try_from(tls_cfg.sni.as_str())
+            .map(|s| s.to_owned())
+            .map_err(|_| {
+                NbrTlsError::TlsCfgError(
+                    self.remote_addr,
+                    TlsCfgError::InvalidSni,
+                )
+            })?;
 
-        self.tls = Some(NeighborTlsState {
-            root_store,
-            certs: my_certs,
-            pkey: Arc::new(pkey),
-        });
+        // draft-wirtgen-bgp-tls-05 §4.3:
+        // "Implementations MUST support TLS 1.3 [RFC8446] with mutual TLS
+        // authentication. The connection MUST NOT proceed for any lower TLS
+        // version."
+        let versions = [&tokio_rustls::rustls::version::TLS13];
+
+        let crypto_provider = Arc::new(default_provider());
+        let root_store = Arc::new(root_store);
+
+        let verifier = WebPkiClientVerifier::builder_with_provider(
+            root_store.clone(),
+            crypto_provider.clone(),
+        )
+        .build()
+        .map_err(|e| {
+            NbrTlsError::TlsCfgError(
+                self.remote_addr,
+                TlsCfgError::InvalidWebPkiVerifier(e),
+            )
+        })?;
+
+        let mut server_cfg =
+            ServerConfig::builder_with_provider(crypto_provider.clone())
+                .with_protocol_versions(&versions)
+                .map_err(|e| {
+                    NbrTlsError::TlsCfgError(
+                        self.remote_addr,
+                        TlsCfgError::InvalidTlsServerCfg(e),
+                    )
+                })?
+                .with_client_cert_verifier(verifier)
+                .with_single_cert(my_certs.clone(), pkey.clone_key())
+                .map_err(|e| {
+                    NbrTlsError::TlsCfgError(
+                        self.remote_addr,
+                        TlsCfgError::InvalidTlsServerCfg(e),
+                    )
+                })?;
+
+        // draft-wirtgen-bgp-tls-05 §4.5: "For BGP over TLS, the ALPN identifier
+        // is the octet sequence 0x62 0x6F 0x74 0x6C 0x73 ("botls") [...]
+        // The passive BGP peer MUST indicate the selected protocol in the
+        // EncryptedExtensions message:"
+        server_cfg.alpn_protocols.push(BOT_ALPN.to_vec());
+
+        // draft-wirtgen-bgp-tls-05 §5.2: "If a new TCP/TLS connection is
+        // established, full TLS certificate validation procedures MUST be
+        // performed during the new TLS handshake."
+        // We disable TLS session resumption.
+        server_cfg.session_storage = Arc::new(NoServerSessionStorage {});
+        server_cfg.send_tls13_tickets = 0;
+
+        let mut client_cfg =
+            ClientConfig::builder_with_provider(crypto_provider)
+                .with_protocol_versions(&versions)
+                .map_err(|e| {
+                    NbrTlsError::TlsCfgError(
+                        self.remote_addr,
+                        TlsCfgError::InvalidTlsClientCfg(e),
+                    )
+                })?
+                .with_root_certificates(root_store.clone())
+                .with_client_auth_cert(my_certs.clone(), pkey.clone_key())
+                .map_err(|e| {
+                    NbrTlsError::TlsCfgError(
+                        self.remote_addr,
+                        TlsCfgError::InvalidTlsClientCfg(e),
+                    )
+                })?;
+
+        // draft-wirtgen-bgp-tls-05 §4.5: "For BGP over TLS, the ALPN identifier
+        // is the octet sequence 0x62 0x6F 0x74 0x6C 0x73 ("botls") [...]
+        // An active BGP peer initiating the TLS exchange MUST include the
+        // following extension in its ClientHello:".
+        client_cfg.alpn_protocols.push(BOT_ALPN.to_vec());
+
+        // draft-wirtgen-bgp-tls-05 §5.2: "If a new TCP/TLS connection is
+        // established, full TLS certificate validation procedures MUST be
+        // performed during the new TLS handshake."
+        // We disable TLS session resumption.
+        client_cfg.resumption = Resumption::disabled();
+
+        self.tls = Some(Arc::new(NeighborTlsState {
+            server_config: Arc::new(server_cfg),
+            client_config: Arc::new(client_cfg),
+            sni,
+        }));
 
         Ok(())
     }

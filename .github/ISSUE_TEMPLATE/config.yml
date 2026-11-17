@@ -1,0 +1,5 @@
+# GitHub already lists "Report a security vulnerability" in the issue chooser
+# because the repository has a SECURITY.md and private vulnerability reporting,
+# so no contact link is added here.
+
+blank_issues_enabled: true

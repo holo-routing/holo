@@ -9,6 +9,7 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
+use std::time::Duration;
 
 use chrono::Utc;
 use holo_utils::bytes::Bytes;
@@ -1474,18 +1475,39 @@ pub(crate) fn process_lsp_originate(
     arenas: &mut InstanceArenas,
 ) -> Result<(), Error> {
     // Clear LSP origination backoff.
-    instance.state.lsp_orig_backoff = None;
-    let Some(level_type) = instance.state.lsp_orig_pending.take() else {
+    instance.state.lsp_gen.task = None;
+    let Some(level_type) = instance.state.lsp_gen.levels.take() else {
         return Ok(());
     };
 
+    let mut updated = false;
     // Originate LSPs for levels with pending requests.
     for level in instance
         .config
         .levels()
         .filter(|level| level_type.intersects(level))
     {
-        lsdb::lsp_originate_all(instance, arenas, level);
+        updated |= lsdb::lsp_originate_all(instance, arenas, level);
+    }
+
+    if updated {
+        #[cfg(not(feature = "deterministic"))]
+        {
+            // Update hold interval
+            let second = Duration::from_millis(
+                instance.config.lsp_generation.second_wait as u64,
+            );
+            let max = Duration::from_millis(
+                instance.config.lsp_generation.max_wait as u64,
+            );
+
+            instance.state.lsp_gen.hold = match instance.state.lsp_gen.hold {
+                // Apply exponential backoff
+                Some(interval) => Some((2 * interval).min(max)),
+                // Initialize hold-time
+                None => Some(second),
+            };
+        }
     }
 
     Ok(())

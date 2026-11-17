@@ -992,4 +992,44 @@ module holo-isis {
          Flexible Algorithms.";
     }
   }
+
+  augment "/rt:routing/rt:control-plane-protocols/"
+        + "rt:control-plane-protocol/isis:isis" {
+    description
+      "Augments IS-IS with support for configuring the LSP generation
+       timer";
+    container lsp-generation {
+      description
+        "LSP generation interval configuration.";
+      leaf initial-wait {
+        type uint16 {
+          range "10..1000";
+        }
+        default "50";
+        units "milliseconds";
+        description
+          "Time interval delaying the generation of the first LSP
+           after a quiet period.";
+      }
+      leaf second-wait {
+        type uint16 {
+          range "100..10000";
+        }
+        default "200";
+        units "milliseconds";
+        description
+          "Minimum hold-time used for generation. This timer is used
+           from starting from the second LSP generation";
+      }
+      leaf max-wait {
+        type uint16 {
+          range "1000..30000";
+        }
+        default "5000";
+        units "milliseconds";
+        description
+          "Maximum hold-time used for LSP generation.";
+      }
+    }
+  }
 }

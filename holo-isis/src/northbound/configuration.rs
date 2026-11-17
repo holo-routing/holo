@@ -86,6 +86,7 @@ pub struct InstanceCfg {
     pub lsp_mtu: u16,
     pub lsp_lifetime: u16,
     pub lsp_refresh: u16,
+    pub lsp_generation: LspGenCfg,
     pub purge_originator: bool,
     pub node_tags: BTreeSet<u32>,
     pub metric_type: LevelsCfgWithDefault<MetricType>,
@@ -113,6 +114,13 @@ pub struct InstanceCfg {
     pub bier: InstanceBierCfg,
     pub spb: InstanceSpbCfg,
     pub trace_opts: InstanceTraceOptions,
+}
+
+#[derive(Debug)]
+pub struct LspGenCfg {
+    pub initial_wait: u16,
+    pub second_wait: u16,
+    pub max_wait: u16,
 }
 
 #[derive(Debug)]
@@ -376,6 +384,9 @@ fn apply_instance(instance: &mut Instance, change: ConfigChange, event_queue: &m
             instance.config.lsp_refresh = lsp_refresh;
             event_queue.insert(Event::RefreshLsps);
         }
+        ConfigChange::LspGenerationInitialWait(initial_wait) => instance.config.lsp_generation.initial_wait = initial_wait,
+        ConfigChange::LspGenerationSecondWait(second_wait) => instance.config.lsp_generation.second_wait = second_wait,
+        ConfigChange::LspGenerationMaxWait(max_wait) => instance.config.lsp_generation.max_wait = max_wait,
         ConfigChange::PoiTlv(enabled) => {
             instance.config.purge_originator = enabled;
         }
@@ -1724,6 +1735,7 @@ impl Default for InstanceCfg {
             lsp_mtu,
             lsp_lifetime,
             lsp_refresh,
+            lsp_generation: Default::default(),
             purge_originator,
             node_tags: Default::default(),
             metric_type,
@@ -1751,6 +1763,20 @@ impl Default for InstanceCfg {
             bier: Default::default(),
             spb: Default::default(),
             trace_opts: Default::default(),
+        }
+    }
+}
+
+impl Default for LspGenCfg {
+    fn default() -> Self {
+        let initial_wait = isis::lsp_generation::initial_wait::DFLT;
+        let second_wait = isis::lsp_generation::second_wait::DFLT;
+        let max_wait = isis::lsp_generation::max_wait::DFLT;
+
+        Self {
+            initial_wait,
+            second_wait,
+            max_wait,
         }
     }
 }

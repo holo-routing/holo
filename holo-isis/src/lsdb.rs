@@ -122,8 +122,8 @@ pub enum LspLogReason {
 // LSDB fingerprint.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct LsdbFingerprint {
-    // XOR of the per-LSP components of all LSPs with non-zero remaining
-    // lifetime.
+    // XOR of the per-LSP components of all LSPs that contribute to the
+    // fingerprint (i.e. non-zero remaining lifetime, checksum and length).
     pub value: u64,
     // Time when the fingerprint value last changed.
     pub last_update: Option<Instant>,

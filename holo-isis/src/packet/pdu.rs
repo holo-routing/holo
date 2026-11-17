@@ -1436,7 +1436,23 @@ impl Lsp {
         }
         result ^= (self.cksum as u64) << 48;
         result ^= (self.raw.len() as u64) << 32;
+        // The sequence number is folded in as well. A refresh that doesn't
+        // change the content yields an LSP with an identical checksum and
+        // length and only a higher sequence number, so without this a node
+        // still holding the older copy would be indistinguishable from one
+        // holding the newer one, which is precisely a synchronization
+        // difference the fingerprint exists to expose.
+        result ^= self.seqno as u64;
         result
+    }
+
+    // Returns whether the LSP contributes to the LSDB fingerprint.
+    //
+    // LSPs with a zero remaining lifetime, a zero checksum, or a zero length
+    // are excluded. These conditions overlap in the common case, but none of
+    // them implies the others.
+    pub(crate) fn contributes_to_lsdb_fingerprint(&self) -> bool {
+        !self.is_expired() && self.cksum != 0 && !self.raw.is_empty()
     }
 
     // Returns whether the LSP has expired (i.e., its remaining lifetime has

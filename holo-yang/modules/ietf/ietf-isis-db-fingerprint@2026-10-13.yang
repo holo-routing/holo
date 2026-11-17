@@ -82,12 +82,14 @@ module ietf-isis-db-fingerprint {
            level.
 
            The fingerprint is computed by XOR-combining a per-LSP
-           component value for each LSP whose Remaining Lifetime is
-           non-zero. LSPs whose Remaining Lifetime is zero (including
-           purged LSPs retained during ZeroAgeLifetime) MUST be
-           excluded from the calculation. The per-LSP component value
-           is derived from the LSP identifier, the LSP checksum, and
-           the LSP length, as specified in Appendix A of RFC XXXX.
+           component value for each LSP in the level's LSDB. An LSP
+           whose Remaining Lifetime is zero (including purged LSPs
+           retained during ZeroAgeLifetime), whose Checksum is zero,
+           or whose PDU length is zero MUST be excluded from the
+           calculation. The per-LSP component value is derived from
+           the LSP identifier, the LSP sequence number, the LSP
+           checksum, and the LSP length, as specified in Appendix A
+           of RFC XXXX.
 
            The fingerprint is intended for detecting potential LSDB
            synchronization differences. Different values indicate

@@ -5,6 +5,7 @@
 //
 
 use std::collections::BTreeSet;
+use std::io::ErrorKind;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 
@@ -12,19 +13,25 @@ use holo_utils::bytes::BytesMut;
 use holo_utils::capabilities;
 use holo_utils::ip::{AddressFamily, IpAddrExt, IpAddrKind};
 use holo_utils::socket::{
-    OwnedReadHalf, OwnedWriteHalf, SocketExt, TTL_MAX, TcpConnInfo,
-    TcpListener, TcpSocket, TcpSocketExt, TcpStream, TcpStreamExt,
+    SocketExt, TTL_MAX, TcpConnInfo, TcpListener, TcpSocket, TcpSocketExt,
+    TcpStream, TcpStreamExt, TlsStream,
 };
-use tokio::io::{AsyncWriteExt, BufWriter};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt, BufWriter};
 use tokio::sync::mpsc::error::SendError;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
+use tokio_rustls::rustls::pki_types::ServerName;
+use tokio_rustls::rustls::{ClientConfig, ServerConfig};
+use tokio_rustls::{TlsAcceptor, TlsConnector};
 
-use crate::error::{Error, IoError, NbrRxError};
+use crate::error::{Error, IoError, NbrRxError, TlsIoError};
 use crate::packet::message::{DecodeCxt, EncodeCxt, Message};
 use crate::tasks::messages::input::{NbrRxMsg, TcpAcceptMsg};
 use crate::tasks::messages::output::NbrTxMsg;
 
 const BGP_PORT: u16 = 179;
+
+// BGP over TLS ALPN
+pub(crate) const BOT_ALPN: &[u8; 5] = b"botls";
 
 // ===== global functions =====
 
@@ -75,7 +82,7 @@ pub(crate) fn listen_socket_md5sig_update(
     }
 }
 
-pub(crate) async fn listen_loop(
+pub(crate) async fn tcp_listen_loop(
     listener: Arc<TcpListener>,
     tcp_acceptp: Sender<TcpAcceptMsg>,
 ) -> Result<(), SendError<TcpAcceptMsg>> {
@@ -214,11 +221,81 @@ pub(crate) async fn connect(
     }
 }
 
-pub(crate) async fn nbr_write_loop(
-    stream: OwnedWriteHalf,
+#[cfg(network_backend = "linux")]
+async fn tls_alpn_check(
+    mut stream: TlsStream<TcpStream>,
+) -> Result<TlsStream<TcpStream>, std::io::Error> {
+    let (_, conn) = stream.get_ref();
+    if conn.alpn_protocol() != Some(BOT_ALPN) {
+        // Enforce draft-wirtgen-bgp-tls-05 §3 and §4.5: Both the active and
+        // passive peer must specify the "botls" ALPN. If it is not the case,
+        // shutdown the TLS stream.
+        let _ = stream.shutdown().await;
+        Err(std::io::Error::new(
+            ErrorKind::InvalidData,
+            tokio_rustls::rustls::Error::NoApplicationProtocol,
+        ))
+    } else {
+        Ok(stream)
+    }
+}
+
+pub(crate) async fn tls_accept(
+    config: Arc<ServerConfig>,
+    tcp_stream: TcpStream,
+) -> Result<TlsStream<TcpStream>, TlsIoError> {
+    #[cfg(network_backend = "linux")]
+    {
+        let acceptor = TlsAcceptor::from(config);
+        // TODO: Wrap in timer
+        let stream = acceptor
+            .accept(tcp_stream)
+            .await
+            .map(TlsStream::Server)
+            .map_err(TlsIoError::AcceptError)?;
+
+        tls_alpn_check(stream)
+            .await
+            .map_err(TlsIoError::AcceptError)
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
+}
+
+pub(crate) async fn tls_connect(
+    config: Arc<ClientConfig>,
+    tcp_stream: TcpStream,
+    sni: ServerName<'static>,
+) -> Result<TlsStream<TcpStream>, TlsIoError> {
+    #[cfg(network_backend = "linux")]
+    {
+        // TODO: Add timer
+        let connector = TlsConnector::from(config);
+        let stream = connector
+            .connect(sni, tcp_stream)
+            .await
+            .map(TlsStream::Client)
+            .map_err(TlsIoError::ConnectError)?;
+
+        tls_alpn_check(stream)
+            .await
+            .map_err(TlsIoError::ConnectError)
+    }
+    #[cfg(network_backend = "null")]
+    {
+        std::future::pending().await
+    }
+}
+
+pub(crate) async fn nbr_write_loop<T>(
+    stream: T,
     cxt: EncodeCxt,
     mut nbr_msg_txc: UnboundedReceiver<NbrTxMsg>,
-) {
+) where
+    T: AsyncWrite + Unpin,
+{
     #[cfg(network_backend = "linux")]
     {
         let mut cxt = cxt;
@@ -250,6 +327,9 @@ pub(crate) async fn nbr_write_loop(
                 IoError::TcpSendError(error).log();
             }
         }
+
+        // The tx channel is closed. Gracefully close the transport stream.
+        let _ = stream.shutdown().await;
     }
     #[cfg(network_backend = "null")]
     {
@@ -257,13 +337,16 @@ pub(crate) async fn nbr_write_loop(
     }
 }
 
-pub(crate) async fn nbr_read_loop(
-    stream: OwnedReadHalf,
+pub(crate) async fn nbr_read_loop<T>(
+    stream: T,
     nbr_addr: IpAddr,
     conn_info: TcpConnInfo,
     cxt: DecodeCxt,
     nbr_msg_rxp: Sender<NbrRxMsg>,
-) -> Result<(), SendError<NbrRxMsg>> {
+) -> Result<(), SendError<NbrRxMsg>>
+where
+    T: AsyncRead + Unpin,
+{
     #[cfg(network_backend = "linux")]
     {
         let (mut stream, mut cxt) = (stream, cxt);
@@ -285,8 +368,27 @@ pub(crate) async fn nbr_read_loop(
                 }
                 Ok(_) => {}
                 Err(error) => {
+                    let error_kind = error.kind();
                     IoError::TcpRecvError(error).log();
-                    continue;
+                    let error = match error_kind {
+                        ErrorKind::UnexpectedEof => {
+                            // Emitted by TLS when TCP connection has been
+                            // closed without a clean TLS session shutdown.
+                            NbrRxError::TcpConnClosed
+                        }
+                        ErrorKind::InvalidData => {
+                            // Emitted by TlsStream on TLS-specific error.
+                            NbrRxError::TlsError
+                        }
+                        _ => continue,
+                    };
+                    let msg = NbrRxMsg {
+                        nbr_addr,
+                        conn_info: Some(conn_info),
+                        msg: Err(error),
+                    };
+                    nbr_msg_rxp.send(msg).await?;
+                    return Ok(());
                 }
             };
 

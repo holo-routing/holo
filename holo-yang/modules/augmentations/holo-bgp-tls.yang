@@ -1,0 +1,82 @@
+module holo-bgp-tls {
+  yang-version 1.1;
+  namespace "http://holo-routing.org/yang/holo-bgp-tls";
+
+  prefix holo-bgp-tls;
+
+  import ietf-routing {
+    prefix rt;
+    reference
+      "RFC 8349: A YANG Data Model for Routing
+       Management (NMDA Version)";
+  }
+
+  import ietf-bgp {
+    prefix bgp;
+  }
+
+  organization
+    "Holo Routing Stack";
+
+  contact
+    "Author: Nicolas Rybowski (nicolas.rybowski at uclouvain.be)";
+
+  description
+    "This module describes a YANG model for BGP over TLS session configuration.";
+
+  revision 2026-11-02 {
+    description
+      "Initial revision.";
+    reference
+      "I-D.wirtgen-bgp-tls-05";
+  }
+
+  grouping tls-params {
+    description
+      "Parameters to configure a single TLS session.";
+
+    leaf cert {
+      type string;
+      description
+        "The TLS certificate to use when establishing a BGP over TLS session.";
+      mandatory true;
+    }
+    leaf pkey {
+      type string;
+      description
+        "The private key associated with the TLS certificate used for the
+          the BGP over TLS session establishment.";
+      mandatory true;
+    }
+    leaf ca-chain {
+      type string;
+      description
+        "The Certificate Authority (CA) chain to use when validating the peer
+         TLS certificate.";
+      mandatory true;
+    }
+    leaf sni {
+      type string;
+      description
+        "The Server Name Indication (SNI) of the remote BGP over TLS peer.";
+      mandatory true;
+    }
+  }
+
+  augment "/rt:routing/rt:control-plane-protocols/rt:control-plane-protocol/" +
+    "bgp:bgp/bgp:neighbors/bgp:neighbor/bgp:transport" {
+    when "derived-from-or-self(../../../../rt:type, 'bgp:bgp')" {
+      description
+        "Only valid if routing protocol instance type is 'bgp'.";
+    }
+    container tls {
+      description
+        "TLS session parameters for the BGP neighbor.";
+
+      presence
+        "The BGP transport session MUST use TLS.";
+
+      uses tls-params;
+    }
+  }
+}

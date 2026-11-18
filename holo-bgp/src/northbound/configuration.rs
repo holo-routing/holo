@@ -137,6 +137,14 @@ pub struct NeighborTimersCfg {
     pub min_route_adv_interval: Option<u16>,
 }
 
+#[derive(Debug, Clone)]
+pub struct NeighborTlsCfg {
+    pub ca_chain: String,
+    pub cert: String,
+    pub privkey: String,
+    pub sni: String,
+}
+
 #[derive(Debug)]
 pub struct NeighborTransportCfg {
     // TODO: this can be an interface name too.
@@ -148,6 +156,7 @@ pub struct NeighborTransportCfg {
     pub ttl_security: Option<u8>,
     pub secure_session_enabled: bool,
     pub md5_key: Option<String>,
+    pub tls_cfg: Option<NeighborTlsCfg>,
 }
 
 #[derive(Debug)]
@@ -619,6 +628,37 @@ fn apply_neighbor(instance: &mut Instance, nbr_addr: IpAddr, change: NeighborCha
                     let msg = NotificationMsg::new(ErrorCode::Cease, CeaseSubcode::OtherConfigurationChange);
                     event_queue.insert(Event::NeighborReset(nbr.remote_addr, msg));
                     event_queue.insert(Event::NeighborUpdateAuth(nbr.remote_addr));
+                }
+                NeighborEntryChange::TransportTls(op) => match op {
+                    // For now, draft-wirtgen-bgp-tls-05 does not specify how to handle certificate rotation.
+                    // We ban it completely for this first implementation.
+                    // FIXME: Handle TLS certificate rotation when specified.
+                    ConfigOp::Create => {
+                        nbr.config.transport.tls_cfg = Some(Default::default());
+                    }
+                    ConfigOp::Delete => {
+                        nbr.config.transport.tls_cfg = None;
+                        nbr.tls = None;
+                    }
+                },
+                NeighborEntryChange::TransportTlsCert(cert) => {
+                    // FIXME: Handle TLS certificate rotation when specified.
+                    let tls_cfg = &mut nbr.config.transport.tls_cfg.as_mut().unwrap();
+                    tls_cfg.cert = cert;
+                }
+                NeighborEntryChange::TransportTlsCaChain(ca_chain) => {
+                    // FIXME: Handle TLS certificate rotation when specified.
+                    let tls_cfg = &mut nbr.config.transport.tls_cfg.as_mut().unwrap();
+                    tls_cfg.ca_chain = ca_chain;
+                }
+                NeighborEntryChange::TransportTlsPkey(privkey) => {
+                    // FIXME: Handle TLS certificate rotation when specified.
+                    let tls_cfg = &mut nbr.config.transport.tls_cfg.as_mut().unwrap();
+                    tls_cfg.privkey = privkey;
+                }
+                NeighborEntryChange::TransportTlsSni(sni) => {
+                    let tls_cfg = &mut nbr.config.transport.tls_cfg.as_mut().unwrap();
+                    tls_cfg.sni = sni;
                 }
                 NeighborEntryChange::LoggingOptionsLogNeighborStateChanges(log) => {
                     nbr.config.log_neighbor_state_changes = log;
@@ -1180,6 +1220,18 @@ impl Default for NeighborTransportCfg {
             ttl_security: None,
             secure_session_enabled,
             md5_key: None,
+            tls_cfg: None,
+        }
+    }
+}
+
+impl Default for NeighborTlsCfg {
+    fn default() -> Self {
+        NeighborTlsCfg {
+            cert: Default::default(),
+            privkey: Default::default(),
+            ca_chain: Default::default(),
+            sni: Default::default(),
         }
     }
 }

@@ -7,6 +7,9 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use serde::{Deserialize, Serialize};
+use tokio_rustls::rustls::Error as TlsError;
+use tokio_rustls::rustls::pki_types::pem::Error as PemError;
+use tokio_rustls::rustls::server::VerifierBuilderError;
 use tracing::{error, warn, warn_span};
 
 use crate::packet::error::DecodeError;
@@ -44,6 +47,34 @@ pub enum IoError {
 pub enum NbrRxError {
     TcpConnClosed,
     MsgDecodeError(DecodeError),
+    TlsError,
+}
+
+// TLS configuration IO errors.
+#[derive(Debug)]
+pub enum TlsIoError {
+    CaChain(PemError),
+    Cert(PemError),
+    PrivKey(PemError),
+    AcceptError(std::io::Error),
+    ConnectError(std::io::Error),
+}
+
+#[derive(Debug)]
+pub enum TlsCfgError {
+    InvalidSni,
+    InvalidTlsCfg,
+    InvalidTlsServerCfg(TlsError),
+    InvalidTlsClientCfg(TlsError),
+    InvalidWebPkiVerifier(VerifierBuilderError),
+}
+
+// Neighbor TLS configuration errors.
+#[derive(Debug)]
+pub enum NbrTlsError {
+    TlsIoError(IpAddr, TlsIoError),
+    TlsCfgError(IpAddr, TlsCfgError),
+    CertStore(IpAddr, TlsError),
 }
 
 // ===== impl Error =====
@@ -188,7 +219,7 @@ impl std::error::Error for IoError {
 impl NbrRxError {
     pub(crate) fn log(&self) {
         match self {
-            NbrRxError::TcpConnClosed => {
+            NbrRxError::TcpConnClosed | NbrRxError::TlsError => {
                 warn!("{}", self);
             }
             NbrRxError::MsgDecodeError(error) => {
@@ -204,6 +235,9 @@ impl std::fmt::Display for NbrRxError {
             NbrRxError::TcpConnClosed => {
                 write!(f, "connection closed by remote end")
             }
+            NbrRxError::TlsError => {
+                write!(f, "fatal TLS error")
+            }
             NbrRxError::MsgDecodeError(..) => {
                 write!(f, "failed to decode BGP message")
             }
@@ -216,6 +250,124 @@ impl std::error::Error for NbrRxError {
         match self {
             NbrRxError::MsgDecodeError(error) => Some(error),
             _ => None,
+        }
+    }
+}
+
+// impl ===== TlsIoError =====
+
+impl TlsIoError {
+    pub(crate) fn log(&self) {
+        match self {
+            Self::CaChain(error) | Self::Cert(error) | Self::PrivKey(error) => {
+                warn!(error = %with_source(error), "{}", self);
+            }
+            Self::AcceptError(error) | Self::ConnectError(error) => {
+                warn!(error = %with_source(error), "{}", self);
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for TlsIoError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::CaChain(..) => {
+                write!(f, "failed to load CA certificate chain")
+            }
+            Self::Cert(..) => {
+                write!(f, "failed to load TLS certificate")
+            }
+            Self::PrivKey(..) => {
+                write!(f, "failed to load private key")
+            }
+            Self::AcceptError(..) => {
+                write!(f, "failed to accept TLS session")
+            }
+            Self::ConnectError(..) => {
+                write!(f, "failed to connect TLS session")
+            }
+        }
+    }
+}
+
+impl std::error::Error for TlsIoError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::CaChain(error) | Self::Cert(error) | Self::PrivKey(error) => {
+                Some(error)
+            }
+            Self::AcceptError(error) | Self::ConnectError(error) => Some(error),
+        }
+    }
+}
+
+// ===== impl TlsCfgError =====
+
+impl TlsCfgError {
+    pub(crate) fn log(&self) {
+        match self {
+            Self::InvalidSni | Self::InvalidTlsCfg => {
+                warn!("{}", self);
+            }
+            Self::InvalidTlsServerCfg(error)
+            | Self::InvalidTlsClientCfg(error) => {
+                warn!(error = %with_source(error), "{}", self);
+            }
+            Self::InvalidWebPkiVerifier(error) => {
+                warn!(error = %with_source(error), "{}", self);
+            }
+        }
+    }
+}
+
+impl std::fmt::Display for TlsCfgError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::InvalidSni => {
+                write!(f, "invalid SNI configuration")
+            }
+            Self::InvalidTlsCfg => {
+                write!(f, "invalid TLS configuration")
+            }
+            Self::InvalidTlsServerCfg(..) => {
+                write!(f, "failed to build TLS server configuration")
+            }
+            Self::InvalidTlsClientCfg(..) => {
+                write!(f, "failed to build TLS client configuration")
+            }
+            Self::InvalidWebPkiVerifier(..) => {
+                write!(f, "failed to build the client certificate verifier")
+            }
+        }
+    }
+}
+
+// ===== impl NbrTlsError =====
+
+impl NbrTlsError {
+    pub(crate) fn log(&self) {
+        match self {
+            Self::TlsIoError(addr, error) => {
+                warn_span!("neighbor", %addr).in_scope(|| error.log())
+            }
+            Self::TlsCfgError(addr, error) => {
+                warn_span!("neighbor", %addr).in_scope(|| error.log());
+            }
+            Self::CertStore(addr, error) => warn_span!("neighbor", %addr)
+                .in_scope(|| warn!(error = %with_source(error), "{}", self)),
+        }
+    }
+}
+
+impl std::fmt::Display for NbrTlsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::TlsIoError(_, error) => error.fmt(f),
+            Self::TlsCfgError(_, error) => error.fmt(f),
+            Self::CertStore(_, error) => {
+                write!(f, "failed to add certificate to store: {error:?}")
+            }
         }
     }
 }

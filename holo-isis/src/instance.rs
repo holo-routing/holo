@@ -9,7 +9,7 @@
 
 use std::collections::{BTreeMap, VecDeque};
 use std::net::Ipv4Addr;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
 use holo_protocol::{
@@ -43,7 +43,7 @@ use crate::tasks::messages::input::{
     SendPsnpMsg, SpfDelayEventMsg,
 };
 use crate::tasks::messages::{ProtocolInputMsg, ProtocolOutputMsg};
-use crate::{events, ibus, lsdb, spf, tasks};
+use crate::{events, ibus, spf, tasks};
 
 #[derive(Debug)]
 pub struct Instance {
@@ -86,9 +86,7 @@ pub struct InstanceState {
     // Link State Database.
     pub lsdb: Levels<Lsdb>,
     // LSP origination data.
-    pub lsp_orig_last: Option<Instant>,
-    pub lsp_orig_backoff: Option<TimeoutTask>,
-    pub lsp_orig_pending: Option<LevelType>,
+    pub lsp_gen: LspGenState,
     // SPF scheduler state.
     pub spf_sched: Levels<SpfScheduler>,
     // Shortest-path tree.
@@ -109,6 +107,14 @@ pub struct InstanceState {
     // Log of SPF runs.
     pub spf_log: VecDeque<SpfLogEntry>,
     pub spf_log_next_id: u32,
+}
+
+#[derive(Debug, Default)]
+pub struct LspGenState {
+    pub last: Option<Instant>,
+    pub hold: Option<Duration>,
+    pub task: Option<TimeoutTask>,
+    pub levels: Option<LevelType>,
 }
 
 #[derive(Debug, Default)]
@@ -448,9 +454,7 @@ impl InstanceState {
             circuit_id_allocator: Default::default(),
             hostnames: Default::default(),
             lsdb: Default::default(),
-            lsp_orig_last: None,
-            lsp_orig_backoff: None,
-            lsp_orig_pending: None,
+            lsp_gen: Default::default(),
             spf_sched: Default::default(),
             spt: Default::default(),
             flooding_reduction: Default::default(),
@@ -610,37 +614,76 @@ impl InstanceUpView<'_> {
 
         // Update pending LSP origination with the union of the current and
         // new level.
-        self.state.lsp_orig_pending = match self.state.lsp_orig_pending {
+        self.state.lsp_gen.levels = match self.state.lsp_gen.levels {
             Some(pending_level) => Some(level_type.union(pending_level)),
             None => Some(level_type),
         };
 
+        #[cfg(feature = "deterministic")]
+        {
+            // Trigger LSP origination.
+            let _ = self
+                .tx
+                .protocol_input
+                .lsp_originate
+                .send(LspOriginateMsg {});
+        }
+
         #[cfg(not(feature = "deterministic"))]
         {
             // If LSP origination is currently in backoff, do nothing.
-            if self.state.lsp_orig_backoff.is_some() {
+            if self.state.lsp_gen.task.is_some() {
                 return;
             }
 
-            // If the minimum interval since the last LSP origination hasn't
-            // passed, initiate a backoff timer and return.
-            if let Some(last) = self.state.lsp_orig_last
-                && last.elapsed().as_secs() < lsdb::LSP_MIN_GEN_INTERVAL
+            let initial = Duration::from_millis(
+                self.config.lsp_generation.initial_wait as u64,
+            );
+            let max = Duration::from_millis(
+                self.config.lsp_generation.max_wait as u64,
+            );
+
+            // Reset hold-time
+            if let Some(last) = self.state.lsp_gen.last
+                && last.elapsed() > 2 * max
             {
-                let task = tasks::lsp_originate_timer(
-                    &self.tx.protocol_input.lsp_originate,
-                );
-                self.state.lsp_orig_backoff = Some(task);
-                return;
+                self.state.lsp_gen.hold = None;
             }
-        }
 
-        // Trigger LSP origination.
-        let _ = self
-            .tx
-            .protocol_input
-            .lsp_originate
-            .send(LspOriginateMsg {});
+            match self.state.lsp_gen.hold {
+                Some(hold) => {
+                    // Currently in backoff
+
+                    // If the minimum interval since the last LSP origination hasn't
+                    // passed, initiate a backoff timer and return.
+                    if let Some(last) = self.state.lsp_gen.last
+                        && last.elapsed() < hold
+                    {
+                        let task = tasks::lsp_originate_timer(
+                            &self.tx.protocol_input.lsp_originate,
+                            hold,
+                        );
+                        self.state.lsp_gen.task = Some(task);
+                        return;
+                    }
+
+                    // Otherwise, directly trigger LSP origination
+                    let _ = self
+                        .tx
+                        .protocol_input
+                        .lsp_originate
+                        .send(LspOriginateMsg {});
+                }
+                None => {
+                    // First LSP generation, use initial LSP delay
+                    let task = tasks::lsp_originate_timer(
+                        &self.tx.protocol_input.lsp_originate,
+                        initial,
+                    );
+                    self.state.lsp_gen.task = Some(task);
+                }
+            };
+        }
     }
 }
 

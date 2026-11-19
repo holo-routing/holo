@@ -64,8 +64,6 @@ use crate::{spf, tasks};
 
 // LSP ZeroAge lifetime.
 pub const LSP_ZERO_AGE_LIFETIME: u64 = 60;
-// Minimum time interval between generation of LSPs.
-pub const LSP_MIN_GEN_INTERVAL: u64 = 5;
 // LSP initial sequence number.
 const LSP_INIT_SEQNO: u32 = 0x00000001;
 // Maximum size of the LSP log record.
@@ -1694,11 +1692,13 @@ pub(crate) fn install<'a>(
     &mut lsp_entries[lse_idx]
 }
 
+// Originate a new LSP for a specific level.
+// Returns whether any fragment got updated in the process
 pub(crate) fn lsp_originate_all(
     instance: &mut InstanceUpView<'_>,
     arenas: &mut InstanceArenas,
     level: LevelNumber,
-) {
+) -> bool {
     let system_id = instance.state.system_id;
     let lsdb = instance.state.lsdb.get(level);
     let before: HashSet<_> = lsdb
@@ -1752,8 +1752,10 @@ pub(crate) fn lsp_originate_all(
 
     if updated {
         // Update time of last LSP origination.
-        instance.state.lsp_orig_last = Some(Instant::now());
+        instance.state.lsp_gen.last = Some(Instant::now());
     }
+
+    updated
 }
 
 pub(crate) fn lsp_originate(

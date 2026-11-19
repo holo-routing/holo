@@ -26,7 +26,7 @@ use crate::northbound::configuration::TraceOptionPacketResolved;
 use crate::packet::auth::AuthMethod;
 use crate::packet::pdu::{Hello, Lsp, Pdu};
 use crate::packet::{LevelNumber, LevelType, Levels};
-use crate::{lsdb, network, spf};
+use crate::{network, spf};
 
 // Jitter applied to periodic PDU transmission timers, as a percentage
 // (ISO 10589 - Section 10.1).
@@ -538,10 +538,10 @@ pub(crate) fn lsp_rxmt_interval(
 // LSP originate timer task.
 pub(crate) fn lsp_originate_timer(
     lsp_originatep: &UnboundedSender<messages::input::LspOriginateMsg>,
+    timeout: Duration,
 ) -> TimeoutTask {
     #[cfg(not(feature = "testing"))]
     {
-        let timeout = Duration::from_secs(lsdb::LSP_MIN_GEN_INTERVAL);
         let lsp_originatep = lsp_originatep.clone();
 
         TimeoutTask::new(timeout, move || async move {

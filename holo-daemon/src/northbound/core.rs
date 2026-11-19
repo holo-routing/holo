@@ -33,7 +33,7 @@ use yang5::data::{
     DataValidationFlags,
 };
 
-use crate::config::Config;
+use crate::config::{Config, RollbackLog};
 use crate::northbound::server::{api as capi, gnmi, grpc};
 use crate::northbound::{Error, Result, db};
 
@@ -42,6 +42,8 @@ pub struct Northbound {
     running_config: Arc<DataTree<'static>>,
     // Non-volatile storage.
     db: Database,
+    // Rollback log settings.
+    rollback_log: RollbackLog,
     // Validation functions.
     validation_fns: Vec<ValidateFn>,
     // Maps each configuration node to the index of its data provider.
@@ -137,6 +139,7 @@ impl Northbound {
         Northbound {
             running_config,
             db,
+            rollback_log: config.rollback_log.clone(),
             validation_fns,
             provider_paths,
             servers,
@@ -319,6 +322,9 @@ impl Northbound {
     async fn process_client_list_transactions(
         &mut self,
     ) -> Result<capi::client::ListTransactionsResponse> {
+        if !self.rollback_log.enabled {
+            return Err(Error::RollbackLogDisabled);
+        }
         let db = self.db.lock().unwrap();
         let transactions = db::transaction_get_all(&db);
         Ok(capi::client::ListTransactionsResponse { transactions })
@@ -329,6 +335,9 @@ impl Northbound {
         &mut self,
         transaction_id: u32,
     ) -> Result<capi::client::GetTransactionResponse> {
+        if !self.rollback_log.enabled {
+            return Err(Error::RollbackLogDisabled);
+        }
         let db = self.db.lock().unwrap();
         let transaction = db::transaction_get(&db, transaction_id)
             .ok_or(Error::TransactionIdNotFound(transaction_id))?;
@@ -474,9 +483,16 @@ impl Northbound {
                 let mut transaction =
                     Transaction::new(Utc::now(), author, comment, candidate);
 
-                // Record transaction.
-                let mut db = self.db.lock().unwrap();
-                db::transaction_record(&mut db, &mut transaction);
+                // Record transaction, unless the rollback log is disabled (in
+                // which case the transaction ID remains zero).
+                if self.rollback_log.enabled {
+                    let mut db = self.db.lock().unwrap();
+                    db::transaction_record(
+                        &mut db,
+                        &mut transaction,
+                        self.rollback_log.max_entries,
+                    );
+                }
 
                 Ok(transaction.id)
             }

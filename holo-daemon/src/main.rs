@@ -18,8 +18,8 @@ use northbound::Northbound;
 use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 use tokio::signal::unix::{SignalKind, signal};
 use tokio::sync::mpsc;
-use tracing::info;
 use tracing::level_filters::LevelFilter;
+use tracing::{error, info};
 use tracing_appender::rolling::{RollingFileAppender, Rotation};
 use tracing_subscriber::Layer;
 use tracing_subscriber::prelude::*;
@@ -198,13 +198,42 @@ fn init_tracing(config: &config::Logging) {
 
 fn init_db<P: AsRef<Path>>(
     path: P,
+    rollback_log_max: u32,
 ) -> Result<PickleDb, pickledb::error::Error> {
-    let dump_policy = PickleDbDumpPolicy::AutoDump;
-    let serialization_method = SerializationMethod::Bin;
-    match path.as_ref().exists() {
-        true => PickleDb::load(path, dump_policy, serialization_method),
-        false => Ok(PickleDb::new(path, dump_policy, serialization_method)),
+    let path = path.as_ref();
+    if !path.exists() {
+        return Ok(PickleDb::new(
+            path,
+            PickleDbDumpPolicy::AutoDump,
+            SerializationMethod::Bin,
+        ));
     }
+
+    // Trim the rollback log before normal operation. This is done without
+    // auto-dumping so that the file is rewritten only once, rather than once
+    // per removed transaction.
+    //
+    // Failing to write the trimmed database isn't fatal: the database is then
+    // loaded as it is on disk, and pruning is retried on the next commit.
+    let mut db = PickleDb::load(
+        path,
+        PickleDbDumpPolicy::DumpUponRequest,
+        SerializationMethod::Bin,
+    )?;
+    let pruned = northbound::db::transaction_prune(&mut db, rollback_log_max);
+    if pruned > 0 {
+        match db.dump() {
+            Ok(()) => {
+                info!(%pruned, "pruned old transactions from the rollback log");
+            }
+            Err(error) => {
+                error!(%error, "failed to prune the rollback log");
+            }
+        }
+    }
+    drop(db);
+
+    PickleDb::load(path, PickleDbDumpPolicy::AutoDump, SerializationMethod::Bin)
 }
 
 fn privdrop(user: &str, group: &str) -> nix::Result<()> {
@@ -320,8 +349,11 @@ fn main() {
     init_tracing(&config.logging);
 
     // Initialize non-volatile storage.
-    let db = init_db(config.state_path(Config::DATABASE_NAME))
-        .expect("failed to initialize non-volatile storage");
+    let db = init_db(
+        config.state_path(Config::DATABASE_NAME),
+        config.rollback_log.max_entries,
+    )
+    .expect("failed to initialize non-volatile storage");
 
     // We're ready to go!
     info!("starting up");
@@ -353,4 +385,51 @@ fn main() {
     }
 
     info!("exiting");
+}
+
+// ===== unit tests =====
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn init_db_prunes_rollback_log() {
+        let dir = std::env::temp_dir()
+            .join(format!("holod-test-init-db-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("holo.db");
+
+        // Create a database holding five transactions and an unrelated key.
+        let mut db = PickleDb::new(
+            &path,
+            PickleDbDumpPolicy::AutoDump,
+            SerializationMethod::Bin,
+        );
+        for id in 1..=5 {
+            db.set(&format!("transaction{id}"), &id).unwrap();
+        }
+        db.set("unrelated", &0).unwrap();
+        drop(db);
+
+        // Only the two newest transactions are kept.
+        let mut db = init_db(&path, 2).unwrap();
+        let mut keys = db.get_all();
+        keys.sort();
+        assert_eq!(keys, ["transaction4", "transaction5", "unrelated"]);
+
+        // Later changes are still written to disk automatically.
+        db.set("later", &0).unwrap();
+        let on_disk =
+            PickleDb::load_read_only(&path, SerializationMethod::Bin).unwrap();
+        let mut keys = on_disk.get_all();
+        keys.sort();
+        assert_eq!(
+            keys,
+            ["later", "transaction4", "transaction5", "unrelated"]
+        );
+
+        drop(db);
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 }

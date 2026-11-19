@@ -612,6 +612,9 @@ impl From<northbound::Error> for Status {
             northbound::Error::TransactionIdNotFound(..) => {
                 Status::not_found(error.to_string())
             }
+            northbound::Error::RollbackLogDisabled => {
+                Status::failed_precondition(error.to_string())
+            }
             northbound::Error::Get(..) => {
                 Status::invalid_argument(error.to_string())
             }

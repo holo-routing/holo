@@ -34,6 +34,11 @@ create and change it through the gRPC or gNMI servers, and query
 operational state the same way.
 Each commit is recorded in the database, together with its author, and
 clients can list and retrieve past transactions.
+The
+.B [rollback_log]
+table of
+.BR holod.toml (5)
+limits how many transactions are kept, and can turn recording off.
 .PP
 A separate configuration file, described in
 .BR holod.toml (5),

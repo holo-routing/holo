@@ -198,6 +198,7 @@ impl Interfaces {
                 // configuration options.
                 if iface.ifindex.is_none() {
                     iface.ifindex = Some(ifindex);
+                    self.ifindex_tree.insert(ifindex, iface_idx);
 
                     let iface = &self.arena[iface_idx];
                     iface.apply_config(ifindex, dataplane, self);

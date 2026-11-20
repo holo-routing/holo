@@ -44,7 +44,9 @@ pub struct Rib {
 #[derive(Clone, Debug)]
 pub struct Route {
     pub protocol: Protocol,
-    pub owner: IbusClientId,
+    // Client that added the route. Connected routes have none, as the RIB
+    // adds them itself.
+    pub owner: Option<IbusClientId>,
     pub kind: RouteKind,
     pub distance: u32,
     pub metric: u32,
@@ -134,7 +136,7 @@ impl Rib {
             Some(idx) => {
                 // Update the existing IP route with the new information.
                 let mut route = rib_prefix.remove(idx);
-                route.owner = owner;
+                route.owner = Some(owner);
                 route.kind = kind;
                 route.distance = msg.distance;
                 route.metric = msg.metric;
@@ -150,7 +152,7 @@ impl Rib {
                 rib_prefix.len(),
                 Route::new(
                     msg.protocol,
-                    owner,
+                    Some(owner),
                     kind,
                     msg.distance,
                     msg.metric,
@@ -191,6 +193,68 @@ impl Rib {
         }
     }
 
+    // Adds the connected route of the given prefix through the given
+    // interface.
+    //
+    // A protocol has one route to a prefix, except for connected routes, as
+    // several interfaces can have an address in the same prefix: IPv6
+    // link-local addresses, or unnumbered interfaces borrowing the loopback
+    // address. Each of these interfaces gets a route of its own, and the
+    // routes are all active at the same time.
+    pub(crate) fn connected_route_add(
+        &mut self,
+        prefix: IpNetwork,
+        ifindex: u32,
+    ) {
+        let rib_prefix = self.prefix_entry(prefix);
+        match rib_prefix
+            .iter_mut()
+            .find(|route| route.is_connected_via(ifindex))
+        {
+            // Keep the existing route, in case it was about to be removed.
+            Some(route) => route.flags.remove(RouteFlags::REMOVED),
+            None => {
+                rib_prefix.push(Route::new(
+                    Protocol::DIRECT,
+                    None,
+                    RouteKind::Unicast,
+                    0,
+                    0,
+                    None,
+                    RouteOpaqueAttrs::None,
+                    [Nexthop::Interface { ifindex }].into(),
+                ));
+                rib_prefix.sort_by_key(|route| route.distance);
+            }
+        }
+
+        // Add IP route to the update queue.
+        self.ip_update_queue_add(prefix);
+    }
+
+    // Removes the connected route of the given prefix through the given
+    // interface.
+    pub(crate) fn connected_route_del(
+        &mut self,
+        prefix: IpNetwork,
+        ifindex: u32,
+    ) {
+        let Some(rib_prefix) = self.ip.get_mut(&prefix) else {
+            return;
+        };
+
+        if let Some(route) = rib_prefix
+            .iter_mut()
+            .find(|route| route.is_connected_via(ifindex))
+        {
+            // Mark IP route as removed.
+            route.flags.insert(RouteFlags::REMOVED);
+
+            // Add IP route to the update queue.
+            self.ip_update_queue_add(prefix);
+        }
+    }
+
     // Adds MPLS route to the RIB, replacing the one with the same label, if
     // any.
     pub(crate) fn mpls_route_add(
@@ -202,7 +266,7 @@ impl Rib {
         let (nexthops, _) = self.resolve_nexthops(None, msg.nexthops);
         let route = Route::new(
             msg.protocol,
-            owner,
+            Some(owner),
             RouteKind::Unicast,
             0,
             0,
@@ -330,8 +394,12 @@ impl Rib {
                         ibus::notify_redistribute_add(sub, prefix, route);
                     }
                 } else {
-                    // Remove the preferred flag for other routes.
-                    route.flags.remove(RouteFlags::ACTIVE);
+                    // Other routes aren't active, except the usable ones of
+                    // the best route's protocol. Only connected routes can
+                    // have these, one per interface sharing the prefix.
+                    let active = Some(route.protocol) == best_protocol
+                        && route.is_usable();
+                    route.flags.set(RouteFlags::ACTIVE, active);
 
                     // Drop the FTN labels the route took while preferred.
                     route.relabel(None);
@@ -466,8 +534,10 @@ impl Rib {
             .filter_map(|(prefix, routes)| {
                 routes
                     .iter()
-                    .find(|route| route.flags.contains(RouteFlags::ACTIVE))
-                    .filter(|route| route.is_usable())
+                    .find(|route| {
+                        route.flags.contains(RouteFlags::ACTIVE)
+                            && route.is_usable()
+                    })
                     .map(|route| (prefix, route))
             })
             .filter(|(_, route)| !route.has_recursive_nexthop(addr))
@@ -552,7 +622,7 @@ impl Rib {
         // Remove all IP routes owned by the given client.
         for (prefix, rib_prefix) in self.ip.iter_mut() {
             for route in rib_prefix.iter_mut() {
-                if route.owner == owner {
+                if route.owner == Some(owner) {
                     route.flags.insert(RouteFlags::REMOVED);
                     self.ip_update_queue.insert(prefix);
                 }
@@ -561,7 +631,7 @@ impl Rib {
 
         // Remove all MPLS routes owned by the given client.
         for (label, route) in &mut self.mpls {
-            if route.owner == owner {
+            if route.owner == Some(owner) {
                 route.flags.insert(RouteFlags::REMOVED);
                 self.mpls_update_queue.insert(*label);
             }
@@ -573,7 +643,7 @@ impl Rib {
             let keep = self
                 .mpls
                 .get(label)
-                .is_some_and(|route| route.owner != owner);
+                .is_some_and(|route| route.owner != Some(owner));
             if !keep {
                 self.ip_update_queue.insert(*prefix);
             }
@@ -605,7 +675,7 @@ impl Rib {
 impl Route {
     fn new(
         protocol: Protocol,
-        owner: IbusClientId,
+        owner: Option<IbusClientId>,
         kind: RouteKind,
         distance: u32,
         metric: u32,
@@ -668,6 +738,13 @@ impl Route {
                     if nexthop_addr == addr
             )
         })
+    }
+
+    // Returns whether the route is the connected route through the given
+    // interface.
+    fn is_connected_via(&self, ifindex: u32) -> bool {
+        self.protocol == Protocol::DIRECT
+            && self.nexthops.contains(&Nexthop::Interface { ifindex })
     }
 
     // Returns the nexthops of the route, with the recursive ones replaced by

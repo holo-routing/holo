@@ -588,6 +588,8 @@ impl Rib {
             if let Some(route) = rib_prefix
                 .iter()
                 .find(|route| route.flags.contains(RouteFlags::ACTIVE))
+                // Connected routes are owned by the kernel.
+                .filter(|route| route.protocol != Protocol::DIRECT)
             {
                 dataplane.ip_route_uninstall(&prefix, route.protocol);
             }

@@ -184,6 +184,14 @@ impl Interfaces {
                 iface.flags = flags;
                 iface.mac_address = mac_address;
 
+                // In case the interface exists only in the configuration,
+                // initialize its ifindex.
+                let config_only = iface.ifindex.is_none();
+                if config_only {
+                    iface.ifindex = Some(ifindex);
+                    self.ifindex_tree.insert(ifindex, iface_idx);
+                }
+
                 // Notify subscribers about the interface update.
                 for sub in self
                     .subscriptions
@@ -193,13 +201,9 @@ impl Interfaces {
                     ibus::notify_interface_update(&sub.tx, iface);
                 }
 
-                // In case the interface exists only in the configuration,
-                // initialize its ifindex and apply any pre-existing
-                // configuration options.
-                if iface.ifindex.is_none() {
-                    iface.ifindex = Some(ifindex);
-                    self.ifindex_tree.insert(ifindex, iface_idx);
-
+                // Apply any pre-existing configuration options to an
+                // interface that existed only in the configuration.
+                if config_only {
                     let iface = &self.arena[iface_idx];
                     iface.apply_config(ifindex, dataplane, self);
                 }

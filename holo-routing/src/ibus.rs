@@ -15,6 +15,7 @@ use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{InterfaceFlags, RouteKeyMsg, RouteMsg};
 use ipnetwork::IpNetwork;
 
+use crate::northbound::configuration;
 use crate::rib::{NhtEntry, RedistributeSub, Route, RouteFlags};
 use crate::{InstanceId, Master};
 
@@ -218,6 +219,18 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
                     } else {
                         master.rib.connected_route_del(prefix, ifindex);
                     }
+                }
+
+                // Reevaluate the static routes through the interface, as only
+                // operative interfaces are used as their nexthops.
+                for (prefix, route) in
+                    master.static_routes.iter().filter(|(_, route)| {
+                        route.nexthops().any(|nexthop| {
+                            nexthop.ifname.as_ref() == Some(&iface.name)
+                        })
+                    })
+                {
+                    configuration::static_route_update(master, *prefix, route);
                 }
             }
         }

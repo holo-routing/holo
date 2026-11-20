@@ -16,7 +16,7 @@ use holo_utils::ibus::IbusMsg;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::mpls::LabelRange;
 use holo_utils::protocol::Protocol;
-use holo_utils::southbound::{Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs};
+use holo_utils::southbound::{InterfaceFlags, Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs};
 use holo_utils::sr::{PrefixSidAlgo, SidLastHopBehavior, SrCfgEvent, SrCfgPrefixSid};
 use holo_utils::yang::{DataNodeRefExt, DataTreeExt};
 use holo_yang::TryFromYang;
@@ -45,8 +45,8 @@ pub enum Resource {
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
     InstanceStart { protocol: Protocol, name: String },
-    StaticRouteInstall(IpNetwork),
-    StaticRouteUninstall(IpNetwork),
+    StaticRouteUpdate(IpNetwork),
+    StaticRouteDelete(IpNetwork),
     SrCfgUpdate,
     SrCfgLabelRangeUpdate,
     SrCfgPrefixSidUpdate(AddressFamily),
@@ -210,7 +210,7 @@ fn apply_ipv4_route(master: &mut Master, prefix: IpNetwork, change: ControlPlane
         }
         ControlPlaneProtocolStaticRoutesIpv4RouteChange::Delete => {
             master.static_routes.remove(&prefix);
-            event_queue.insert(Event::StaticRouteUninstall(prefix));
+            event_queue.insert(Event::StaticRouteDelete(prefix));
         }
         ControlPlaneProtocolStaticRoutesIpv4RouteChange::Entry(change) => {
             let route = master.static_routes.get_mut(&prefix).ok_or(ApplyError::EntryNotFound)?;
@@ -220,15 +220,15 @@ fn apply_ipv4_route(master: &mut Master, prefix: IpNetwork, change: ControlPlane
                 }
                 ControlPlaneProtocolStaticRoutesIpv4RouteEntryChange::NextHopOutgoingInterface(ifname) => {
                     route.nexthop_single.ifname = ifname;
-                    event_queue.insert(Event::StaticRouteInstall(prefix));
+                    event_queue.insert(Event::StaticRouteUpdate(prefix));
                 }
                 ControlPlaneProtocolStaticRoutesIpv4RouteEntryChange::NextHopNextHopAddress(addr) => {
                     route.nexthop_single.addr = addr.map(IpAddr::from);
-                    event_queue.insert(Event::StaticRouteInstall(prefix));
+                    event_queue.insert(Event::StaticRouteUpdate(prefix));
                 }
                 ControlPlaneProtocolStaticRoutesIpv4RouteEntryChange::NextHopSpecialNextHop(special) => {
                     route.nexthop_special = special;
-                    event_queue.insert(Event::StaticRouteInstall(prefix));
+                    event_queue.insert(Event::StaticRouteUpdate(prefix));
                 }
                 ControlPlaneProtocolStaticRoutesIpv4RouteEntryChange::NextHopNextHopListNextHop(keys, change) => {
                     apply_ipv4_route_next_hop(route, prefix, keys.index, change, event_queue)?;
@@ -260,7 +260,7 @@ fn apply_ipv4_route_next_hop(route: &mut StaticRoute, prefix: IpNetwork, index: 
             }
         }
     }
-    event_queue.insert(Event::StaticRouteInstall(prefix));
+    event_queue.insert(Event::StaticRouteUpdate(prefix));
 
     Ok(())
 }
@@ -272,7 +272,7 @@ fn apply_ipv6_route(master: &mut Master, prefix: IpNetwork, change: ControlPlane
         }
         ControlPlaneProtocolStaticRoutesIpv6RouteChange::Delete => {
             master.static_routes.remove(&prefix);
-            event_queue.insert(Event::StaticRouteUninstall(prefix));
+            event_queue.insert(Event::StaticRouteDelete(prefix));
         }
         ControlPlaneProtocolStaticRoutesIpv6RouteChange::Entry(change) => {
             let route = master.static_routes.get_mut(&prefix).ok_or(ApplyError::EntryNotFound)?;
@@ -282,15 +282,15 @@ fn apply_ipv6_route(master: &mut Master, prefix: IpNetwork, change: ControlPlane
                 }
                 ControlPlaneProtocolStaticRoutesIpv6RouteEntryChange::NextHopOutgoingInterface(ifname) => {
                     route.nexthop_single.ifname = ifname;
-                    event_queue.insert(Event::StaticRouteInstall(prefix));
+                    event_queue.insert(Event::StaticRouteUpdate(prefix));
                 }
                 ControlPlaneProtocolStaticRoutesIpv6RouteEntryChange::NextHopNextHopAddress(addr) => {
                     route.nexthop_single.addr = addr.map(IpAddr::from);
-                    event_queue.insert(Event::StaticRouteInstall(prefix));
+                    event_queue.insert(Event::StaticRouteUpdate(prefix));
                 }
                 ControlPlaneProtocolStaticRoutesIpv6RouteEntryChange::NextHopSpecialNextHop(special) => {
                     route.nexthop_special = special;
-                    event_queue.insert(Event::StaticRouteInstall(prefix));
+                    event_queue.insert(Event::StaticRouteUpdate(prefix));
                 }
                 ControlPlaneProtocolStaticRoutesIpv6RouteEntryChange::NextHopNextHopListNextHop(keys, change) => {
                     apply_ipv6_route_next_hop(route, prefix, keys.index, change, event_queue)?;
@@ -322,7 +322,7 @@ fn apply_ipv6_route_next_hop(route: &mut StaticRoute, prefix: IpNetwork, index: 
             }
         }
     }
-    event_queue.insert(Event::StaticRouteInstall(prefix));
+    event_queue.insert(Event::StaticRouteUpdate(prefix));
 
     Ok(())
 }
@@ -645,42 +645,11 @@ fn process_event(master: &mut Master, event: Event) {
         } => {
             instance_start(master, protocol, name);
         }
-        Event::StaticRouteInstall(prefix) => {
+        Event::StaticRouteUpdate(prefix) => {
             let route = master.static_routes.get(&prefix).unwrap();
-
-            // Get nexthops.
-            let mut kind = RouteKind::Unicast;
-            let mut nexthops = Vec::new();
-            if let Some(nexthop) = static_nexthop_get(&master.interfaces, &route.nexthop_single) {
-                nexthops.push(nexthop);
-            }
-            if let Some(special) = &route.nexthop_special {
-                kind = match special {
-                    NexthopSpecial::Blackhole => RouteKind::Blackhole,
-                    NexthopSpecial::Unreachable => RouteKind::Unreachable,
-                    NexthopSpecial::Prohibit => RouteKind::Prohibit,
-                };
-            }
-            for nexthop in route.nexthop_list.values().filter_map(|nexthop| static_nexthop_get(&master.interfaces, nexthop)) {
-                nexthops.push(nexthop);
-            }
-
-            // Prepare message.
-            let msg = RouteMsg {
-                protocol: Protocol::STATIC,
-                kind,
-                prefix,
-                distance: 1,
-                metric: 0,
-                tag: None,
-                opaque_attrs: RouteOpaqueAttrs::None,
-                nexthops,
-            };
-
-            // Send message.
-            master.ibus_tx.route_ip_add(msg);
+            static_route_update(master, prefix, route);
         }
-        Event::StaticRouteUninstall(prefix) => {
+        Event::StaticRouteDelete(prefix) => {
             // Prepare message.
             let msg = RouteKeyMsg {
                 protocol: Protocol::STATIC,
@@ -817,9 +786,15 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
     master.instances.insert(instance_id, instance);
 }
 
+// Returns the nexthop of a static route, or nothing if it isn't valid:
+// - Interface, with or without an address: the interface must be operative.
+// - Address only: the address must be resolvable through the RIB.
 fn static_nexthop_get(interfaces: &Interfaces, nexthop: &StaticRouteNexthop) -> Option<Nexthop> {
     let ifname = nexthop.ifname.as_ref()?;
     let iface = interfaces.get_by_name(ifname)?;
+    if !iface.flags.contains(InterfaceFlags::OPERATIVE) {
+        return None;
+    }
     let ifindex = iface.ifindex;
     let nexthop = match nexthop.addr {
         Some(addr) => Nexthop::Address {
@@ -832,6 +807,15 @@ fn static_nexthop_get(interfaces: &Interfaces, nexthop: &StaticRouteNexthop) -> 
         },
     };
     Some(nexthop)
+}
+
+// ===== impl StaticRoute =====
+
+impl StaticRoute {
+    // Returns an iterator over the nexthops of the route.
+    pub(crate) fn nexthops(&self) -> impl Iterator<Item = &StaticRouteNexthop> {
+        std::iter::once(&self.nexthop_single).chain(self.nexthop_list.values())
+    }
 }
 
 // ===== impl Master =====
@@ -894,6 +878,52 @@ impl Provider for Master {
 }
 
 // ===== global functions =====
+
+// Updates the RIB with the given static route, using only its valid nexthops.
+// The route is removed if it has none.
+pub(crate) fn static_route_update(master: &Master, prefix: IpNetwork, route: &StaticRoute) {
+    // Get nexthops.
+    let mut kind = RouteKind::Unicast;
+    let mut nexthops = Vec::new();
+    if let Some(nexthop) = static_nexthop_get(&master.interfaces, &route.nexthop_single) {
+        nexthops.push(nexthop);
+    }
+    if let Some(special) = &route.nexthop_special {
+        kind = match special {
+            NexthopSpecial::Blackhole => RouteKind::Blackhole,
+            NexthopSpecial::Unreachable => RouteKind::Unreachable,
+            NexthopSpecial::Prohibit => RouteKind::Prohibit,
+        };
+    }
+    for nexthop in route.nexthop_list.values().filter_map(|nexthop| static_nexthop_get(&master.interfaces, nexthop)) {
+        nexthops.push(nexthop);
+    }
+
+    // Uninstall the route if none of its nexthops can be used.
+    if kind == RouteKind::Unicast && nexthops.is_empty() {
+        let msg = RouteKeyMsg {
+            protocol: Protocol::STATIC,
+            prefix,
+        };
+        master.ibus_tx.route_ip_del(msg);
+        return;
+    }
+
+    // Prepare message.
+    let msg = RouteMsg {
+        protocol: Protocol::STATIC,
+        kind,
+        prefix,
+        distance: 1,
+        metric: 0,
+        tag: None,
+        opaque_attrs: RouteOpaqueAttrs::None,
+        nexthops,
+    };
+
+    // Send message.
+    master.ibus_tx.route_ip_add(msg);
+}
 
 pub fn validate(config: &DataTree<'static>) -> Result<(), ValidationError> {
     // Ensure the BFR prefix matches the configured address family.

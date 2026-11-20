@@ -277,9 +277,10 @@ pub(crate) fn notify_redistribute_add(
     prefix: IpNetwork,
     route: &Route,
 ) {
-    if !sub
-        .protocols
-        .contains(&(prefix.address_family(), route.protocol))
+    if !prefix.is_routable()
+        || !sub
+            .protocols
+            .contains(&(prefix.address_family(), route.protocol))
     {
         return;
     }
@@ -304,7 +305,9 @@ pub(crate) fn notify_redistribute_del(
     prefix: IpNetwork,
     protocol: Protocol,
 ) {
-    if !sub.protocols.contains(&(prefix.address_family(), protocol)) {
+    if !prefix.is_routable()
+        || !sub.protocols.contains(&(prefix.address_family(), protocol))
+    {
         return;
     }
 

@@ -22,6 +22,7 @@ pub enum Error {
     TransactionValidation(northbound::error::Error),
     TransactionPreparation(northbound::error::Error),
     TransactionIdNotFound(u32),
+    RollbackLogDisabled,
     Get(northbound::error::Error),
 }
 
@@ -47,6 +48,9 @@ impl std::fmt::Display for Error {
             }
             Error::TransactionIdNotFound(id) => {
                 write!(f, "Transaction ID not found: {id}")
+            }
+            Error::RollbackLogDisabled => {
+                write!(f, "Rollback log is disabled")
             }
             Error::Get(err) => {
                 write!(f, "Failed to get operational data: {err}")

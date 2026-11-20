@@ -19,6 +19,7 @@ pub struct Config {
     pub state_dir: PathBuf,
     pub logging: Logging,
     pub event_recorder: EventRecorder,
+    pub rollback_log: RollbackLog,
     pub northbound: Northbound,
 }
 
@@ -86,6 +87,13 @@ pub enum LoggingFmtStyle {
 #[serde(default, deny_unknown_fields)]
 pub struct EventRecorder {
     pub enabled: bool,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct RollbackLog {
+    pub enabled: bool,
+    pub max_entries: u32,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -179,6 +187,7 @@ impl Default for Config {
             state_dir: PathBuf::from("/var/opt/holo"),
             logging: Default::default(),
             event_recorder: Default::default(),
+            rollback_log: Default::default(),
             northbound: Default::default(),
         }
     }
@@ -238,6 +247,17 @@ impl Default for EventRecorder {
     }
 }
 
+// ===== impl RollbackLog =====
+
+impl Default for RollbackLog {
+    fn default() -> RollbackLog {
+        RollbackLog {
+            enabled: true,
+            max_entries: 100,
+        }
+    }
+}
+
 // ===== impl Grpc =====
 
 impl Default for Grpc {
@@ -272,5 +292,28 @@ impl Default for Tls {
             certificate: "/etc/holo/holo.pem".to_owned(),
             key: "/etc/holo/holo.key".to_owned(),
         }
+    }
+}
+
+// ===== unit tests =====
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sample_config() {
+        let config: Config =
+            toml::from_str(include_str!("../holod.toml")).unwrap();
+        assert!(config.rollback_log.enabled);
+        assert_eq!(config.rollback_log.max_entries, 100);
+    }
+
+    #[test]
+    fn rollback_log_disabled() {
+        let config: Config =
+            toml::from_str("rollback_log = { enabled = false }").unwrap();
+        assert!(!config.rollback_log.enabled);
+        assert_eq!(config.rollback_log.max_entries, 100);
     }
 }

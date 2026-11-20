@@ -208,7 +208,9 @@ message CommitResponse {
   // - grpc::StatusCode::INVALID_ARGUMENT: Validation error.
   // - grpc::StatusCode::RESOURCE_EXHAUSTED: Failure to allocate resource.
 
-  // ID of the created configuration transaction.
+  // ID of the created configuration transaction. Zero means none was recorded,
+  // either because the configuration didn't change or because the rollback log
+  // is disabled.
   uint32 transaction_id = 1;
 }
 
@@ -237,6 +239,7 @@ message ListTransactionsRequest {
 message ListTransactionsResponse {
   // Return values:
   // - grpc::StatusCode::OK: Success.
+  // - grpc::StatusCode::FAILED_PRECONDITION: The rollback log is disabled.
 
   // Transaction ID.
   uint32 id = 1;
@@ -266,6 +269,7 @@ message GetTransactionResponse {
   // Return values:
   // - grpc::StatusCode::OK: Success.
   // - grpc::StatusCode::NOT_FOUND: Transaction ID wasn't found in the rollback log.
+  // - grpc::StatusCode::FAILED_PRECONDITION: The rollback log is disabled.
 
   DataTree config = 1;
 }

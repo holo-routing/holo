@@ -199,6 +199,36 @@ They are not rotated and grow with every event.
 .TP
 .BR enabled " (boolean, default " false )
 Enable the event recorder.
+.SH ROLLBACK LOG
+.SS [rollback_log]
+The rollback log is the history of committed configurations.
+Each commit adds a transaction holding the complete configuration that
+was committed, along with its date, author and comment.
+Transactions are stored in
+.B holo.db
+in the state directory, and can be listed and retrieved through the
+gRPC server.
+.TP
+.BR enabled " (boolean, default " true )
+Record commits in the rollback log.
+When disabled, commits are applied as usual but not recorded: they
+return a transaction ID of zero, and requests to list or retrieve
+transactions are refused.
+Transactions recorded earlier are kept, and are available again once
+the rollback log is enabled.
+.TP
+.BR max_entries " (integer, default " 100 )
+Maximum number of transactions to keep, or
+.B 0
+to keep them all.
+Each commit that exceeds the limit removes the oldest transaction.
+A rollback log that already holds more transactions is trimmed when
+.B holod
+starts, whether or not the rollback log is enabled.
+.IP
+The database is rewritten in full on every commit, so its size, which
+grows with this limit and with the size of the configuration, adds to
+the time each commit takes.
 .SH NORTHBOUND SERVERS
 The northbound servers are used to configure and monitor
 .BR holod .

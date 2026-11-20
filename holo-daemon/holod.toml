@@ -49,6 +49,13 @@ state_dir = "/var/opt/holo"
   # Enable or disable the event recorder (files are saved in @state_dir)
   enabled = false
 
+# Rollback log of committed configurations (saved in @state_dir)
+[rollback_log]
+  # Enable or disable the rollback log (when disabled, commits aren't recorded)
+  enabled = true
+  # Maximum number of transactions to keep; older ones are pruned (0: unlimited)
+  max_entries = 100
+
 # Northbound servers
 [northbound]
   # gRPC server configuration

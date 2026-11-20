@@ -5,7 +5,7 @@
 //
 
 mod core;
-mod db;
+pub(crate) mod db;
 mod error;
 mod server;
 

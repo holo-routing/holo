@@ -181,6 +181,8 @@ impl Interfaces {
                 }
                 iface.owner.insert(Owner::SYSTEM);
                 iface.mtu = Some(mtu);
+                let was_operative =
+                    iface.flags.contains(InterfaceFlags::OPERATIVE);
                 iface.flags = flags;
                 iface.mac_address = mac_address;
 
@@ -206,6 +208,23 @@ impl Interfaces {
                 if config_only {
                     let iface = &self.arena[iface_idx];
                     iface.apply_config(ifindex, dataplane, self);
+                }
+
+                // When the interface comes up, reinstall the configured
+                // addresses it's missing. On Linux, the kernel removes the
+                // IPv6 addresses of an interface when it's taken down,
+                // unless the keep_addr_on_down sysctl is set.
+                if !config_only
+                    && !was_operative
+                    && flags.contains(InterfaceFlags::OPERATIVE)
+                {
+                    let iface = &self.arena[iface_idx];
+                    for (addr, plen) in &iface.config.addr_list {
+                        let addr = IpNetwork::new(*addr, *plen).unwrap();
+                        if !iface.addresses.contains_key(&addr) {
+                            dataplane.addr_install(ifindex, &addr);
+                        }
+                    }
                 }
             }
             None => {

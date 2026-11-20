@@ -5,6 +5,7 @@
 //
 
 use std::net::{Ipv4Addr, Ipv6Addr};
+use std::num::NonZeroI32;
 
 use capctl::caps::CapState;
 use futures::executor::block_on;
@@ -14,7 +15,7 @@ use holo_utils::mac_addr::MacAddr;
 use holo_utils::southbound::InterfaceFlags;
 use ipnetwork::IpNetwork;
 use libc::{RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_LINK};
-use netlink_packet_core::{NetlinkMessage, NetlinkPayload};
+use netlink_packet_core::{ErrorMessage, NetlinkMessage, NetlinkPayload};
 use netlink_packet_route::RouteNetlinkMessage;
 use netlink_packet_route::address::{
     AddressAttribute, AddressFlags, AddressMessage,
@@ -24,7 +25,7 @@ use netlink_packet_route::link::{
 };
 use netlink_sys::{AsyncSocket, SocketAddr};
 use rtnetlink::{
-    Handle, LinkMacVlan, LinkMessageBuilder, LinkUnspec, LinkVlan,
+    Error, Handle, LinkMacVlan, LinkMessageBuilder, LinkUnspec, LinkVlan,
     new_connection,
 };
 use tokio::sync::mpsc::{self, UnboundedSender};
@@ -34,6 +35,9 @@ use tracing::{error, trace};
 use crate::Master;
 use crate::dataplane::{Dataplane, DataplaneMonitor};
 use crate::interface::Owner;
+
+// Error code returned by the kernel when the address to add already exists.
+const EEXIST: NonZeroI32 = NonZeroI32::new(-libc::EEXIST).unwrap();
 
 // Handle used to program the Linux dataplane via netlink.
 #[derive(Debug)]
@@ -288,7 +292,17 @@ impl NetlinkRequest {
             NetlinkRequest::AddrInstall(ifindex, addr) => {
                 let request =
                     handle.address().add(ifindex, addr.ip(), addr.prefix());
-                if let Err(error) = request.execute().await {
+                if let Err(error) = request.execute().await
+                    // Ignore "File exists" error (address is already there).
+                    && !matches!(
+                        error,
+                        Error::NetlinkError(ErrorMessage {
+                            code: Some(code),
+                            ..
+                        })
+                        if code == EEXIST
+                    )
+                {
                     error!(%error, "failed to install interface address");
                 }
             }

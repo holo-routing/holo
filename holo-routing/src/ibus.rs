@@ -275,6 +275,19 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
                 master.rib.connected_route_del(prefix, iface.ifindex);
             }
         }
+        // Nexthop tracking update notification.
+        IbusMsg::NexthopUpd { addr, .. } => {
+            // Reevaluate the static routes with a nexthop to the address.
+            for (prefix, route) in
+                master.static_routes.iter().filter(|(_, route)| {
+                    route
+                        .nexthops()
+                        .any(|nexthop| nexthop.recursive_addr() == Some(addr))
+                })
+            {
+                configuration::static_route_update(master, *prefix, route);
+            }
+        }
         // Ignore other events.
         _ => {}
     }

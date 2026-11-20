@@ -13,7 +13,8 @@ mod interface;
 pub mod northbound;
 mod rib;
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
+use std::net::IpAddr;
 
 use derive_new::new;
 use futures::stream::{SelectAll, StreamExt};
@@ -55,6 +56,8 @@ pub struct Master {
     pub rib: Rib,
     // Static routes.
     pub static_routes: BTreeMap<IpNetwork, StaticRoute>,
+    // Nexthop addresses tracked for static routes.
+    pub static_nht: BTreeSet<IpAddr>,
     // SR configuration data.
     pub sr_config: SrCfg,
     // BIER configuration data.
@@ -225,6 +228,7 @@ pub fn start(
             interfaces: Default::default(),
             rib: Rib::new(rib_update_queue_tx),
             static_routes: Default::default(),
+            static_nht: Default::default(),
             sr_config: Default::default(),
             bier_config: Default::default(),
             instances: Default::default(),

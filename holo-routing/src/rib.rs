@@ -11,7 +11,7 @@ use bitflags::bitflags;
 use chrono::{DateTime, Utc};
 use derive_new::new;
 use holo_utils::ibus::{IbusClient, IbusClientId, IbusSender};
-use holo_utils::ip::{AddressFamily, IpAddrExt};
+use holo_utils::ip::{AddressFamily, IpAddrExt, IpNetworkKind};
 use holo_utils::mpls::Label;
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
@@ -309,6 +309,7 @@ impl Rib {
             // sorted by distance, that can be used to reach it.
             let best_idx =
                 rib_prefix.iter().position(|route| route.is_usable());
+            let best_protocol = best_idx.map(|idx| rib_prefix[idx].protocol);
 
             // (Re)install the best route, if any.
             for (idx, route) in rib_prefix.iter_mut().enumerate() {
@@ -337,18 +338,39 @@ impl Rib {
                 }
             }
 
-            // Check if no route can be used for this prefix anymore.
-            if best_idx.is_none()
-                && let Some(protocol) = old_best_protocol
+            // Check if the old best route was replaced by a route of another
+            // protocol, or if no route can be used for this prefix anymore.
+            if let Some(old_best_protocol) = old_best_protocol
+                && best_protocol != Some(old_best_protocol)
             {
-                // Uninstall the old best route from the dataplane.
-                if protocol != Protocol::DIRECT {
-                    dataplane.ip_route_uninstall(&prefix, protocol);
+                // Uninstall the old best route from the dataplane, unless the
+                // new best route was installed in its place. Connected routes
+                // are never installed.
+                if old_best_protocol != Protocol::DIRECT
+                    && best_protocol
+                        .is_none_or(|protocol| protocol == Protocol::DIRECT)
+                {
+                    dataplane.ip_route_uninstall(&prefix, old_best_protocol);
                 }
 
                 // Notify protocol instances about the deleted route.
-                for sub in self.subscriptions.values() {
-                    ibus::notify_redistribute_del(sub, prefix, protocol);
+                let af = prefix.address_family();
+                for sub in self
+                    .subscriptions
+                    .values()
+                    // Skip instances that got the new best route, as it
+                    // replaces the deleted one.
+                    .filter(|sub| {
+                        best_protocol.is_none_or(|protocol| {
+                            !sub.protocols.contains(&(af, protocol))
+                        })
+                    })
+                {
+                    ibus::notify_redistribute_del(
+                        sub,
+                        prefix,
+                        old_best_protocol,
+                    );
                 }
             }
 

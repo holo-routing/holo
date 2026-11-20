@@ -24,7 +24,8 @@ pub struct Interfaces {
     arena: Arena<Interface>,
     // Interface binary tree keyed by name.
     name_tree: BTreeMap<String, Index>,
-    // Interface hash table keyed by ifindex.
+    // Interface hash table keyed by ifindex. Interfaces that exist only in
+    // the configuration have no ifindex (zero), and aren't in it.
     ifindex_tree: HashMap<u32, Index>,
 }
 
@@ -42,13 +43,22 @@ impl Interface {
 
 impl Interfaces {
     // Adds or updates the interface with the specified attributes.
+    //
+    // When no interface has the given ifindex, the interface is looked up by
+    // name. This way a configured interface keeps its entry when it's
+    // created in the kernel, or removed from it.
     pub(crate) fn update(
         &mut self,
         ifname: String,
         ifindex: u32,
         flags: InterfaceFlags,
     ) {
-        match self.ifindex_tree.get(&ifindex).copied() {
+        match self
+            .ifindex_tree
+            .get(&ifindex)
+            .or_else(|| self.name_tree.get(&ifname))
+            .copied()
+        {
             Some(iface_idx) => {
                 let iface = &mut self.arena[iface_idx];
 
@@ -59,7 +69,18 @@ impl Interfaces {
                     self.name_tree.insert(ifname.clone(), iface_idx);
                 }
                 iface.flags = flags;
-                iface.ifindex = ifindex;
+
+                // The kernel never changes the ifindex of an interface, so it
+                // only changes here when a configured interface is created in
+                // the kernel, or removed from it.
+                if iface.ifindex != ifindex {
+                    if ifindex != 0 {
+                        self.ifindex_tree.insert(ifindex, iface_idx);
+                    } else {
+                        self.ifindex_tree.remove(&iface.ifindex);
+                    }
+                    iface.ifindex = ifindex;
+                }
             }
             None => {
                 // If the interface does not exist, create a new entry.
@@ -71,7 +92,9 @@ impl Interfaces {
                 };
                 let iface_idx = self.arena.insert(iface);
                 self.name_tree.insert(ifname.clone(), iface_idx);
-                self.ifindex_tree.insert(ifindex, iface_idx);
+                if ifindex != 0 {
+                    self.ifindex_tree.insert(ifindex, iface_idx);
+                }
             }
         }
     }

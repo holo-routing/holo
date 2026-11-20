@@ -266,6 +266,25 @@ impl Interfaces {
         // and not available in the kernel.
         iface.owner.remove(owner);
         if !iface.owner.is_empty() {
+            // When a configured interface is removed from the kernel, it goes
+            // back to existing only in the configuration.
+            if owner == Owner::SYSTEM
+                && let Some(ifindex) = iface.ifindex.take()
+            {
+                self.ifindex_tree.remove(&ifindex);
+                iface.mtu = None;
+                iface.flags = InterfaceFlags::empty();
+                iface.mac_address = Default::default();
+
+                // Notify subscribers about the interface update.
+                for sub in self
+                    .subscriptions
+                    .values()
+                    .chain(iface.subscriptions.values())
+                {
+                    ibus::notify_interface_update(&sub.tx, iface);
+                }
+            }
             return;
         }
 

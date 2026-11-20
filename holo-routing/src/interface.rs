@@ -42,17 +42,13 @@ impl Interface {
 // ===== impl Interfaces =====
 
 impl Interfaces {
-    // Adds or updates the interface with the specified attributes.
+    // Adds or updates the interface with the specified name and ifindex, and
+    // returns its index.
     //
     // When no interface has the given ifindex, the interface is looked up by
     // name. This way a configured interface keeps its entry when it's
     // created in the kernel, or removed from it.
-    pub(crate) fn update(
-        &mut self,
-        ifname: String,
-        ifindex: u32,
-        flags: InterfaceFlags,
-    ) {
+    pub(crate) fn update(&mut self, ifname: String, ifindex: u32) -> Index {
         match self
             .ifindex_tree
             .get(&ifindex)
@@ -68,7 +64,6 @@ impl Interfaces {
                     iface.name.clone_from(&ifname);
                     self.name_tree.insert(ifname.clone(), iface_idx);
                 }
-                iface.flags = flags;
 
                 // The kernel never changes the ifindex of an interface, so it
                 // only changes here when a configured interface is created in
@@ -81,13 +76,15 @@ impl Interfaces {
                     }
                     iface.ifindex = ifindex;
                 }
+
+                iface_idx
             }
             None => {
                 // If the interface does not exist, create a new entry.
                 let iface = Interface {
                     name: ifname.clone(),
                     ifindex,
-                    flags,
+                    flags: InterfaceFlags::empty(),
                     addresses: Default::default(),
                 };
                 let iface_idx = self.arena.insert(iface);
@@ -95,6 +92,7 @@ impl Interfaces {
                 if ifindex != 0 {
                     self.ifindex_tree.insert(ifindex, iface_idx);
                 }
+                iface_idx
             }
         }
     }
@@ -170,5 +168,19 @@ impl Interfaces {
         &mut self,
     ) -> impl Iterator<Item = &'_ mut Interface> + '_ {
         self.arena.iter_mut().map(|(_, iface)| iface)
+    }
+}
+
+impl std::ops::Index<Index> for Interfaces {
+    type Output = Interface;
+
+    fn index(&self, index: Index) -> &Self::Output {
+        &self.arena[index]
+    }
+}
+
+impl std::ops::IndexMut<Index> for Interfaces {
+    fn index_mut(&mut self, index: Index) -> &mut Self::Output {
+        &mut self.arena[index]
     }
 }

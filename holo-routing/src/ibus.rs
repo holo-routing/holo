@@ -13,7 +13,8 @@ use holo_utils::ibus::{
 use holo_utils::ip::{AddressFamily, IpNetworkKind, JointPrefixMapExt};
 use holo_utils::protocol::Protocol;
 use holo_utils::southbound::{
-    AddressFlags, Nexthop, RouteKeyMsg, RouteKind, RouteMsg, RouteOpaqueAttrs,
+    AddressFlags, InterfaceFlags, Nexthop, RouteKeyMsg, RouteKind, RouteMsg,
+    RouteOpaqueAttrs,
 };
 use ipnetwork::IpNetwork;
 
@@ -202,7 +203,30 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
     match msg {
         // Interface update notification.
         IbusMsg::InterfaceUpd(msg) => {
-            master.interfaces.update(msg.ifname, msg.ifindex, msg.flags);
+            let iface_idx = master.interfaces.update(msg.ifname, msg.ifindex);
+            let iface = &mut master.interfaces[iface_idx];
+            let old_flags = std::mem::replace(&mut iface.flags, msg.flags);
+
+            // Add or remove the connected routes of the interface when it
+            // goes up or down, as only operative interfaces have them.
+            let was_operative = old_flags.contains(InterfaceFlags::OPERATIVE);
+            let operative = msg.flags.contains(InterfaceFlags::OPERATIVE);
+            if was_operative != operative {
+                let iface = &master.interfaces[iface_idx];
+                let ifindex = iface.ifindex;
+                for (addr, flags) in &iface.addresses {
+                    if flags.contains(AddressFlags::UNNUMBERED) {
+                        continue;
+                    }
+
+                    let prefix = addr.apply_mask();
+                    if operative {
+                        connected_route_add(&master.ibus_tx, prefix, ifindex);
+                    } else {
+                        connected_route_del(&master.ibus_tx, prefix);
+                    }
+                }
+            }
         }
         // Interface delete notification.
         IbusMsg::InterfaceDel(ifname) => {
@@ -217,20 +241,13 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
 
             // Add address to interface.
             iface.addresses.insert(msg.addr, msg.flags);
-            let ifindex = iface.ifindex;
 
-            // Add connected route to the RIB.
-            if !msg.flags.contains(AddressFlags::UNNUMBERED) {
-                master.ibus_tx.route_ip_add(RouteMsg {
-                    protocol: Protocol::DIRECT,
-                    kind: RouteKind::Unicast,
-                    prefix: msg.addr.apply_mask(),
-                    distance: 0,
-                    metric: 0,
-                    tag: None,
-                    opaque_attrs: RouteOpaqueAttrs::None,
-                    nexthops: [Nexthop::Interface { ifindex }].into(),
-                });
+            // Add connected route to the RIB, if the interface is operative.
+            if iface.flags.contains(InterfaceFlags::OPERATIVE)
+                && !msg.flags.contains(AddressFlags::UNNUMBERED)
+            {
+                let prefix = msg.addr.apply_mask();
+                connected_route_add(&master.ibus_tx, prefix, iface.ifindex);
             }
         }
         // Interface address delete notification.
@@ -245,10 +262,7 @@ pub(crate) fn process_notification_msg(master: &mut Master, msg: IbusMsg) {
 
             // Remove connected route from the RIB.
             if !msg.flags.contains(AddressFlags::UNNUMBERED) {
-                master.ibus_tx.route_ip_del(RouteKeyMsg {
-                    protocol: Protocol::DIRECT,
-                    prefix: msg.addr.apply_mask(),
-                });
+                connected_route_del(&master.ibus_tx, msg.addr.apply_mask());
             }
         }
         // Ignore other events.
@@ -328,6 +342,32 @@ pub(crate) fn notify_nht_update(addr: IpAddr, nhte: &NhtEntry) {
 }
 
 // ===== helper functions =====
+
+// Adds the connected route of the given prefix through the given interface.
+fn connected_route_add(
+    ibus_tx: &IbusChannelsTx,
+    prefix: IpNetwork,
+    ifindex: u32,
+) {
+    ibus_tx.route_ip_add(RouteMsg {
+        protocol: Protocol::DIRECT,
+        kind: RouteKind::Unicast,
+        prefix,
+        distance: 0,
+        metric: 0,
+        tag: None,
+        opaque_attrs: RouteOpaqueAttrs::None,
+        nexthops: [Nexthop::Interface { ifindex }].into(),
+    });
+}
+
+// Removes the connected route of the given prefix.
+fn connected_route_del(ibus_tx: &IbusChannelsTx, prefix: IpNetwork) {
+    ibus_tx.route_ip_del(RouteKeyMsg {
+        protocol: Protocol::DIRECT,
+        prefix,
+    });
+}
 
 fn send(ibus_tx: &IbusSender, msg: IbusMsg) {
     let _ = ibus_tx.send(msg);

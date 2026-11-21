@@ -271,14 +271,17 @@ impl Interfaces {
         let iface = &mut self.arena[iface_idx];
 
         // When the interface is unconfigured, uninstall all configured
-        // addresses associated with it.
-        if owner == Owner::CONFIG
-            && let Some(ifindex) = iface.ifindex
-        {
-            for (addr, plen) in &iface.config.addr_list {
-                let addr = IpNetwork::new(*addr, *plen).unwrap();
-                dataplane.addr_uninstall(ifindex, &addr);
+        // addresses associated with it, reset its configuration and stop its
+        // VRRP task.
+        if owner == Owner::CONFIG {
+            if let Some(ifindex) = iface.ifindex {
+                for (addr, plen) in &iface.config.addr_list {
+                    let addr = IpNetwork::new(*addr, *plen).unwrap();
+                    dataplane.addr_uninstall(ifindex, &addr);
+                }
             }
+            iface.config = Default::default();
+            iface.vrrp = None;
         }
 
         // Remove interface only when it's both not present in the configuration

@@ -28,8 +28,11 @@ pub enum Event {
     AdminStatusChange(String, bool),
     MtuChange(String, u32),
     VlanCreate(String, u16),
-    AddressInstall(String, IpAddr, u8),
+    // Must precede address installation. When the prefix length of an
+    // address changes, the old one is removed first, as the dataplane might
+    // not accept the same address with two prefix lengths.
     AddressUninstall(String, IpAddr, u8),
+    AddressInstall(String, IpAddr, u8),
     #[cfg(feature = "vrrp")]
     VrrpStart(String),
 }

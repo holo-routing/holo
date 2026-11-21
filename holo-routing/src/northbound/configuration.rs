@@ -44,6 +44,7 @@ pub enum Resource {
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum Event {
     InstanceStart { protocol: Protocol, name: String },
+    InstanceStop { protocol: Protocol, name: String },
     StaticRouteUpdate(IpNetwork),
     StaticRouteDelete(IpNetwork),
     StaticRouteNhtUpdate,
@@ -83,15 +84,8 @@ pub enum NexthopSpecial {
 fn prepare_master(master: &mut Master, change: &ConfigChange, resource: &mut Option<Resource>, event_queue: &mut BTreeSet<Event>) -> Result<(), PrepareError> {
     match change {
         ConfigChange::ControlPlaneProtocol(keys, ControlPlaneProtocolChange::Create) => {
-            let protocol = keys.r#type;
-
-            // The BFD task runs permanently.
-            if protocol == Protocol::BFD {
-                return Ok(());
-            }
-
             event_queue.insert(Event::InstanceStart {
-                protocol,
+                protocol: keys.r#type,
                 name: keys.name.clone(),
             });
         }
@@ -120,16 +114,7 @@ fn prepare_master(master: &mut Master, change: &ConfigChange, resource: &mut Opt
 fn abort_master(master: &mut Master, change: ConfigChange, resource: &mut Option<Resource>) {
     match change {
         ConfigChange::ControlPlaneProtocol(keys, ControlPlaneProtocolChange::Create) => {
-            let protocol = keys.r#type;
-
-            // The BFD task runs permanently.
-            if protocol == Protocol::BFD {
-                return;
-            }
-
-            // Remove protocol instance.
-            let instance_id = InstanceId::new(protocol, keys.name);
-            master.instances.remove(&instance_id);
+            instance_stop(master, keys.r#type, keys.name);
         }
         ConfigChange::SegmentRoutingSrMplsSrgb(_, SegmentRoutingSrMplsSrgbChange::Create) | ConfigChange::SegmentRoutingSrMplsSrlb(_, SegmentRoutingSrMplsSrlbChange::Create) => {
             if let Some(Resource::SrLabelRange(range)) = resource.take() {
@@ -178,14 +163,10 @@ fn apply_control_plane_protocol(master: &mut Master, protocol: Protocol, name: S
         // Handled during the Prepare phase.
         ControlPlaneProtocolChange::Create => (),
         ControlPlaneProtocolChange::Delete => {
-            // The BFD task runs permanently.
-            if protocol == Protocol::BFD {
-                return Ok(());
-            }
-
-            // Remove protocol instance.
-            let instance_id = InstanceId::new(protocol, name);
-            master.instances.remove(&instance_id);
+            event_queue.insert(Event::InstanceStop {
+                protocol,
+                name,
+            });
         }
         ControlPlaneProtocolChange::Entry(change) => match change {
             ControlPlaneProtocolEntryChange::Description(_description) => {
@@ -653,6 +634,12 @@ fn process_event(master: &mut Master, event: Event) {
         } => {
             instance_start(master, protocol, name);
         }
+        Event::InstanceStop {
+            protocol,
+            name,
+        } => {
+            instance_stop(master, protocol, name);
+        }
         Event::StaticRouteUpdate(prefix) => {
             let route = master.static_routes.get(&prefix).unwrap();
             static_route_update(master, prefix, route);
@@ -804,6 +791,32 @@ fn instance_start(master: &mut Master, protocol: Protocol, name: String) {
     // type and name.
     let instance = InstanceHandle::new(nb_daemon_tx, ibus_instance_tx);
     master.instances.insert(instance_id, instance);
+}
+
+fn instance_stop(master: &mut Master, protocol: Protocol, name: String) {
+    match protocol {
+        Protocol::BFD => {
+            // Nothing to do, the BFD task runs permanently.
+        }
+        Protocol::STATIC => {
+            // Remove all static routes and stop tracking their nexthops.
+            while let Some((prefix, _)) = master.static_routes.pop_first() {
+                let msg = RouteKeyMsg {
+                    protocol: Protocol::STATIC,
+                    prefix,
+                };
+                master.ibus_tx.route_ip_del(msg);
+            }
+            while let Some(addr) = master.static_nht.pop_first() {
+                master.ibus_tx.nexthop_untrack(addr);
+            }
+        }
+        _ => {
+            // Remove protocol instance.
+            let instance_id = InstanceId::new(protocol, name);
+            master.instances.remove(&instance_id);
+        }
+    }
 }
 
 // Returns the nexthop of a static route, or nothing if it isn't valid:

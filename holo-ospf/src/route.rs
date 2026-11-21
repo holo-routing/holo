@@ -564,15 +564,8 @@ fn update_rib_transit_area<V>(
         // Update route in the RIB.
         match &new_route.metric.cmp(&curr_route.metric) {
             Ordering::Less => {
-                // Overwrite the current routing table entry, but preserve
-                // the flag indicating whether the route is installed or
-                // not.
-                let installed =
-                    curr_route.flags.contains(RouteNetFlags::INSTALLED);
+                // Overwrite the current routing table entry.
                 *curr_route = new_route;
-                if installed {
-                    curr_route.flags.insert(RouteNetFlags::INSTALLED);
-                }
             }
             Ordering::Equal => {
                 // Merge nexthops.
@@ -877,15 +870,8 @@ fn route_update<V>(
 
             match route_compare(&route, curr_route) {
                 Ordering::Less => {
-                    // Overwrite the current routing table entry, but preserve
-                    // the flag indicating whether the route is installed or
-                    // not.
-                    let installed =
-                        curr_route.flags.contains(RouteNetFlags::INSTALLED);
+                    // Overwrite the current routing table entry.
                     *curr_route = route;
-                    if installed {
-                        curr_route.flags.insert(RouteNetFlags::INSTALLED);
-                    }
                 }
                 Ordering::Equal => {
                     // Merge nexthops.

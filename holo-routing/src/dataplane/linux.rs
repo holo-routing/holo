@@ -35,6 +35,11 @@ use crate::rib::Route;
 // Error code returned by the kernel when the route to delete is already gone.
 const ESRCH: NonZeroI32 = NonZeroI32::new(-libc::ESRCH).unwrap();
 
+// Metric of the IP routes installed by Holo. Installing a route replaces any
+// route with the same prefix and metric, so this must differ from the metric
+// of the connected routes the kernel adds itself, to avoid overwriting them.
+const ROUTE_METRIC: u32 = 20;
+
 // Handle used to program the Linux dataplane via netlink.
 #[derive(Debug)]
 pub struct LinuxDataplane {
@@ -127,6 +132,7 @@ impl Dataplane for LinuxDataplane {
             .destination_prefix(prefix.ip(), prefix.prefix())
             .unwrap()
             .protocol(protocol)
+            .priority(ROUTE_METRIC)
             .kind(match route.kind {
                 RouteKind::Unicast => RouteType::Unicast,
                 RouteKind::Blackhole => RouteType::BlackHole,
@@ -152,6 +158,7 @@ impl Dataplane for LinuxDataplane {
             .destination_prefix(prefix.ip(), prefix.prefix())
             .unwrap()
             .protocol(protocol)
+            .priority(ROUTE_METRIC)
             .kind(RouteType::Unspec)
             .build();
 

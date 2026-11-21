@@ -10,6 +10,7 @@ use std::num::NonZeroI32;
 use capctl::caps::CapState;
 use futures::executor::block_on;
 use futures::stream::{StreamExt, TryStreamExt};
+use holo_utils::capabilities;
 use holo_utils::ip::IpAddrExt;
 use holo_utils::mac_addr::MacAddr;
 use holo_utils::southbound::InterfaceFlags;
@@ -24,13 +25,14 @@ use netlink_packet_route::link::{
     LinkAttribute, LinkFlags, LinkLayerType, LinkMessage, MacVlanMode,
 };
 use netlink_sys::{AsyncSocket, SocketAddr};
+use nix::sys::socket::{setsockopt, sockopt};
 use rtnetlink::{
     Error, Handle, LinkMacVlan, LinkMessageBuilder, LinkUnspec, LinkVlan,
     new_connection,
 };
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::task::JoinHandle;
-use tracing::{error, trace};
+use tracing::{error, trace, warn};
 
 use crate::Master;
 use crate::dataplane::{Dataplane, DataplaneMonitor};
@@ -38,6 +40,9 @@ use crate::interface::Owner;
 
 // Error code returned by the kernel when the address to add already exists.
 const EEXIST: NonZeroI32 = NonZeroI32::new(-libc::EEXIST).unwrap();
+
+// Receive buffer size of the netlink monitor socket.
+const MONITOR_RCVBUF_SIZE: usize = 4 * 1024 * 1024;
 
 // Handle used to program the Linux dataplane via netlink.
 #[derive(Debug)]
@@ -116,6 +121,14 @@ impl Dataplane for LinuxDataplane {
             }
         };
 
+        // Set the receive buffer size.
+        let socket = conn.socket_mut().socket_mut();
+        if let Err(error) = capabilities::raise(|| {
+            setsockopt(socket, sockopt::RcvBufForce, &MONITOR_RCVBUF_SIZE)
+        }) {
+            warn!(%error, "failed to set netlink socket receive buffer size");
+        }
+
         // Subscribe to the link and address multicast groups.
         let groups = [RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR]
             .iter()
@@ -162,8 +175,8 @@ impl Dataplane for LinuxDataplane {
     }
 
     fn process_msg(master: &mut Master, msg: Self::Event) {
-        if let NetlinkPayload::InnerMessage(msg) = msg.payload {
-            match msg {
+        match msg.payload {
+            NetlinkPayload::InnerMessage(msg) => match msg {
                 RouteNetlinkMessage::NewLink(msg) => {
                     process_newlink_msg(master, msg)
                 }
@@ -177,7 +190,11 @@ impl Dataplane for LinuxDataplane {
                     process_deladdr_msg(master, msg)
                 }
                 _ => (),
+            },
+            NetlinkPayload::Overrun(_) => {
+                error!("netlink socket buffer overrun, notifications lost");
             }
+            _ => (),
         }
     }
 

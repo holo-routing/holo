@@ -1255,6 +1255,7 @@ dependencies = [
  "netlink-packet-core",
  "netlink-packet-route",
  "netlink-sys",
+ "nix 0.31.3",
  "phf 0.14.0",
  "regex",
  "rtnetlink",

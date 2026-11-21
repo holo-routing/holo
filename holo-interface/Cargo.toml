@@ -31,6 +31,7 @@ libc.workspace = true
 netlink-packet-core.workspace = true
 netlink-packet-route.workspace = true
 netlink-sys.workspace = true
+nix.workspace = true
 rtnetlink.workspace = true
 
 [build-dependencies]

@@ -813,7 +813,8 @@ fn update_global_rib<V>(
         let mut old_sr_label = None;
 
         // Remove route from the old RIB if it's present.
-        if let Some(old_route) = old_rib.remove(prefix) {
+        let old_route = old_rib.remove(prefix);
+        if let Some(old_route) = &old_route {
             old_sr_label = old_route.sr_label;
 
             // Skip reinstalling the route if it hasn't changed.
@@ -846,9 +847,10 @@ fn update_global_rib<V>(
                 interfaces,
             );
             route.flags.insert(RouteNetFlags::INSTALLED);
-        } else if route.flags.contains(RouteNetFlags::INSTALLED) {
-            ibus::tx::route_uninstall(&instance.tx.ibus, prefix, route);
-            route.flags.remove(RouteNetFlags::INSTALLED);
+        } else if let Some(old_route) = &old_route
+            && old_route.flags.contains(RouteNetFlags::INSTALLED)
+        {
+            ibus::tx::route_uninstall(&instance.tx.ibus, prefix, old_route);
         }
     }
 

@@ -1147,7 +1147,9 @@ async fn nb_config_summary1() {
 //    - remove the 1.0.0.0/8 summary from the local RIB
 //    - remove the 1.1.1.1/32 route from the local RIB
 //    - send an "lsp-generation" YANG notification
-//  * Ibus: uninstall the blackhole route for 1.0.0.0/8
+//  * Ibus:
+//    - uninstall the route to 1.1.1.1/32
+//    - uninstall the blackhole route for 1.0.0.0/8
 #[tokio::test]
 async fn nb_config_summary2() {
     run_test::<Instance>("nb-config-summary2", "topo1-2", "rt2").await;

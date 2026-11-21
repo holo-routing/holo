@@ -1263,6 +1263,7 @@ async fn ibus_addr_add2() {
 // Output:
 //  * Northbound: the route to 10.0.7.0/24 is now marked as connected with a
 //    metric of 10
+//  * Ibus: uninstall the route to 10.0.7.0/24
 #[tokio::test]
 async fn ibus_addr_add3() {
     run_test::<Instance<Ospfv2>>("ibus-addr-add3", "topo2-1", "rt6").await;

@@ -1436,12 +1436,11 @@ impl Lsp {
         }
         result ^= (self.cksum as u64) << 48;
         result ^= (self.raw.len() as u64) << 32;
-        // The sequence number is folded in as well. A refresh that doesn't
-        // change the content yields an LSP with an identical checksum and
-        // length and only a higher sequence number, so without this a node
-        // still holding the older copy would be indistinguishable from one
-        // holding the newer one, which is precisely a synchronization
-        // difference the fingerprint exists to expose.
+        // The sequence number is folded in explicitly. It is already covered
+        // by the checksum above, which ISO 10589 computes from the LSP ID
+        // field onwards, so this is redundant; it is done anyway so that a
+        // stale copy of an otherwise unchanged LSP is distinguishable
+        // without relying on which fields the checksum happens to cover.
         result ^= self.seqno as u64;
         result
     }

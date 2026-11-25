@@ -548,7 +548,7 @@ fn lsa_orig_router(
                         LsaRouterLinkType::VirtualLink,
                         nbr.router_id,
                         iface.state.src_addr.unwrap(),
-                        vlink_state.cost as u16,
+                        vlink_state.cost,
                     );
                     links.push(link);
                 }

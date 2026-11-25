@@ -2716,7 +2716,7 @@ impl<'a, V: Version> YangList<'a, Instance<V>> for ospf::areas::area::virtual_li
         Self {
             transit_area_id: vlink_key.transit_area_id,
             router_id: vlink_key.router_id,
-            cost: iface.state.vlink.as_ref().map(|vlink| vlink.cost as u16),
+            cost: iface.state.vlink.as_ref().map(|vlink| vlink.cost),
             state: Some(iface.state.ism_state),
             hello_timer: iface.state.tasks.hello_interval.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),
             wait_timer: iface.state.tasks.wait_timer.as_ref().map(|task| TimerValueSecs16(task.remaining())).ignore_in_testing(),

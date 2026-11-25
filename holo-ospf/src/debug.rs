@@ -52,7 +52,7 @@ pub enum Debug<'a, V: Version> {
     // Virtual links
     VirtualLinkSrcAddrChange(&'a VirtualLinkKey, V::NetIpAddr, V::NetIpAddr),
     VirtualLinkNbrAddrChange(&'a VirtualLinkKey, V::NetIpAddr, V::NetIpAddr),
-    VirtualLinkCostChange(&'a VirtualLinkKey, u32, u32),
+    VirtualLinkCostChange(&'a VirtualLinkKey, u16, u16),
     // Neighbors
     NeighborCreate(Ipv4Addr),
     NeighborDelete(Ipv4Addr),

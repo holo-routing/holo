@@ -18,7 +18,9 @@ use crate::debug::{Debug, InterfaceInactiveReason, LsaFlushReason};
 use crate::error::Error;
 use crate::instance::InstanceUpView;
 use crate::interface::{Interface, VirtualLinkState, ism};
-use crate::lsdb::{LSA_INFINITY, LsaEntry, LsaEntryFlags, LsaOriginateEvent};
+use crate::lsdb::{
+    LSA_INFINITY, LsaEntry, LsaEntryFlags, LsaOriginateEvent, MAX_LINK_METRIC,
+};
 use crate::northbound::configuration::{AreaCfg, RangeCfg};
 use crate::packet::iana::PacketType;
 use crate::packet::lsa::{LsaKey, LsaRouterFlagsVersion};
@@ -332,8 +334,8 @@ where
         return Err(Error::VirtualLinkNbrAddr(vlink_key));
     };
 
-    // Get cost to the endpoint.
-    let cost = route_br.metric;
+    // Get cost to the endpoint, capped to the maximum Router-LSA link metric.
+    let cost = u16::try_from(route_br.metric).unwrap_or(MAX_LINK_METRIC);
 
     // Check for dynamic parameter changes.
     let vlink = &mut interfaces[vlink_idx];

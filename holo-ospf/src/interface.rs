@@ -153,7 +153,7 @@ pub struct VirtualLinkKey {
 #[derive(Debug)]
 pub struct VirtualLinkState<V: Version> {
     pub nbr_addr: V::NetIpAddr,
-    pub cost: u32,
+    pub cost: u16,
 }
 
 // Interface state machine.

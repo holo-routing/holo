@@ -133,7 +133,8 @@ pub struct LsaRouter {
 pub struct LsaRouterLink {
     pub link_type: LsaRouterLinkType,
     pub link_id: Ipv4Addr,
-    // TODO: might be an ifindex for unnumbered point-to-point connections.
+    // The network mask for stub networks, the ifIndex for unnumbered
+    // point-to-point links, and the router interface's IP address otherwise.
     pub link_data: Ipv4Addr,
     pub metric: u16,
 }

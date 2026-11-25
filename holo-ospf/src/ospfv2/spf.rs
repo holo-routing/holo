@@ -60,8 +60,6 @@ pub type VertexLsaRouter = TypedLsa<Ospfv2, kind::Router>;
 pub enum VertexEdge<'a> {
     // Router-LSA link to a router or transit network.
     Router {
-        // Position of the link among the non-stub links of the Router-LSA.
-        link_pos: usize,
         link: &'a LsaRouterLink,
         dest: VertexLsa,
     },
@@ -304,21 +302,22 @@ impl SpfVersion<Self> for Ospfv2 {
         match edge {
             // The parent vertex is the root.
             VertexEdge::Router {
-                link_pos: parent_link_pos,
+                link: parent_link,
                 dest: dest_lsa,
-                ..
             } => {
                 // The destination is either a directly connected network or
                 // directly connected router.
 
-                // Get nexthop interface based on the parent's Router-LSA link
-                // position.
+                // Get nexthop interface: the one the parent's Router-LSA link
+                // was originated for.
                 let (iface_idx, iface) = area
                     .interfaces
                     .indexes()
                     .map(|iface_idx| (iface_idx, &interfaces[iface_idx]))
-                    .filter(|(_, iface)| iface.state.neighbors.count() > 0)
-                    .nth(*parent_link_pos)
+                    .filter(|(_, iface)| !iface.is_down())
+                    .find(|(_, iface)| {
+                        iface_originated_link(iface, parent_link)
+                    })
                     .ok_or(Error::SpfNexthopCalcError(dest_id))?;
 
                 // If the interface is a virtual link, do not resolve the
@@ -527,8 +526,7 @@ impl SpfVersion<Self> for Ospfv2 {
                     .filter_map(|link| {
                         link_vertex_id(link).map(|link_vid| (link, link_vid))
                     })
-                    .enumerate()
-                    .filter_map(move |(link_pos, (link, link_vid))| {
+                    .filter_map(move |(link, link_vid)| {
                         let dest = Ospfv2::vertex_lsa_find(
                             af,
                             link_vid,
@@ -536,11 +534,7 @@ impl SpfVersion<Self> for Ospfv2 {
                             false,
                             lsa_entries,
                         )?;
-                        Some(VertexEdge::Router {
-                            link_pos,
-                            link,
-                            dest,
-                        })
+                        Some(VertexEdge::Router { link, dest })
                     });
                 Box::new(iter)
             }
@@ -760,6 +754,35 @@ fn lsa_prefix(addr: Ipv4Addr, mask: Ipv4Addr) -> Option<Ipv4Network> {
     Ipv4Network::with_netmask(addr, mask)
         .ok()
         .map(|prefix| prefix.apply_mask())
+}
+
+// Returns whether the given link of the calculating router's Router-LSA was
+// originated for the given interface, which the link's type and Link Data
+// identify: the interface's IP address, its ifIndex if it's unnumbered, or the
+// source address of a virtual link (RFC 2328 section 12.4.1).
+fn iface_originated_link(
+    iface: &Interface<Ospfv2>,
+    link: &LsaRouterLink,
+) -> bool {
+    let primary_addr = iface.system.primary_addr.map(|addr| addr.ip());
+    let link_data = match (link.link_type, iface.config.if_type) {
+        (
+            LsaRouterLinkType::PointToPoint,
+            InterfaceType::PointToPoint | InterfaceType::PointToMultipoint,
+        ) => match iface.system.is_unnumbered() {
+            true => iface.system.ifindex.map(Ipv4Addr::from),
+            false => primary_addr,
+        },
+        (
+            LsaRouterLinkType::TransitNetwork,
+            InterfaceType::Broadcast | InterfaceType::NonBroadcast,
+        ) => primary_addr,
+        (LsaRouterLinkType::VirtualLink, InterfaceType::VirtualLink) => {
+            iface.state.src_addr
+        }
+        _ => None,
+    };
+    link_data == Some(link.link_data)
 }
 
 // Returns the ID of the vertex a Router-LSA link points to, if any.

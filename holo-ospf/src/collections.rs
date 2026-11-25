@@ -800,11 +800,6 @@ where
     pub(crate) fn indexes(&self) -> impl Iterator<Item = NeighborIndex> + '_ {
         self.router_id_tree.values().copied()
     }
-
-    // Returns the number of neighbors.
-    pub(crate) fn count(&self) -> usize {
-        self.router_id_tree.len()
-    }
 }
 
 // ===== impl Lsdb =====

@@ -1168,7 +1168,9 @@ where
     };
 
     // Send LS Update.
-    iface.state.tasks.ls_update_timer = None;
+    if nbr_idx.is_none() {
+        iface.state.tasks.ls_update_timer = None;
+    }
     output::send_lsupd(nbr_idx, iface, area, instance, &mut arenas.neighbors);
 
     Ok(())

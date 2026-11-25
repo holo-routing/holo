@@ -58,7 +58,12 @@ impl InterfaceVersion<Self> for Ospfv2 {
             auth_seqno: None,
         };
 
-        let network_mask = if iface.is_virtual_link() {
+        // The Network Mask is set to 0.0.0.0 on unnumbered point-to-point
+        // networks and on virtual links (RFC 2328 section 9.5).
+        let network_mask = if iface.is_virtual_link()
+            || (iface.config.if_type == InterfaceType::PointToPoint
+                && iface.system.is_unnumbered())
+        {
             Ipv4Addr::UNSPECIFIED
         } else {
             iface.system.primary_addr.unwrap().mask()

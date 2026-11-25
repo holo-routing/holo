@@ -40,6 +40,12 @@ const ESRCH: NonZeroI32 = NonZeroI32::new(-libc::ESRCH).unwrap();
 // of the connected routes the kernel adds itself, to avoid overwriting them.
 const ROUTE_METRIC: u32 = 20;
 
+// Non-standard protocol numbers, unknown to iproute2, the same ones FRR uses.
+// Static routes need their own to avoid conflicts with other sources that use
+// the standard number for static routes.
+const ROUTE_PROTOCOL_LDP: u8 = 193;
+const ROUTE_PROTOCOL_STATIC: u8 = 196;
+
 // Handle used to program the Linux dataplane via netlink.
 #[derive(Debug)]
 pub struct LinuxDataplane {
@@ -238,9 +244,10 @@ impl Dataplane for LinuxDataplane {
                 protocol,
                 RouteProtocol::Bgp
                     | RouteProtocol::Isis
+                    | RouteProtocol::Other(ROUTE_PROTOCOL_LDP)
                     | RouteProtocol::Ospf
                     | RouteProtocol::Rip
-                    | RouteProtocol::Static
+                    | RouteProtocol::Other(ROUTE_PROTOCOL_STATIC)
             ) {
                 continue;
             }
@@ -317,9 +324,10 @@ fn netlink_protocol(protocol: Protocol) -> RouteProtocol {
     match protocol {
         Protocol::BGP => RouteProtocol::Bgp,
         Protocol::ISIS => RouteProtocol::Isis,
+        Protocol::LDP => RouteProtocol::Other(ROUTE_PROTOCOL_LDP),
         Protocol::OSPFV2 | Protocol::OSPFV3 => RouteProtocol::Ospf,
         Protocol::RIPV2 | Protocol::RIPNG => RouteProtocol::Rip,
-        Protocol::STATIC => RouteProtocol::Static,
+        Protocol::STATIC => RouteProtocol::Other(ROUTE_PROTOCOL_STATIC),
         _ => RouteProtocol::Unspec,
     }
 }

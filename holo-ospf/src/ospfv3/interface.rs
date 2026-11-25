@@ -41,7 +41,7 @@ impl InterfaceVersion<Self> for Ospfv3 {
         }
 
         if af == AddressFamily::Ipv4
-            && !iface.system.addr_list.iter().any(|addr| addr.is_ipv4())
+            && !iface.system.addr_list.keys().any(|addr| addr.is_ipv4())
         {
             return Err(InterfaceInactiveReason::MissingIpv4Address);
         }
@@ -109,7 +109,7 @@ impl InterfaceVersion<Self> for Ospfv3 {
 
         // Check if the destination matches one of the interface unicast
         // addresses.
-        if iface.system.addr_list.iter().any(|addr| addr.ip() == dst) {
+        if iface.system.addr_list.keys().any(|addr| addr.ip() == dst) {
             return Ok(());
         }
 

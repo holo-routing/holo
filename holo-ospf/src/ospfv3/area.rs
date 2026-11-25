@@ -69,7 +69,7 @@ impl AreaVersion<Self> for Ospfv3 {
         area.interfaces
             .iter(interfaces)
             .chain(interfaces.iter().map(|(_, iface)| iface))
-            .flat_map(|iface| iface.system.addr_list.iter())
+            .flat_map(|iface| iface.system.addr_list.keys())
             .filter_map(|addr| Ipv6Addr::get(addr.ip()))
             .find(|addr| !addr.is_unicast_link_local())
     }

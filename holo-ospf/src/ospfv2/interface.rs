@@ -7,6 +7,7 @@
 use std::net::Ipv4Addr;
 
 use holo_utils::ip::{AddressFamily, Ipv4AddrExt};
+use holo_utils::southbound::AddressFlags;
 
 use crate::area::{Area, AreaVersion, OptionsLocation};
 use crate::collections::{Arena, NeighborIndex};
@@ -245,5 +246,16 @@ impl InterfaceVersion<Self> for Ospfv2 {
                 }
             }
         }
+    }
+}
+
+// ===== impl InterfaceSys =====
+
+impl InterfaceSys<Ospfv2> {
+    // Returns whether the primary address is unnumbered.
+    pub(crate) fn is_unnumbered(&self) -> bool {
+        self.primary_addr
+            .and_then(|addr| self.addr_list.get(&addr))
+            .is_some_and(|flags| flags.contains(AddressFlags::UNNUMBERED))
     }
 }

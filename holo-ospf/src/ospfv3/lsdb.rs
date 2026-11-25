@@ -748,7 +748,7 @@ fn lsa_orig_link(
     let prefixes = iface
         .system
         .addr_list
-        .iter()
+        .keys()
         // Filter by address family.
         .filter(|addr| addr.address_family() == instance.state.af)
         // Filter out IPv6 link-local addresses.
@@ -768,7 +768,9 @@ fn lsa_orig_link(
     // When routing for the IPv4 address-family, select the primary IPv4 address
     // of the interface.
     let linklocal = match instance.state.af {
-        AddressFamily::Ipv4 => iface.system.addr_list.first().unwrap().ip(),
+        AddressFamily::Ipv4 => {
+            iface.system.addr_list.keys().next().unwrap().ip()
+        }
         AddressFamily::Ipv6 => iface.system.linklocal_addr.unwrap().ip().into(),
     };
 
@@ -853,7 +855,7 @@ fn lsa_orig_intra_area_prefix(
             iface
                 .system
                 .addr_list
-                .iter()
+                .keys()
                 .map(move |addr| (iface, addr.apply_mask()))
         })
         // Filter by address family.
@@ -991,7 +993,7 @@ fn lsa_orig_intra_area_prefix(
             .interfaces
             .iter(&arenas.interfaces)
             .chain(arenas.interfaces.iter().map(|(_, iface)| iface))
-            .flat_map(|iface| iface.system.addr_list.iter())
+            .flat_map(|iface| iface.system.addr_list.keys())
             .filter_map(|addr| Ipv6Addr::get(addr.ip()))
             .find(|addr| !addr.is_unicast_link_local())
         {

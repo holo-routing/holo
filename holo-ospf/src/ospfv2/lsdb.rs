@@ -451,7 +451,7 @@ fn lsa_orig_router(
     {
         // Add Type-3 (stub) links to interfaces in Loopback state.
         if iface.state.ism_state == ism::State::Loopback {
-            links.extend(iface.system.addr_list.iter().map(|addr| {
+            links.extend(iface.system.addr_list.keys().map(|addr| {
                 LsaRouterLink::new(
                     LsaRouterLinkType::StubNetwork,
                     addr.ip(),
@@ -483,7 +483,7 @@ fn lsa_orig_router(
                     .iter(&arenas.neighbors)
                     .filter(|nbr| nbr.state == nsm::State::Full)
                 {
-                    let link_data = if iface.system.unnumbered {
+                    let link_data = if iface.system.is_unnumbered() {
                         Ipv4Addr::from(iface.system.ifindex.unwrap())
                     } else {
                         primary_addr.ip()
@@ -498,13 +498,13 @@ fn lsa_orig_router(
                 }
 
                 // Add Type-3 (stub) links, unless the interface is unnumbered.
-                if !iface.system.unnumbered {
+                if !iface.system.is_unnumbered() {
                     if iface.config.if_type == InterfaceType::PointToMultipoint
                     {
                         // Point-to-multipoint interfaces advertise host
                         // routes to the interface addresses instead (RFC
                         // 2328, section 12.4.1.4).
-                        links.extend(iface.system.addr_list.iter().map(
+                        links.extend(iface.system.addr_list.keys().map(
                             |addr| {
                                 LsaRouterLink::new(
                                     LsaRouterLinkType::StubNetwork,
@@ -578,7 +578,7 @@ fn lsa_orig_router(
                 iface
                     .system
                     .addr_list
-                    .iter()
+                    .keys()
                     .map(|addr| addr.apply_mask())
                     .map(|addr| {
                         LsaRouterLink::new(
@@ -779,7 +779,7 @@ fn lsa_orig_ext_prefix(
         .iter(&arenas.interfaces)
         .filter(|iface| !iface.is_down())
         .flat_map(|iface| {
-            iface.system.addr_list.iter().filter_map(move |addr| {
+            iface.system.addr_list.keys().filter_map(move |addr| {
                 let mut flags = LsaExtPrefixFlags::empty();
                 if iface.config.node_flag
                     && iface.state.ism_state == ism::State::Loopback

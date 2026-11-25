@@ -15,17 +15,12 @@ use crate::version::Ospfv2;
 // ===== impl Ospfv2 =====
 
 impl IbusRxVersion<Self> for Ospfv2 {
-    fn process_addr_add(
-        iface: &mut Interface<Self>,
-        addr: Ipv4Network,
-        unnumbered: bool,
-    ) {
+    fn process_addr_add(iface: &mut Interface<Self>, addr: Ipv4Network) {
         if iface.system.primary_addr.is_none() {
             Debug::<Self>::InterfacePrimaryAddrSelect(&iface.name, &addr).log();
 
             // Mark address as the primary one.
             iface.system.primary_addr = Some(addr);
-            iface.system.unnumbered = unnumbered;
         }
     }
 
@@ -40,7 +35,7 @@ impl IbusRxVersion<Self> for Ospfv2 {
             if let Some(addr) = iface
                 .system
                 .addr_list
-                .iter()
+                .keys()
                 .find(|addr| addr.ip().is_usable())
             {
                 Debug::<Self>::InterfacePrimaryAddrSelect(&iface.name, addr)

@@ -9,7 +9,7 @@ use std::net::Ipv4Addr;
 use holo_utils::bfd;
 use holo_utils::bier::BierCfgEvent;
 use holo_utils::ip::IpNetworkKind;
-use holo_utils::southbound::{AddressFlags, AddressMsg, InterfaceUpdateMsg};
+use holo_utils::southbound::{AddressMsg, InterfaceUpdateMsg};
 use holo_utils::sr::SrCfgEvent;
 
 use crate::error::Error;
@@ -21,11 +21,7 @@ use crate::version::Version;
 
 // OSPF version-specific code.
 pub trait IbusRxVersion<V: Version> {
-    fn process_addr_add(
-        iface: &mut Interface<V>,
-        addr: V::NetIpNetwork,
-        unnumbered: bool,
-    );
+    fn process_addr_add(iface: &mut Interface<V>, addr: V::NetIpNetwork);
 
     fn process_addr_del(iface: &mut Interface<V>, addr: V::NetIpNetwork);
 }
@@ -103,7 +99,7 @@ where
     let iface = &mut arenas.interfaces[iface_idx];
 
     // Add address to interface.
-    if !iface.system.addr_list.insert(addr) {
+    if iface.system.addr_list.insert(addr, msg.flags).is_some() {
         return;
     }
 
@@ -120,11 +116,7 @@ where
 
     // OSPF version-specific address handling.
     if let Some(addr) = V::NetIpNetwork::get(msg.addr) {
-        V::process_addr_add(
-            iface,
-            addr,
-            msg.flags.contains(AddressFlags::UNNUMBERED),
-        );
+        V::process_addr_add(iface, addr);
     }
 
     // Check if OSPF needs to be activated on this interface.
@@ -160,7 +152,7 @@ where
     let iface = &mut arenas.interfaces[iface_idx];
 
     // Remove address from interface.
-    if !iface.system.addr_list.remove(&addr) {
+    if iface.system.addr_list.remove(&addr).is_none() {
         return;
     }
 

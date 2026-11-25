@@ -4,7 +4,7 @@
 // SPDX-License-Identifier: MIT
 //
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
@@ -15,7 +15,7 @@ use holo_protocol::InstanceChannelsTx;
 use holo_utils::ip::{AddressFamily, IpNetworkKind};
 use holo_utils::keychain::{Key, Keychains};
 use holo_utils::socket::{AsyncFd, AsyncFdExt, Socket};
-use holo_utils::southbound::InterfaceFlags;
+use holo_utils::southbound::{AddressFlags, InterfaceFlags};
 use holo_utils::task::{IntervalTask, Task, TimeoutTask};
 use ipnetwork::{Ipv4Network, Ipv6Network};
 use ism::{Event, State};
@@ -58,11 +58,10 @@ pub struct InterfaceSys<V: Version> {
     pub ifindex: Option<u32>,
     // Interface MTU.
     pub mtu: Option<u16>,
-    // List of addresses associated with this interface.
-    pub addr_list: BTreeSet<V::IpNetwork>,
+    // List of addresses associated with this interface, and their flags.
+    pub addr_list: BTreeMap<V::IpNetwork, AddressFlags>,
     // OSPFv2: primary address.
     pub primary_addr: Option<Ipv4Network>,
-    pub unnumbered: bool,
     // OSPFv3: link-local address.
     pub linklocal_addr: Option<Ipv6Network>,
 }
@@ -938,7 +937,7 @@ where
 {
     // Check if the interface shares a subnet with the given IP address.
     pub(crate) fn contains_addr(&self, addr: &V::IpAddr) -> bool {
-        for local in &self.addr_list {
+        for local in self.addr_list.keys() {
             if local.contains(*addr) {
                 return true;
             }
@@ -975,7 +974,6 @@ where
             mtu: None,
             addr_list: Default::default(),
             primary_addr: None,
-            unnumbered: false,
             linklocal_addr: None,
         }
     }

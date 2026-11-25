@@ -15,11 +15,7 @@ use crate::version::Ospfv3;
 // ===== impl Ospfv3 =====
 
 impl IbusRxVersion<Self> for Ospfv3 {
-    fn process_addr_add(
-        iface: &mut Interface<Self>,
-        addr: Ipv6Network,
-        _unnumbered: bool,
-    ) {
+    fn process_addr_add(iface: &mut Interface<Self>, addr: Ipv6Network) {
         if iface.system.linklocal_addr.is_none()
             && addr.ip().is_unicast_link_local()
         {
@@ -41,7 +37,7 @@ impl IbusRxVersion<Self> for Ospfv3 {
             if let Some(addr) = iface
                 .system
                 .addr_list
-                .iter()
+                .keys()
                 .filter_map(|addr| Ipv6Network::get(*addr))
                 .find(|addr| addr.ip().is_unicast_link_local())
             {

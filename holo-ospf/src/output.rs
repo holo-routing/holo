@@ -221,7 +221,10 @@ pub(crate) fn send_lsupd<V>(
     V: Version,
 {
     // Initialize destination address(es).
-    let dst = send_dest_iface(iface, neighbors);
+    let dst = match nbr_idx {
+        Some(nbr_idx) => send_dest_nbr(&neighbors[nbr_idx], iface),
+        None => send_dest_iface(iface, neighbors),
+    };
 
     // Calculate maximum packet size.
     let max_size = V::max_packet_size(iface)

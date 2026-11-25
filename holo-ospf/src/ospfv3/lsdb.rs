@@ -534,6 +534,8 @@ fn lsa_orig_router(
         // links to MaxLinkMetric.
         let cost = if instance.config.stub_router {
             MAX_LINK_METRIC
+        } else if let Some(vlink_state) = &iface.state.vlink {
+            vlink_state.cost
         } else {
             iface.config.cost
         };
@@ -603,10 +605,9 @@ fn lsa_orig_router(
                     iface.state.neighbors.iter(&arenas.neighbors).next()
                     && nbr.state == nsm::State::Full
                 {
-                    let vlink_state = iface.state.vlink.as_ref().unwrap();
                     let link = LsaRouterLink::new(
                         LsaRouterLinkType::VirtualLink,
-                        vlink_state.cost,
+                        cost,
                         ifindex,
                         nbr.iface_id.unwrap(),
                         nbr.router_id,

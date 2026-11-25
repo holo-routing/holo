@@ -356,8 +356,13 @@ fn netlink_nexthops<'a>(
                     nl_nexthop = nl_nexthop.mpls(netlink_label_stack(labels));
                 }
 
-                // Use 'onlink' for IPv4 with unnumbered interface.
-                if addr.is_ipv4()
+                // Use 'onlink' for IPv4 nexthops through unnumbered interfaces,
+                // as the nexthop address isn't on any of their subnets.
+                //
+                // MPLS routes are skipped: the kernel rejects nexthop flags on
+                // them, and doesn't check their nexthop address anyway.
+                if af != AddressFamily::Mpls
+                    && addr.is_ipv4()
                     && let Some(iface) = interfaces.get_by_ifindex(*ifindex)
                     && iface.is_unnumbered()
                 {

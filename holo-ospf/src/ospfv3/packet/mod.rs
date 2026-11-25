@@ -63,6 +63,9 @@ pub const AUTH_TRAILER_HDR_SIZE: u16 = 16;
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct PacketHdr {
     pub pkt_type: PacketType,
@@ -70,8 +73,6 @@ pub struct PacketHdr {
     pub area_id: Ipv4Addr,
     pub instance_id: u8,
     // Decoded authentication sequence number.
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub auth_seqno: Option<u64>,
 }
 
@@ -102,6 +103,10 @@ pub struct PacketHdrAuth;
 // |                        ...                                    |
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    BTreeSet => #[serde(default, skip_serializing_if = "BTreeSet::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct Hello {
     pub hdr: PacketHdr,
@@ -143,6 +148,10 @@ pub struct Hello {
 // |                       ...                                      |
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct DbDesc {
     pub hdr: PacketHdr,
@@ -169,6 +178,9 @@ pub struct DbDesc {
 // |                                 ...                           |
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsRequest {
     pub hdr: PacketHdr,
@@ -192,6 +204,9 @@ pub struct LsRequest {
 // |                              ...                              |
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsUpdate {
     pub hdr: PacketHdr,
@@ -219,6 +234,9 @@ pub struct LsUpdate {
 // |                              ...                              |
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsAck {
     pub hdr: PacketHdr,

@@ -119,6 +119,9 @@ pub struct LsaHdr {
 // |                              ...                              |
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaRouter {
     pub flags: LsaRouterFlags,
@@ -150,6 +153,9 @@ pub struct LsaRouterLink {
 // |                              ...                              |
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[serde_with::apply(
+    BTreeSet => #[serde(default, skip_serializing_if = "BTreeSet::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaNetwork {
     pub mask: Ipv4Addr,
@@ -204,6 +210,9 @@ pub struct LsaSummary {
 // |                              ...                              |
 //
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaAsExternal {
     pub mask: Ipv4Addr,

@@ -25,6 +25,7 @@ phf.workspace = true
 rand.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde_with.workspace = true
 sha1.workspace = true
 sha2.workspace = true
 smallvec.workspace = true

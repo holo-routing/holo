@@ -96,12 +96,18 @@ impl LlsData {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Serialize, Deserialize)]
 pub struct LlsHelloData {
     pub eof: Option<ExtendedOptionsFlags>,
 }
 
 #[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Serialize, Deserialize)]
 pub struct LlsDbDescData {
     pub eof: Option<ExtendedOptionsFlags>,

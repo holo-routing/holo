@@ -158,6 +158,11 @@ pub enum LsaBody {
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    BTreeMap => #[serde(default, skip_serializing_if = "BTreeMap::is_empty")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtLsaStlvs {
     pub ipv6_fwd_addr: Option<Ipv6Addr>,
@@ -224,6 +229,9 @@ pub struct PrefixSid {
 // +---------------------------------------------------------------+
 //
 #[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct AdjSid {
     pub flags: AdjSidFlags,
@@ -297,6 +305,9 @@ pub struct AdjSid {
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaRouter {
     pub extended: bool,
@@ -308,6 +319,9 @@ pub struct LsaRouter {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, new)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaRouterLink {
     pub link_type: LsaRouterLinkType,
@@ -365,6 +379,10 @@ pub struct LsaRouterLink {
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    BTreeSet => #[serde(default, skip_serializing_if = "BTreeSet::is_empty")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaNetwork {
     pub extended: bool,
@@ -424,6 +442,10 @@ pub struct LsaNetwork {
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    BTreeMap => #[serde(default, skip_serializing_if = "BTreeMap::is_empty")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaInterAreaPrefix {
     pub extended: bool,
@@ -485,6 +507,9 @@ pub struct LsaInterAreaPrefix {
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaInterAreaRouter {
     pub extended: bool,
@@ -559,6 +584,11 @@ pub struct LsaInterAreaRouter {
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    BTreeMap => #[serde(default, skip_serializing_if = "BTreeMap::is_empty")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaAsExternal {
     pub extended: bool,
@@ -675,6 +705,9 @@ bitflags! {
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaLink {
     pub extended: bool,
@@ -687,6 +720,9 @@ pub struct LsaLink {
 }
 
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaLinkPrefix {
     pub options: PrefixOptions,
@@ -762,6 +798,9 @@ pub struct LsaLinkPrefix {
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaIntraAreaPrefix {
     pub extended: bool,
@@ -774,6 +813,10 @@ pub struct LsaIntraAreaPrefix {
 }
 
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    BTreeMap => #[serde(default, skip_serializing_if = "BTreeMap::is_empty")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaIntraAreaPrefixEntry {
     pub options: PrefixOptions,
@@ -809,6 +852,10 @@ pub enum GraceTlvType {
 // |                             ...                               |
 //
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaGrace {
     pub grace_period: Option<GracePeriodTlv>,
@@ -829,6 +876,10 @@ pub struct LsaGrace {
 // |                             ...                               |
 //
 #[derive(Clone, Debug, Eq, PartialEq, new)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaRouterInfo {
     pub scope: LsaScopeCode,
@@ -847,12 +898,8 @@ pub struct LsaRouterInfo {
     #[new(default)]
     pub srms_pref: Option<SrmsPrefTlv>,
     #[new(default)]
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub info_hostname: Option<DynamicHostnameTlv>,
     #[new(default)]
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub node_tags: Vec<NodeAdminTagTlv>,
     #[new(default)]
     pub unknown_tlvs: Vec<UnknownTlv>,

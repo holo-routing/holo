@@ -104,6 +104,9 @@ const MAX_HOSTNAME_LEN: usize = 255;
 // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
 #[derive(Clone, Debug, Default, Eq, new, PartialEq)]
+#[serde_with::apply(
+    BTreeSet => #[serde(default, skip_serializing_if = "BTreeSet::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct NodeAdminTagTlv {
     pub tags: BTreeSet<u32>,
@@ -286,6 +289,9 @@ pub enum GrReason {
 // |                                                               |
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct BierStlv {
     pub sub_domain_id: u8,

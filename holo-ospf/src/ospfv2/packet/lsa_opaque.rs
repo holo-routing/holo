@@ -63,6 +63,10 @@ pub enum LsaOpaque {
 // |                             ...                               |
 //
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaGrace {
     pub grace_period: Option<GracePeriodTlv>,
@@ -89,6 +93,10 @@ pub struct GrInterfaceAddrTlv(Ipv4Addr);
 // |                             ...                               |
 //
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaRouterInfo {
     pub info_caps: Option<RouterInfoCapsTlv>,
@@ -98,11 +106,7 @@ pub struct LsaRouterInfo {
     pub srlb: Vec<SrLocalBlockTlv>,
     pub msds: Option<MsdTlv>,
     pub srms_pref: Option<SrmsPrefTlv>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub info_hostname: Option<DynamicHostnameTlv>,
-    #[serde(default)]
-    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub node_tags: Vec<NodeAdminTagTlv>,
     pub unknown_tlvs: Vec<UnknownTlv>,
 }
@@ -120,6 +124,9 @@ pub struct LsaRouterInfo {
 // |                             ...                               |
 //
 #[derive(Clone, Debug, Default, Eq, new, PartialEq)]
+#[serde_with::apply(
+    BTreeMap => #[serde(default, skip_serializing_if = "BTreeMap::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaExtPrefix {
     pub prefixes: BTreeMap<Ipv4Network, ExtPrefixTlv>,
@@ -138,6 +145,9 @@ pub struct LsaExtPrefix {
 // |                             ...                               |
 //
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct LsaExtLink {
     pub link: Option<ExtLinkTlv>,
@@ -162,6 +172,10 @@ pub struct LsaExtLink {
 // |                             ...                               |
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    BTreeMap => #[serde(default, skip_serializing_if = "BTreeMap::is_empty")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtPrefixTlv {
     pub route_type: ExtPrefixRouteType,
@@ -232,6 +246,10 @@ pub struct PrefixSid {
 // |                             ...                               |
 //
 #[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct ExtLinkTlv {
     pub link_type: LsaRouterLinkType,
@@ -275,6 +293,9 @@ pub struct ExtLinkTlv {
 // +---------------------------------------------------------------+
 //
 #[derive(Clone, Copy, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Option => #[serde(default, skip_serializing_if = "Option::is_none")],
+)]
 #[derive(Deserialize, Serialize)]
 pub struct AdjSid {
     pub flags: AdjSidFlags,

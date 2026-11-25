@@ -50,9 +50,9 @@ pub struct InstanceCfg {
     pub default_metric: Metric,
     pub distance: u8,
     pub triggered_update_threshold: u8,
-    pub update_interval: u16,
-    pub invalid_interval: u16,
-    pub flush_interval: u16,
+    pub update_interval: Duration,
+    pub invalid_interval: Duration,
+    pub flush_interval: Duration,
     pub trace_opts: TraceOptions,
 }
 
@@ -63,8 +63,8 @@ pub struct InterfaceCfg<V: Version> {
     pub no_listen: bool,
     pub passive: bool,
     pub split_horizon: SplitHorizon,
-    pub invalid_interval: u16,
-    pub flush_interval: u16,
+    pub invalid_interval: Duration,
+    pub flush_interval: Duration,
     pub auth_key: Option<String>,
     pub auth_algo: Option<CryptoAlgo>,
 }
@@ -104,14 +104,14 @@ where
             instance.config.triggered_update_threshold = threshold;
         }
         ConfigChange::TimersUpdateInterval(update_interval) => {
-            instance.config.update_interval = update_interval;
+            instance.config.update_interval = Duration::from_secs(update_interval.into());
             event_queue.insert(Event::ResetUpdateInterval);
         }
         ConfigChange::TimersInvalidInterval(invalid_interval) => {
-            instance.config.invalid_interval = invalid_interval;
+            instance.config.invalid_interval = Duration::from_secs(invalid_interval.into());
         }
         ConfigChange::TimersFlushInterval(flush_interval) => {
-            instance.config.flush_interval = flush_interval;
+            instance.config.flush_interval = Duration::from_secs(flush_interval.into());
         }
         ConfigChange::TraceOptionsFlag(keys, change) => {
             apply_trace_options(instance, keys.name, change)?;
@@ -206,10 +206,10 @@ where
                     iface.config.split_horizon = split_horizon;
                 }
                 InterfaceEntryChange::TimersInvalidInterval(invalid_interval) => {
-                    iface.config.invalid_interval = invalid_interval;
+                    iface.config.invalid_interval = Duration::from_secs(invalid_interval.into());
                 }
                 InterfaceEntryChange::TimersFlushInterval(flush_interval) => {
-                    iface.config.flush_interval = flush_interval;
+                    iface.config.flush_interval = Duration::from_secs(flush_interval.into());
                 }
                 InterfaceEntryChange::AuthenticationKey(auth_key) => {
                     iface.config.auth_key = auth_key;
@@ -355,8 +355,7 @@ where
                 return;
             };
 
-            let interval = Duration::from_secs(instance.config.update_interval.into());
-            instance.state.update_interval_task.reset(Some(interval));
+            instance.state.update_interval_task.reset(Some(instance.config.update_interval));
         }
     }
 }
@@ -389,9 +388,9 @@ impl Default for InstanceCfg {
         let default_metric = Metric::from(rip::default_metric::DFLT);
         let distance = rip::distance::DFLT;
         let triggered_update_threshold = rip::triggered_update_threshold::DFLT;
-        let update_interval = rip::timers::update_interval::DFLT;
-        let invalid_interval = rip::timers::invalid_interval::DFLT;
-        let flush_interval = rip::timers::flush_interval::DFLT;
+        let update_interval = Duration::from_secs(rip::timers::update_interval::DFLT.into());
+        let invalid_interval = Duration::from_secs(rip::timers::invalid_interval::DFLT.into());
+        let flush_interval = Duration::from_secs(rip::timers::flush_interval::DFLT.into());
 
         InstanceCfg {
             default_metric,
@@ -413,8 +412,8 @@ where
         let cost = Metric::from(rip::interfaces::interface::cost::DFLT);
         let split_horizon = rip::interfaces::interface::split_horizon::DFLT;
         let split_horizon = SplitHorizon::try_from_yang(split_horizon).unwrap();
-        let invalid_interval = rip::interfaces::interface::timers::invalid_interval::DFLT;
-        let flush_interval = rip::interfaces::interface::timers::flush_interval::DFLT;
+        let invalid_interval = Duration::from_secs(rip::interfaces::interface::timers::invalid_interval::DFLT.into());
+        let flush_interval = Duration::from_secs(rip::interfaces::interface::timers::flush_interval::DFLT.into());
 
         InterfaceCfg {
             cost,

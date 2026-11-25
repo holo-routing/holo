@@ -10,6 +10,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::sync::Arc;
+use std::time::Duration;
 
 use arc_swap::ArcSwap;
 use holo_northbound::configuration::{ConfigOp, InheritableConfig, Provider, YangConfigOps};
@@ -85,7 +86,7 @@ pub struct InstanceCfg {
     pub area_addrs: BTreeSet<AreaAddr>,
     pub lsp_mtu: u16,
     pub lsp_lifetime: u16,
-    pub lsp_refresh: u16,
+    pub lsp_refresh: Duration,
     pub lsp_generation: LspGenCfg,
     pub purge_originator: bool,
     pub node_tags: BTreeSet<u32>,
@@ -97,11 +98,11 @@ pub struct InstanceCfg {
     pub ipv6_router_id: Option<Ipv6Addr>,
     pub max_paths: u16,
     pub afs: BTreeMap<AddressFamily, AddressFamilyCfg>,
-    pub spf_initial_delay: u32,
-    pub spf_short_delay: u32,
-    pub spf_long_delay: u32,
-    pub spf_hold_down: u32,
-    pub spf_time_to_learn: u32,
+    pub spf_initial_delay: Duration,
+    pub spf_short_delay: Duration,
+    pub spf_long_delay: Duration,
+    pub spf_hold_down: Duration,
+    pub spf_time_to_learn: Duration,
     pub preference: Preference,
     pub overload_status: bool,
     pub mt: HashMap<MtId, InstanceMtCfg>,
@@ -118,9 +119,9 @@ pub struct InstanceCfg {
 
 #[derive(Debug)]
 pub struct LspGenCfg {
-    pub initial_wait: u16,
-    pub second_wait: u16,
-    pub max_wait: u16,
+    pub initial_wait: Duration,
+    pub second_wait: Duration,
+    pub max_wait: Duration,
 }
 
 #[derive(Debug)]
@@ -241,10 +242,10 @@ pub struct SummaryCfg {
 pub struct InterfaceCfg {
     pub enabled: bool,
     pub level_type: InheritableConfig<LevelType>,
-    pub lsp_pacing_interval: u32,
-    pub lsp_rxmt_interval: u16,
+    pub lsp_pacing_interval: Duration,
+    pub lsp_rxmt_interval: Duration,
     pub passive: bool,
-    pub csnp_interval: u16,
+    pub csnp_interval: Duration,
     pub csnp_disable: bool,
     pub hello_padding: bool,
     pub interface_type: InterfaceType,
@@ -381,12 +382,12 @@ fn apply_instance(instance: &mut Instance, change: ConfigChange, event_queue: &m
             event_queue.insert(Event::RefreshLsps);
         }
         ConfigChange::LspRefresh(lsp_refresh) => {
-            instance.config.lsp_refresh = lsp_refresh;
+            instance.config.lsp_refresh = Duration::from_secs(lsp_refresh.into());
             event_queue.insert(Event::RefreshLsps);
         }
-        ConfigChange::LspGenerationInitialWait(initial_wait) => instance.config.lsp_generation.initial_wait = initial_wait,
-        ConfigChange::LspGenerationSecondWait(second_wait) => instance.config.lsp_generation.second_wait = second_wait,
-        ConfigChange::LspGenerationMaxWait(max_wait) => instance.config.lsp_generation.max_wait = max_wait,
+        ConfigChange::LspGenerationInitialWait(initial_wait) => instance.config.lsp_generation.initial_wait = Duration::from_millis(initial_wait.into()),
+        ConfigChange::LspGenerationSecondWait(second_wait) => instance.config.lsp_generation.second_wait = Duration::from_millis(second_wait.into()),
+        ConfigChange::LspGenerationMaxWait(max_wait) => instance.config.lsp_generation.max_wait = Duration::from_millis(max_wait.into()),
         ConfigChange::PoiTlv(enabled) => {
             instance.config.purge_originator = enabled;
         }
@@ -504,19 +505,19 @@ fn apply_instance(instance: &mut Instance, change: ConfigChange, event_queue: &m
             event_queue.insert(Event::RerunSpf);
         }
         ConfigChange::SpfControlIetfSpfDelayInitialDelay(initial_delay) => {
-            instance.config.spf_initial_delay = initial_delay;
+            instance.config.spf_initial_delay = Duration::from_millis(initial_delay.into());
         }
         ConfigChange::SpfControlIetfSpfDelayShortDelay(short_delay) => {
-            instance.config.spf_short_delay = short_delay;
+            instance.config.spf_short_delay = Duration::from_millis(short_delay.into());
         }
         ConfigChange::SpfControlIetfSpfDelayLongDelay(long_delay) => {
-            instance.config.spf_long_delay = long_delay;
+            instance.config.spf_long_delay = Duration::from_millis(long_delay.into());
         }
         ConfigChange::SpfControlIetfSpfDelayHoldDown(hold_down) => {
-            instance.config.spf_hold_down = hold_down;
+            instance.config.spf_hold_down = Duration::from_millis(hold_down.into());
         }
         ConfigChange::SpfControlIetfSpfDelayTimeToLearn(time_to_learn) => {
-            instance.config.spf_time_to_learn = time_to_learn;
+            instance.config.spf_time_to_learn = Duration::from_millis(time_to_learn.into());
         }
         ConfigChange::PreferenceInternal(preference) => {
             if let Some(preference) = preference {
@@ -754,17 +755,17 @@ fn apply_interface(instance: &mut Instance, ifname: &str, change: InterfaceChang
                     event_queue.insert(Event::InterfaceReset(iface_idx));
                 }
                 InterfaceEntryChange::LspPacingInterval(lsp_pacing_interval) => {
-                    iface.config.lsp_pacing_interval = lsp_pacing_interval;
+                    iface.config.lsp_pacing_interval = Duration::from_millis(lsp_pacing_interval.into());
                 }
                 InterfaceEntryChange::LspRetransmitInterval(lsp_rxmt_interval) => {
-                    iface.config.lsp_rxmt_interval = lsp_rxmt_interval;
+                    iface.config.lsp_rxmt_interval = Duration::from_secs(lsp_rxmt_interval.into());
                 }
                 InterfaceEntryChange::Passive(passive) => {
                     iface.config.passive = passive;
                     event_queue.insert(Event::InterfaceReset(iface_idx));
                 }
                 InterfaceEntryChange::CsnpInterval(csnp_interval) => {
-                    iface.config.csnp_interval = csnp_interval;
+                    iface.config.csnp_interval = Duration::from_secs(csnp_interval.into());
                     event_queue.insert(Event::InterfaceUpdateCsnpInterval(iface_idx));
                 }
                 InterfaceEntryChange::CsnpDisable(csnp_disable) => {
@@ -1702,7 +1703,7 @@ impl Default for InstanceCfg {
         let level_type = LevelType::try_from_yang(level_type).unwrap();
         let lsp_mtu = isis::lsp_mtu::DFLT;
         let lsp_lifetime = isis::lsp_lifetime::DFLT;
-        let lsp_refresh = isis::lsp_refresh::DFLT;
+        let lsp_refresh = Duration::from_secs(isis::lsp_refresh::DFLT.into());
         let purge_originator = isis::poi_tlv::DFLT;
         let metric_type = isis::metric_type::value::DFLT;
         let metric_type = LevelsCfgWithDefault {
@@ -1717,11 +1718,11 @@ impl Default for InstanceCfg {
             l2: None,
         };
         let max_paths = isis::spf_control::paths::DFLT;
-        let spf_initial_delay = isis::spf_control::ietf_spf_delay::initial_delay::DFLT;
-        let spf_short_delay = isis::spf_control::ietf_spf_delay::short_delay::DFLT;
-        let spf_long_delay = isis::spf_control::ietf_spf_delay::long_delay::DFLT;
-        let spf_hold_down = isis::spf_control::ietf_spf_delay::hold_down::DFLT;
-        let spf_time_to_learn = isis::spf_control::ietf_spf_delay::time_to_learn::DFLT;
+        let spf_initial_delay = Duration::from_millis(isis::spf_control::ietf_spf_delay::initial_delay::DFLT.into());
+        let spf_short_delay = Duration::from_millis(isis::spf_control::ietf_spf_delay::short_delay::DFLT.into());
+        let spf_long_delay = Duration::from_millis(isis::spf_control::ietf_spf_delay::long_delay::DFLT.into());
+        let spf_hold_down = Duration::from_millis(isis::spf_control::ietf_spf_delay::hold_down::DFLT.into());
+        let spf_time_to_learn = Duration::from_millis(isis::spf_control::ietf_spf_delay::time_to_learn::DFLT.into());
         let overload_status = isis::overload::status::DFLT;
         let db_fingerprint_advertise = isis::database_fingerprint::advertise::DFLT;
         let att_suppress = isis::attached_bit::suppress_advertisement::DFLT;
@@ -1769,9 +1770,9 @@ impl Default for InstanceCfg {
 
 impl Default for LspGenCfg {
     fn default() -> Self {
-        let initial_wait = isis::lsp_generation::initial_wait::DFLT;
-        let second_wait = isis::lsp_generation::second_wait::DFLT;
-        let max_wait = isis::lsp_generation::max_wait::DFLT;
+        let initial_wait = Duration::from_millis(isis::lsp_generation::initial_wait::DFLT.into());
+        let second_wait = Duration::from_millis(isis::lsp_generation::second_wait::DFLT.into());
+        let max_wait = Duration::from_millis(isis::lsp_generation::max_wait::DFLT.into());
 
         Self {
             initial_wait,
@@ -1874,10 +1875,10 @@ impl Default for InterfaceCfg {
             explicit: Some(level_type),
             resolved: level_type,
         };
-        let lsp_pacing_interval = isis::interfaces::interface::lsp_pacing_interval::DFLT;
-        let lsp_rxmt_interval = isis::interfaces::interface::lsp_retransmit_interval::DFLT;
+        let lsp_pacing_interval = Duration::from_millis(isis::interfaces::interface::lsp_pacing_interval::DFLT.into());
+        let lsp_rxmt_interval = Duration::from_secs(isis::interfaces::interface::lsp_retransmit_interval::DFLT.into());
         let passive = isis::interfaces::interface::passive::DFLT;
-        let csnp_interval = isis::interfaces::interface::csnp_interval::DFLT;
+        let csnp_interval = Duration::from_secs(isis::interfaces::interface::csnp_interval::DFLT.into());
         let csnp_disable = isis::interfaces::interface::csnp_disable::DFLT;
         let hello_padding = isis::interfaces::interface::hello_padding::enabled::DFLT;
         let interface_type = isis::interfaces::interface::interface_type::DFLT;

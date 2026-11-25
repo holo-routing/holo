@@ -9,7 +9,6 @@
 
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
-use std::time::Duration;
 
 use chrono::Utc;
 use holo_utils::bytes::Bytes;
@@ -1494,12 +1493,8 @@ pub(crate) fn process_lsp_originate(
         #[cfg(not(feature = "deterministic"))]
         {
             // Update hold interval
-            let second = Duration::from_millis(
-                instance.config.lsp_generation.second_wait as u64,
-            );
-            let max = Duration::from_millis(
-                instance.config.lsp_generation.max_wait as u64,
-            );
+            let second = instance.config.lsp_generation.second_wait;
+            let max = instance.config.lsp_generation.max_wait;
 
             instance.state.lsp_gen.hold = match instance.state.lsp_gen.hold {
                 // Apply exponential backoff

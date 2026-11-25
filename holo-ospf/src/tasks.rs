@@ -353,7 +353,7 @@ pub(crate) fn hello_interval<V>(
     area: &Area<V>,
     instance: &InstanceUpView<'_, V>,
     dst: SmallVec<[V::NetIpAddr; 4]>,
-    interval: u16,
+    interval: Duration,
 ) -> IntervalTask
 where
     V: Version,
@@ -365,20 +365,16 @@ where
 
         let net_tx_packetp =
             iface.state.net.as_ref().unwrap().net_tx_packetp.clone();
-        IntervalTask::new(
-            Duration::from_secs(interval.into()),
-            true,
-            move || {
-                let packet = packet.clone();
-                let dst = dst.clone();
-                let net_tx_packetp = net_tx_packetp.clone();
+        IntervalTask::new(interval, true, move || {
+            let packet = packet.clone();
+            let dst = dst.clone();
+            let net_tx_packetp = net_tx_packetp.clone();
 
-                async move {
-                    let msg = messages::output::NetTxPacketMsg { packet, dst };
-                    let _ = net_tx_packetp.send(msg);
-                }
-            },
-        )
+            async move {
+                let msg = messages::output::NetTxPacketMsg { packet, dst };
+                let _ = net_tx_packetp.send(msg);
+            }
+        })
     }
     #[cfg(feature = "testing")]
     {
@@ -464,18 +460,14 @@ where
     {
         let rxmt_intervalp = instance.tx.protocol_input.rxmt_interval.clone();
 
-        IntervalTask::new(
-            Duration::from_secs(iface.config.retransmit_interval.into()),
-            false,
-            move || {
-                let rxmt_intervalp = rxmt_intervalp.clone();
-                let msg = msg.clone();
+        IntervalTask::new(iface.config.retransmit_interval, false, move || {
+            let rxmt_intervalp = rxmt_intervalp.clone();
+            let msg = msg.clone();
 
-                async move {
-                    let _ = rxmt_intervalp.send(msg).await;
-                }
-            },
-        )
+            async move {
+                let _ = rxmt_intervalp.send(msg).await;
+            }
+        })
     }
     #[cfg(feature = "testing")]
     {
@@ -721,14 +713,13 @@ pub(crate) fn lsdb_maxage_sweep_interval(
 pub(crate) fn spf_delay_timer<V>(
     instance: &InstanceUpView<'_, V>,
     event: spf::fsm::Event,
-    timeout: u32,
+    timeout: Duration,
 ) -> TimeoutTask
 where
     V: Version,
 {
     #[cfg(not(feature = "testing"))]
     {
-        let timeout = Duration::from_millis(timeout.into());
         let spf_delay_eventp =
             instance.tx.protocol_input.spf_delay_event.clone();
 

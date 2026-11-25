@@ -10,7 +10,7 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet, btree_map};
 use std::net::{Ipv4Addr, Ipv6Addr};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use chrono::Utc;
 use derive_new::new;
@@ -470,9 +470,7 @@ pub(crate) fn fsm(
         (fsm::State::ShortWait, fsm::Event::Igp) => {
             // Reset HOLDDOWN_TIMER to HOLDDOWN_INTERVAL.
             if let Some(timer) = &mut spf_sched.hold_down_timer {
-                let timeout =
-                    Duration::from_millis(instance.config.spf_hold_down.into());
-                timer.reset(Some(timeout));
+                timer.reset(Some(instance.config.spf_hold_down));
             }
 
             // If SPF_TIMER is not already running, start it with value
@@ -501,9 +499,7 @@ pub(crate) fn fsm(
         (fsm::State::LongWait, fsm::Event::Igp) => {
             // Reset HOLDDOWN_TIMER to HOLDDOWN_INTERVAL.
             if let Some(timer) = &mut spf_sched.hold_down_timer {
-                let timeout =
-                    Duration::from_millis(instance.config.spf_hold_down.into());
-                timer.reset(Some(timeout));
+                timer.reset(Some(instance.config.spf_hold_down));
             }
 
             // If SPF_TIMER is not already running, start it with value

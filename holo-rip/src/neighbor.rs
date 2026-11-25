@@ -44,12 +44,11 @@ where
 {
     fn new(
         addr: V::IpAddr,
-        timeout: u16,
+        timeout: Duration,
         nbr_timeoutp: &Sender<NbrTimeoutMsg<V>>,
     ) -> Neighbor<V> {
         Debug::<V>::NbrCreate(&addr).log();
 
-        let timeout = Duration::from_secs(timeout.into());
         let timeout_task = tasks::nbr_timeout::<V>(addr, timeout, nbr_timeoutp);
 
         Neighbor {
@@ -62,8 +61,7 @@ where
         }
     }
 
-    fn timeout_reset(&mut self, timeout: u16) {
-        let timeout = Duration::from_secs(timeout.into());
+    fn timeout_reset(&mut self, timeout: Duration) {
         self.timeout_task.reset(Some(timeout));
     }
 }
@@ -73,7 +71,7 @@ where
 pub(crate) fn update<'a, V>(
     neighbors: &'a mut BTreeMap<V::IpAddr, Neighbor<V>>,
     addr: V::IpAddr,
-    timeout: u16,
+    timeout: Duration,
     nbr_timeoutp: &Sender<NbrTimeoutMsg<V>>,
 ) -> &'a mut Neighbor<V>
 where

@@ -7,6 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
+use std::time::Duration;
 
 use arc_swap::ArcSwap;
 use holo_northbound::configuration::{ConfigOp, InheritableConfig, Provider, YangConfigOps};
@@ -83,11 +84,11 @@ pub struct InstanceCfg {
     pub preference: Preference,
     pub gr: InstanceGrCfg,
     pub max_paths: u16,
-    pub spf_initial_delay: u32,
-    pub spf_short_delay: u32,
-    pub spf_long_delay: u32,
-    pub spf_hold_down: u32,
-    pub spf_time_to_learn: u32,
+    pub spf_initial_delay: Duration,
+    pub spf_short_delay: Duration,
+    pub spf_long_delay: Duration,
+    pub spf_hold_down: Duration,
+    pub spf_time_to_learn: Duration,
     pub stub_router: bool,
     pub node_tags: BTreeSet<u32>,
     pub extended_lsa: bool,
@@ -166,7 +167,7 @@ pub struct InterfaceCfg<V: Version> {
     pub priority: u8,
     pub hello_interval: u16,
     pub dead_interval: u16,
-    pub retransmit_interval: u16,
+    pub retransmit_interval: Duration,
     pub transmit_delay: u16,
     pub enabled: bool,
     pub cost: u16,
@@ -187,7 +188,7 @@ pub struct InterfaceCfg<V: Version> {
 #[derive(Debug)]
 pub struct StaticNbr {
     pub cost: Option<u16>,
-    pub poll_interval: u16,
+    pub poll_interval: Duration,
     pub priority: u8,
 }
 
@@ -297,19 +298,19 @@ where
             event_queue.insert(Event::RerunSpf);
         }
         ConfigChange::SpfControlIetfSpfDelayInitialDelay(initial_delay) => {
-            instance.config.spf_initial_delay = initial_delay;
+            instance.config.spf_initial_delay = Duration::from_millis(initial_delay.into());
         }
         ConfigChange::SpfControlIetfSpfDelayShortDelay(short_delay) => {
-            instance.config.spf_short_delay = short_delay;
+            instance.config.spf_short_delay = Duration::from_millis(short_delay.into());
         }
         ConfigChange::SpfControlIetfSpfDelayLongDelay(long_delay) => {
-            instance.config.spf_long_delay = long_delay;
+            instance.config.spf_long_delay = Duration::from_millis(long_delay.into());
         }
         ConfigChange::SpfControlIetfSpfDelayHoldDown(hold_down) => {
-            instance.config.spf_hold_down = hold_down;
+            instance.config.spf_hold_down = Duration::from_millis(hold_down.into());
         }
         ConfigChange::SpfControlIetfSpfDelayTimeToLearn(time_to_learn) => {
-            instance.config.spf_time_to_learn = time_to_learn;
+            instance.config.spf_time_to_learn = Duration::from_millis(time_to_learn.into());
         }
         ConfigChange::StubRouterAlways(op) => {
             instance.config.stub_router = op == ConfigOp::Create;
@@ -571,7 +572,7 @@ where
                     event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
                 }
                 AreaVirtualLinkEntryChange::RetransmitInterval(retransmit_interval) => {
-                    iface.config.retransmit_interval = retransmit_interval;
+                    iface.config.retransmit_interval = Duration::from_secs(retransmit_interval.into());
                 }
                 AreaVirtualLinkEntryChange::TransmitDelay(transmit_delay) => {
                     iface.config.transmit_delay = transmit_delay;
@@ -700,7 +701,7 @@ where
                     event_queue.insert(Event::InterfaceSyncHelloTx(area_idx, iface_idx));
                 }
                 AreaInterfaceEntryChange::RetransmitInterval(retransmit_interval) => {
-                    iface.config.retransmit_interval = retransmit_interval;
+                    iface.config.retransmit_interval = Duration::from_secs(retransmit_interval.into());
                 }
                 AreaInterfaceEntryChange::TransmitDelay(transmit_delay) => {
                     iface.config.transmit_delay = transmit_delay;
@@ -780,7 +781,7 @@ where
                     snbr.cost = cost;
                 }
                 AreaInterfaceStaticNeighborsNeighborEntryChange::PollInterval(poll_interval) => {
-                    snbr.poll_interval = poll_interval;
+                    snbr.poll_interval = Duration::from_secs(poll_interval.into());
                 }
                 AreaInterfaceStaticNeighborsNeighborEntryChange::Priority(priority) => {
                     snbr.priority = priority;
@@ -1249,11 +1250,11 @@ impl Default for InstanceCfg {
     fn default() -> InstanceCfg {
         let enabled = ospf::enabled::DFLT;
         let max_paths = ospf::spf_control::paths::DFLT;
-        let spf_initial_delay = ospf::spf_control::ietf_spf_delay::initial_delay::DFLT;
-        let spf_short_delay = ospf::spf_control::ietf_spf_delay::short_delay::DFLT;
-        let spf_long_delay = ospf::spf_control::ietf_spf_delay::long_delay::DFLT;
-        let spf_hold_down = ospf::spf_control::ietf_spf_delay::hold_down::DFLT;
-        let spf_time_to_learn = ospf::spf_control::ietf_spf_delay::time_to_learn::DFLT;
+        let spf_initial_delay = Duration::from_millis(ospf::spf_control::ietf_spf_delay::initial_delay::DFLT.into());
+        let spf_short_delay = Duration::from_millis(ospf::spf_control::ietf_spf_delay::short_delay::DFLT.into());
+        let spf_long_delay = Duration::from_millis(ospf::spf_control::ietf_spf_delay::long_delay::DFLT.into());
+        let spf_hold_down = Duration::from_millis(ospf::spf_control::ietf_spf_delay::hold_down::DFLT.into());
+        let spf_time_to_learn = Duration::from_millis(ospf::spf_control::ietf_spf_delay::time_to_learn::DFLT.into());
         let extended_lsa = ospf::extended_lsa_support::DFLT;
         let sr_enabled = ospf::segment_routing::enabled::DFLT;
         let instance_id = ospf::instance_id::DFLT;
@@ -1359,7 +1360,7 @@ where
         let priority = ospf::areas::area::interfaces::interface::priority::DFLT;
         let hello_interval = ospf::areas::area::interfaces::interface::hello_interval::DFLT;
         let dead_interval = ospf::areas::area::interfaces::interface::dead_interval::DFLT;
-        let retransmit_interval = ospf::areas::area::interfaces::interface::retransmit_interval::DFLT;
+        let retransmit_interval = Duration::from_secs(ospf::areas::area::interfaces::interface::retransmit_interval::DFLT.into());
         let transmit_delay = ospf::areas::area::interfaces::interface::transmit_delay::DFLT;
         let enabled = ospf::areas::area::interfaces::interface::enabled::DFLT;
         let cost = ospf::areas::area::interfaces::interface::cost::DFLT;
@@ -1398,7 +1399,7 @@ where
 
 impl Default for StaticNbr {
     fn default() -> StaticNbr {
-        let poll_interval = ospf::areas::area::interfaces::interface::static_neighbors::neighbor::poll_interval::DFLT;
+        let poll_interval = Duration::from_secs(ospf::areas::area::interfaces::interface::static_neighbors::neighbor::poll_interval::DFLT.into());
         let priority = ospf::areas::area::interfaces::interface::static_neighbors::neighbor::priority::DFLT;
 
         StaticNbr {

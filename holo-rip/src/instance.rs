@@ -320,7 +320,7 @@ where
     V: Version,
 {
     fn new(
-        update_interval: u16,
+        update_interval: Duration,
         tx: &InstanceChannelsTx<Instance<V>>,
     ) -> InstanceState<V> {
         // Start initial update timeout task.
@@ -328,9 +328,8 @@ where
             tasks::initial_update(&tx.protocol_input.initial_update);
 
         // Start update interval task.
-        let interval = Duration::from_secs(update_interval.into());
         let update_interval_task = tasks::update_interval(
-            interval,
+            update_interval,
             &tx.protocol_input.update_interval,
         );
 

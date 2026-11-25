@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet, btree_map};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use chrono::Utc;
 use derive_new::new;
@@ -428,9 +428,7 @@ where
         (fsm::State::ShortWait, fsm::Event::Igp) => {
             // Reset HOLDDOWN_TIMER to HOLDDOWN_INTERVAL.
             if let Some(timer) = &mut instance.state.spf_hold_down_timer {
-                let timeout =
-                    Duration::from_millis(instance.config.spf_hold_down.into());
-                timer.reset(Some(timeout));
+                timer.reset(Some(instance.config.spf_hold_down));
             }
 
             // If SPF_TIMER is not already running, start it with value
@@ -458,9 +456,7 @@ where
         (fsm::State::LongWait, fsm::Event::Igp) => {
             // Reset HOLDDOWN_TIMER to HOLDDOWN_INTERVAL.
             if let Some(timer) = &mut instance.state.spf_hold_down_timer {
-                let timeout =
-                    Duration::from_millis(instance.config.spf_hold_down.into());
-                timer.reset(Some(timeout));
+                timer.reset(Some(instance.config.spf_hold_down));
             }
 
             // If SPF_TIMER is not already running, start it with value

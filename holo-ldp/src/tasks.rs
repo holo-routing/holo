@@ -256,17 +256,13 @@ pub(crate) fn iface_hello_interval(
         let msg_id = instance_state.msg_id.clone();
         let hello = interface.generate_hello(instance_state);
 
-        IntervalTask::new(
-            Duration::from_secs(interface.config.hello_interval.into()),
-            true,
-            move || {
-                let disc_socket = disc_socket.clone();
-                let msg_id = msg_id.clone();
-                let hello = hello.clone();
+        IntervalTask::new(interface.config.hello_interval, true, move || {
+            let disc_socket = disc_socket.clone();
+            let msg_id = msg_id.clone();
+            let hello = hello.clone();
 
-                Interface::send_hello(disc_socket, router_id, msg_id, hello)
-            },
-        )
+            Interface::send_hello(disc_socket, router_id, msg_id, hello)
+        })
     }
     #[cfg(feature = "testing")]
     {
@@ -294,23 +290,19 @@ pub(crate) fn tnbr_hello_interval(
         let msg_id = instance_state.msg_id.clone();
         let hello = tnbr.generate_hello(instance_state);
 
-        IntervalTask::new(
-            Duration::from_secs(tnbr.config.hello_interval.into()),
-            true,
-            move || {
-                let edisc_socket = edisc_socket.clone();
-                let msg_id = msg_id.clone();
-                let hello = hello.clone();
+        IntervalTask::new(tnbr.config.hello_interval, true, move || {
+            let edisc_socket = edisc_socket.clone();
+            let msg_id = msg_id.clone();
+            let hello = hello.clone();
 
-                TargetedNbr::send_hello(
-                    edisc_socket,
-                    addr,
-                    router_id,
-                    msg_id,
-                    hello,
-                )
-            },
-        )
+            TargetedNbr::send_hello(
+                edisc_socket,
+                addr,
+                router_id,
+                msg_id,
+                hello,
+            )
+        })
     }
     #[cfg(feature = "testing")]
     {
@@ -540,26 +532,21 @@ pub(crate) fn nbr_kalive_interval(
         let pdu_txp = nbr.pdu_txp.as_ref().unwrap().clone();
         let keepalive_counter = keepalive_counter.clone();
 
-        IntervalTask::new(
-            Duration::from_secs(nbr.kalive_interval.into()),
-            false,
-            move || {
-                let msg_id = msg_id.clone();
-                let pdu_txp = pdu_txp.clone();
-                let keepalive_counter = keepalive_counter.clone();
+        IntervalTask::new(nbr.kalive_interval, false, move || {
+            let msg_id = msg_id.clone();
+            let pdu_txp = pdu_txp.clone();
+            let keepalive_counter = keepalive_counter.clone();
 
-                async move {
-                    let msg = Neighbor::generate_keepalive(&msg_id);
-                    Debug::NbrMsgTx(&lsr_id, &msg).log();
+            async move {
+                let msg = Neighbor::generate_keepalive(&msg_id);
+                Debug::NbrMsgTx(&lsr_id, &msg).log();
 
-                    let flush = true;
-                    let msg =
-                        messages::output::NbrTxPduMsg { nbr_id, msg, flush };
-                    let _ = pdu_txp.send(msg);
-                    keepalive_counter.fetch_add(1, atomic::Ordering::Relaxed);
-                }
-            },
-        )
+                let flush = true;
+                let msg = messages::output::NbrTxPduMsg { nbr_id, msg, flush };
+                let _ = pdu_txp.send(msg);
+                keepalive_counter.fetch_add(1, atomic::Ordering::Relaxed);
+            }
+        })
     }
     #[cfg(feature = "testing")]
     {

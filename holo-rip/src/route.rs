@@ -87,7 +87,7 @@ where
 
     pub(crate) fn invalidate(
         &mut self,
-        flush_interval: u16,
+        flush_interval: Duration,
         instance_channels_tx: &InstanceChannelsTx<Instance<V>>,
         trace_opts: &TraceOptions,
     ) {
@@ -113,11 +113,9 @@ where
 
     pub(crate) fn timeout_reset(
         &mut self,
-        timeout: u16,
+        timeout: Duration,
         route_timeoutp: &Sender<RouteTimeoutMsg<V>>,
     ) {
-        let timeout = Duration::from_secs(timeout.into());
-
         if let Some(timeout_task) = &mut self.timeout_task {
             // Reset existing timeout task.
             timeout_task.reset(Some(timeout));
@@ -139,10 +137,9 @@ where
 
     pub(crate) fn garbage_collection_start(
         &mut self,
-        timeout: u16,
+        timeout: Duration,
         route_gc_timeoutp: &Sender<RouteGcTimeoutMsg<V>>,
     ) {
-        let timeout = Duration::from_secs(timeout.into());
         let garbage_collect_task =
             tasks::route_gc_timeout(self.prefix, timeout, route_gc_timeoutp);
         self.garbage_collect_task = Some(garbage_collect_task);

@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::net::Ipv4Addr;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU64;
+use std::time::Duration;
 
 use arc_swap::ArcSwap;
 use chrono::{DateTime, Utc};
@@ -643,7 +644,7 @@ where
                 smallvec![self.state.vlink.as_ref().unwrap().nbr_addr]
             }
         };
-        let interval = self.config.hello_interval;
+        let interval = Duration::from_secs(self.config.hello_interval.into());
         let task = tasks::hello_interval(self, area, instance, dst, interval);
         self.state.tasks.hello_interval = Some(task);
     }
@@ -653,7 +654,7 @@ where
         area: &Area<V>,
         instance: &InstanceUpView<'_, V>,
         addr: V::NetIpAddr,
-        poll_interval: u16,
+        poll_interval: Duration,
     ) {
         let dst = smallvec![addr];
         let task =

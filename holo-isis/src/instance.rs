@@ -636,12 +636,8 @@ impl InstanceUpView<'_> {
                 return;
             }
 
-            let initial = Duration::from_millis(
-                self.config.lsp_generation.initial_wait as u64,
-            );
-            let max = Duration::from_millis(
-                self.config.lsp_generation.max_wait as u64,
-            );
+            let initial = self.config.lsp_generation.initial_wait;
+            let max = self.config.lsp_generation.max_wait;
 
             // Reset hold-time
             if let Some(last) = self.state.lsp_gen.last

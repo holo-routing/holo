@@ -478,11 +478,10 @@ pub(crate) fn csnp_interval(
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
-        let interval = iface.config.csnp_interval;
         let iface_id = iface.id;
         let send_csnpp = instance.tx.protocol_input.send_csnp.clone();
         IntervalTask::with_jitter(
-            Duration::from_secs(interval.into()),
+            iface.config.csnp_interval,
             JITTER,
             true,
             move || {
@@ -509,25 +508,21 @@ pub(crate) fn lsp_rxmt_interval(
     iface: &Interface,
     lsp: Lsp,
     dst: MulticastAddr,
-    interval: u16,
+    interval: Duration,
 ) -> IntervalTask {
     #[cfg(not(feature = "testing"))]
     {
         let pdu = Pdu::Lsp(lsp);
         let net_tx_pdup = iface.state.net.as_ref().unwrap().net_tx_pdup.clone();
-        IntervalTask::new(
-            Duration::from_secs(interval.into()),
-            false,
-            move || {
-                let pdu = pdu.clone();
-                let net_tx_pdup = net_tx_pdup.clone();
+        IntervalTask::new(interval, false, move || {
+            let pdu = pdu.clone();
+            let net_tx_pdup = net_tx_pdup.clone();
 
-                async move {
-                    let msg = messages::output::NetTxPduMsg { pdu, dst };
-                    let _ = net_tx_pdup.send(msg);
-                }
-            },
-        )
+            async move {
+                let msg = messages::output::NetTxPduMsg { pdu, dst };
+                let _ = net_tx_pdup.send(msg);
+            }
+        })
     }
     #[cfg(feature = "testing")]
     {
@@ -612,15 +607,14 @@ pub(crate) fn lsp_delete_timer(
 pub(crate) fn lsp_refresh_timer(
     level: LevelNumber,
     lse_id: LspEntryId,
-    refresh_interval: u16,
+    refresh_interval: Duration,
     lsp_refreshp: &UnboundedSender<messages::input::LspRefreshMsg>,
 ) -> TimeoutTask {
     #[cfg(not(feature = "testing"))]
     {
-        let timeout = Duration::from_secs(refresh_interval.into());
         let lsp_refreshp = lsp_refreshp.clone();
 
-        TimeoutTask::new(timeout, move || async move {
+        TimeoutTask::new(refresh_interval, move || async move {
             let msg = messages::input::LspRefreshMsg {
                 level,
                 lse_key: lse_id.into(),
@@ -638,12 +632,11 @@ pub(crate) fn lsp_refresh_timer(
 pub(crate) fn spf_delay_timer(
     level: LevelNumber,
     event: spf::fsm::Event,
-    timeout: u32,
+    timeout: Duration,
     spf_delay_eventp: &UnboundedSender<messages::input::SpfDelayEventMsg>,
 ) -> TimeoutTask {
     #[cfg(not(feature = "testing"))]
     {
-        let timeout = Duration::from_millis(timeout.into());
         let spf_delay_eventp = spf_delay_eventp.clone();
 
         TimeoutTask::new(timeout, move || async move {

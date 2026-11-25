@@ -63,7 +63,7 @@ pub struct Neighbor {
     pub init_attempts: usize,
     pub kalive_holdtime_rcvd: Option<u16>,
     pub kalive_holdtime_negotiated: Option<u16>,
-    pub kalive_interval: u16,
+    pub kalive_interval: Duration,
     pub rcvd_label_adv_mode: Option<LabelAdvMode>,
     pub addr_list: BTreeSet<IpAddr>,
     pub rcvd_mappings: BTreeMap<IpNetwork, LabelMapping>,
@@ -177,7 +177,7 @@ impl Neighbor {
         id: NeighborId,
         lsr_id: Ipv4Addr,
         trans_addr: IpAddr,
-        kalive_interval: u16,
+        kalive_interval: Duration,
     ) -> Neighbor {
         Debug::NbrCreate(&lsr_id).log();
 

@@ -6,6 +6,7 @@
 
 use std::collections::{BTreeSet, HashMap};
 use std::net::{IpAddr, Ipv4Addr};
+use std::time::Duration;
 
 use holo_northbound::configuration::{ConfigOp, Provider, YangConfigOps};
 use holo_northbound::error::ApplyError;
@@ -48,12 +49,12 @@ pub enum Event {
 pub struct InstanceCfg {
     pub router_id: Option<Ipv4Addr>,
     pub session_ka_holdtime: u16,
-    pub session_ka_interval: u16,
+    pub session_ka_interval: Duration,
     pub password: Option<String>,
     pub interface_hello_holdtime: u16,
-    pub interface_hello_interval: u16,
+    pub interface_hello_interval: Duration,
     pub targeted_hello_holdtime: u16,
-    pub targeted_hello_interval: u16,
+    pub targeted_hello_interval: Duration,
     pub targeted_hello_accept: bool,
     pub ipv4: Option<InstanceIpv4Cfg>,
     pub neighbors: HashMap<Ipv4Addr, NeighborCfg>,
@@ -67,7 +68,7 @@ pub struct InstanceIpv4Cfg {
 #[derive(Debug)]
 pub struct InterfaceCfg {
     pub hello_holdtime: u16,
-    pub hello_interval: u16,
+    pub hello_interval: Duration,
     pub ipv4: Option<InterfaceIpv4Cfg>,
 }
 
@@ -85,7 +86,7 @@ pub struct NeighborCfg {
 pub struct TargetedNbrCfg {
     pub enabled: bool,
     pub hello_holdtime: u16,
-    pub hello_interval: u16,
+    pub hello_interval: Duration,
 }
 
 // ===== helper functions =====
@@ -125,6 +126,7 @@ fn apply_instance(instance: &mut Instance, change: ConfigChange, event_queue: &m
             event_queue.insert(Event::CfgSeqNumberUpdate);
         }
         ConfigChange::DiscoveryInterfacesHelloInterval(hello_interval) => {
+            let hello_interval = Duration::from_secs(hello_interval.into());
             instance.config.interface_hello_interval = hello_interval;
             for iface in instance.interfaces.iter_mut() {
                 iface.config.hello_interval = hello_interval;
@@ -142,6 +144,7 @@ fn apply_instance(instance: &mut Instance, change: ConfigChange, event_queue: &m
             event_queue.insert(Event::CfgSeqNumberUpdate);
         }
         ConfigChange::DiscoveryTargetedHelloInterval(hello_interval) => {
+            let hello_interval = Duration::from_secs(hello_interval.into());
             instance.config.targeted_hello_interval = hello_interval;
             for tnbr in instance.tneighbors.iter_mut() {
                 tnbr.config.hello_interval = hello_interval;
@@ -188,7 +191,7 @@ fn apply_instance(instance: &mut Instance, change: ConfigChange, event_queue: &m
             event_queue.insert(Event::CfgSeqNumberUpdate);
         }
         ConfigChange::PeersSessionKaInterval(interval) => {
-            instance.config.session_ka_interval = interval;
+            instance.config.session_ka_interval = Duration::from_secs(interval.into());
             event_queue.insert(Event::CfgSeqNumberUpdate);
         }
         ConfigChange::PeersPeer(keys, change) => {
@@ -441,11 +444,11 @@ impl Provider for Instance {
 impl Default for InstanceCfg {
     fn default() -> InstanceCfg {
         let session_ka_holdtime = mpls_ldp::peers::session_ka_holdtime::DFLT;
-        let session_ka_interval = mpls_ldp::peers::session_ka_interval::DFLT;
+        let session_ka_interval = Duration::from_secs(mpls_ldp::peers::session_ka_interval::DFLT.into());
         let interface_hello_holdtime = mpls_ldp::discovery::interfaces::hello_holdtime::DFLT;
-        let interface_hello_interval = mpls_ldp::discovery::interfaces::hello_interval::DFLT;
+        let interface_hello_interval = Duration::from_secs(mpls_ldp::discovery::interfaces::hello_interval::DFLT.into());
         let targeted_hello_holdtime = mpls_ldp::discovery::targeted::hello_holdtime::DFLT;
-        let targeted_hello_interval = mpls_ldp::discovery::targeted::hello_interval::DFLT;
+        let targeted_hello_interval = Duration::from_secs(mpls_ldp::discovery::targeted::hello_interval::DFLT.into());
         let targeted_hello_accept = mpls_ldp::discovery::targeted::hello_accept::enabled::DFLT;
 
         InstanceCfg {
@@ -477,7 +480,7 @@ impl Default for InstanceIpv4Cfg {
 impl Default for InterfaceCfg {
     fn default() -> InterfaceCfg {
         let hello_holdtime = mpls_ldp::discovery::interfaces::hello_holdtime::DFLT;
-        let hello_interval = mpls_ldp::discovery::interfaces::hello_interval::DFLT;
+        let hello_interval = Duration::from_secs(mpls_ldp::discovery::interfaces::hello_interval::DFLT.into());
 
         InterfaceCfg {
             hello_holdtime,
@@ -501,7 +504,7 @@ impl Default for TargetedNbrCfg {
     fn default() -> TargetedNbrCfg {
         let enabled = mpls_ldp::discovery::targeted::address_families::ipv4::target::enabled::DFLT;
         let hello_holdtime = mpls_ldp::discovery::targeted::hello_holdtime::DFLT;
-        let hello_interval = mpls_ldp::discovery::targeted::hello_interval::DFLT;
+        let hello_interval = Duration::from_secs(mpls_ldp::discovery::targeted::hello_interval::DFLT.into());
 
         TargetedNbrCfg {
             enabled,

@@ -499,7 +499,24 @@ fn lsa_orig_router(
 
                 // Add Type-3 (stub) links, unless the interface is unnumbered.
                 if !iface.system.unnumbered {
-                    add_stub_links = true;
+                    if iface.config.if_type == InterfaceType::PointToMultipoint
+                    {
+                        // Point-to-multipoint interfaces advertise host
+                        // routes to the interface addresses instead (RFC
+                        // 2328, section 12.4.1.4).
+                        links.extend(iface.system.addr_list.iter().map(
+                            |addr| {
+                                LsaRouterLink::new(
+                                    LsaRouterLinkType::StubNetwork,
+                                    addr.ip(),
+                                    Ipv4Addr::BROADCAST,
+                                    0,
+                                )
+                            },
+                        ));
+                    } else {
+                        add_stub_links = true;
+                    }
                 }
             }
             InterfaceType::Broadcast | InterfaceType::NonBroadcast => {

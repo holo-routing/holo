@@ -913,10 +913,15 @@ fn lsa_orig_ext_link(
                         .iter(&arenas.neighbors)
                         .filter(|nbr| nbr.state == nsm::State::Full)
                     {
+                        let link_data = if iface.system.is_unnumbered() {
+                            Ipv4Addr::from(iface.system.ifindex.unwrap())
+                        } else {
+                            primary_addr.ip()
+                        };
                         let link_tlv = ExtLinkTlv::new(
                             LsaRouterLinkType::PointToPoint,
                             nbr.router_id,
-                            primary_addr.ip(),
+                            link_data,
                             nbr.adj_sids.clone(),
                             None,
                         );

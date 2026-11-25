@@ -85,7 +85,8 @@ pub enum AreaType {
 #[derive(Debug, Default)]
 pub struct Range {
     pub config: RangeCfg,
-    pub cost: u32,
+    // Cost of the range, or `None` if it's inactive.
+    pub cost: Option<u32>,
 }
 
 // Represents the possible locations of the OSPF Options field.
@@ -411,7 +412,7 @@ fn update_net_ranges<V>(
 {
     // Reset area ranges.
     for range in area.ranges.values_mut() {
-        range.cost = 0;
+        range.cost = None;
     }
 
     // Area ranges are only checked when the router is an ABR.
@@ -436,8 +437,8 @@ fn update_net_ranges<V>(
                 route.flags.insert(RouteNetFlags::SUMMARIZED);
 
                 // Update range's cost.
-                if route.metric > range.cost {
-                    range.cost = route.metric;
+                if range.cost.is_none_or(|cost| route.metric > cost) {
+                    range.cost = Some(route.metric);
                 }
             }
         }
@@ -681,15 +682,17 @@ where
             other_area
                 .ranges
                 .iter()
-                // Skip inactive ranges.
-                .filter(|(_, range)| range.cost != 0)
                 // Skip ranges whose advertisement isn't enabled.
                 .filter(|(_, range)| range.config.advertise)
+                // Skip inactive ranges.
+                .filter_map(|(range_prefix, range)| {
+                    range.cost.map(|cost| (range_prefix, range, cost))
+                })
                 // Map to summary route.
-                .map(|(range_prefix, range)| {
+                .map(|(range_prefix, range, cost)| {
                     let summary = SummaryNet {
                         prefix_options: Default::default(),
-                        metric: range.config.cost.unwrap_or(range.cost),
+                        metric: range.config.cost.unwrap_or(cost),
                         prefix_sid: Default::default(),
                         flags: SummaryNetFlags::empty(),
                     };

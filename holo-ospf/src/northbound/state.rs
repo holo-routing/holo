@@ -46,6 +46,64 @@ where
     }
 }
 
+// ===== OSPFv3 Extended-LSA list entries =====
+
+// The ietf-ospfv3-extended-lsa module puts all TLVs of an Extended-LSA in a
+// single keyless list, where each entry holds one TLV in the container that
+// matches its type. Sub-TLV and sub-sub-TLV lists follow the same pattern.
+// Since all entries of a list share the same type, these enums record which
+// kind of TLV each entry holds.
+
+// ListEntry for the OSPFv3 E-Router-LSA TLV list.
+#[derive(Debug)]
+pub enum Ospfv3ERouterTlv<'a> {
+    RouterLink(&'a ospfv3::packet::lsa::LsaRouterLink),
+    Unknown(&'a UnknownTlv),
+}
+
+// ListEntry for the OSPFv3 E-Network-LSA TLV list.
+#[derive(Debug)]
+pub enum Ospfv3ENetworkTlv<'a> {
+    AttachedRouters(&'a ospfv3::packet::lsa::LsaNetwork),
+    Unknown(&'a UnknownTlv),
+}
+
+// ListEntry for the OSPFv3 E-Inter-Area-Prefix-LSA TLV list.
+#[derive(Debug)]
+pub enum Ospfv3EInterAreaPrefixTlv<'a> {
+    InterAreaPrefix(&'a ospfv3::packet::lsa::LsaInterAreaPrefix),
+    Unknown(&'a UnknownTlv),
+}
+
+// ListEntry for the OSPFv3 E-Inter-Area-Router-LSA TLV list.
+#[derive(Debug)]
+pub enum Ospfv3EInterAreaRouterTlv<'a> {
+    InterAreaRouter(&'a ospfv3::packet::lsa::LsaInterAreaRouter),
+    Unknown(&'a UnknownTlv),
+}
+
+// ListEntry for the OSPFv3 E-AS-External-LSA TLV list.
+#[derive(Debug)]
+pub enum Ospfv3EAsExternalTlv<'a> {
+    ExternalPrefix(&'a ospfv3::packet::lsa::LsaAsExternal),
+    Unknown(&'a UnknownTlv),
+}
+
+// ListEntry for the OSPFv3 E-Link-LSA TLV list.
+#[derive(Debug)]
+pub enum Ospfv3ELinkTlv<'a> {
+    LinkPrefix(&'a ospfv3::packet::lsa::LsaLinkPrefix),
+    LinkLocalAddr(&'a ospfv3::packet::lsa::LsaLinkLocalAddr),
+    Unknown(&'a UnknownTlv),
+}
+
+// ListEntry for the OSPFv3 E-Intra-Area-Prefix-LSA TLV list.
+#[derive(Debug)]
+pub enum Ospfv3EIntraAreaPrefixTlv<'a> {
+    IntraAreaPrefix(&'a ospfv3::packet::lsa::LsaIntraAreaPrefixEntry),
+    Unknown(&'a UnknownTlv),
+}
+
 // ListEntry for OSPFv3 extended Router-LSA link sub-TLV lists.
 #[derive(Debug)]
 pub enum Ospfv3RouterLinkSubTlv<'a> {
@@ -58,6 +116,8 @@ pub enum Ospfv3RouterLinkSubTlv<'a> {
 pub enum Ospfv3PrefixSubTlv<'a> {
     PrefixSids(&'a BTreeMap<u8, ospfv3::packet::lsa::PrefixSid>),
     Biers(&'a Vec<BierStlv>),
+    FwdAddr(IpAddr),
+    RouteTag(u32),
     Unknown(&'a UnknownTlv),
 }
 
@@ -66,13 +126,6 @@ pub enum Ospfv3PrefixSubTlv<'a> {
 pub enum Ospfv3BierSubSubTlv<'a> {
     BierEncaps(&'a Vec<BierEncapSubStlv>),
     Unknown(&'a UnknownTlv),
-}
-
-// ListEntry for the OSPFv3 E-Link-LSA TLV list.
-#[derive(Debug)]
-pub enum Ospfv3ELinkTlv<'a> {
-    LinkPrefix(&'a ospfv3::packet::lsa::LsaLinkPrefix),
-    LinkLocalAddr(IpAddr),
 }
 
 // ===== YANG impls =====
@@ -713,12 +766,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::EExternalTlvs {
     type ParentListEntry = &'a LsaEntry<Ospfv3>;
-    type ListEntry = &'a LsaEntry<Ospfv3>;
+    type ListEntry = Ospfv3EAsExternalTlv<'a>;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, &lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsa = &lse.data;
-        let _ = lsa.body.as_ext_as_external()?;
-        let iter = std::iter::once(lse);
+        let lsa_body = lsa.body.as_ext_as_external()?;
+        let iter = std::iter::once(Ospfv3EAsExternalTlv::ExternalPrefix(lsa_body)).chain(lsa_body.unknown_tlvs.iter().map(Ospfv3EAsExternalTlv::Unknown));
         Some(iter)
     }
 
@@ -728,20 +781,27 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::a
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::unknown_tlv::UnknownTlv<'a> {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EAsExternalTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, _lse: &Self::ParentListEntry) -> Option<Self> {
-        // TODO: unknown TLVs aren't tracked at this level yet.
-        None
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EAsExternalTlv::Unknown(tlv) = parent else {
+            return None;
+        };
+        Some(Self {
+            r#type: Some(tlv.tlv_type),
+            length: Some(tlv.length),
+            value: Some(HexStr(tlv.value.as_ref())),
+        })
     }
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::ExternalPrefixTlv {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EAsExternalTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<Self> {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_ext_as_external()?;
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EAsExternalTlv::ExternalPrefix(lsa_body) = parent else {
+            return None;
+        };
         Some(Self {
             metric: Some(lsa_body.metric),
             prefix: Some(lsa_body.prefix),
@@ -750,11 +810,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::flags::Flags<'a> {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EAsExternalTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<Self> {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_ext_as_external()?;
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EAsExternalTlv::ExternalPrefix(lsa_body) = parent else {
+            return None;
+        };
         Some(Self {
             ospfv3_e_external_prefix_bits: lsa_body.flags.to_yang_flags_iter(),
         })
@@ -762,11 +823,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::prefix_options::PrefixOptions<'a> {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EAsExternalTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<Self> {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_ext_as_external()?;
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EAsExternalTlv::ExternalPrefix(lsa_body) = parent else {
+            return None;
+        };
         Some(Self {
             prefix_options: lsa_body.prefix_options.to_yang_flags_iter(),
         })
@@ -774,11 +836,21 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
 }
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::SubTlvs {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EAsExternalTlv<'a>;
     type ListEntry = Ospfv3PrefixSubTlv<'a>;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, _lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        None::<std::iter::Empty<_>> // TODO
+    fn iter(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let Ospfv3EAsExternalTlv::ExternalPrefix(lsa_body) = parent else {
+            return None;
+        };
+        let iter = lsa_body
+            .fwd_addr
+            .map(Ospfv3PrefixSubTlv::FwdAddr)
+            .into_iter()
+            .chain(lsa_body.tag.map(Ospfv3PrefixSubTlv::RouteTag))
+            .chain((!lsa_body.prefix_sids.is_empty()).then_some(Ospfv3PrefixSubTlv::PrefixSids(&lsa_body.prefix_sids)))
+            .chain(lsa_body.unknown_stlvs.iter().map(Ospfv3PrefixSubTlv::Unknown));
+        Some(iter)
     }
 
     fn new(_instance: &'a Instance<Ospfv3>, _tlv: &Self::ListEntry) -> Self {
@@ -789,9 +861,12 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::a
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv6_fwd_addr_sub_tlv::Ipv6FwdAddrSubTlv {
     type ParentListEntry = Ospfv3PrefixSubTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, _sub_tlv: &Self::ParentListEntry) -> Option<Self> {
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3PrefixSubTlv::FwdAddr(IpAddr::V6(addr)) = parent else {
+            return None;
+        };
         Some(Self {
-            forwarding_address: None, // TODO
+            forwarding_address: Some(*addr),
         })
     }
 }
@@ -799,9 +874,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::ipv4_fwd_addr_sub_tlv::Ipv4FwdAddrSubTlv {
     type ParentListEntry = Ospfv3PrefixSubTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, _sub_tlv: &Self::ParentListEntry) -> Option<Self> {
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3PrefixSubTlv::FwdAddr(IpAddr::V4(addr)) = parent else {
+            return None;
+        };
         Some(Self {
-            forwarding_address: None, // TODO
+            forwarding_address: Some(*addr),
         })
     }
 }
@@ -809,9 +887,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_ty
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::database::as_scope_lsa_type::as_scope_lsas::as_scope_lsa::ospfv3::body::e_as_external::e_external_tlvs::external_prefix_tlv::sub_tlvs::route_tag_sub_tlv::RouteTagSubTlv {
     type ParentListEntry = Ospfv3PrefixSubTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, _sub_tlv: &Self::ParentListEntry) -> Option<Self> {
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3PrefixSubTlv::RouteTag(route_tag) = parent else {
+            return None;
+        };
         Some(Self {
-            route_tag: None, // TODO
+            route_tag: Some(*route_tag),
         })
     }
 }
@@ -1959,12 +2040,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::ERouterTlvs {
     type ParentListEntry = &'a LsaEntry<Ospfv3>;
-    type ListEntry = &'a ospfv3::packet::lsa::LsaRouterLink;
+    type ListEntry = Ospfv3ERouterTlv<'a>;
 
     fn iter(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_router()?;
-        let iter = lsa_body.links.iter();
+        let iter = lsa_body.links.iter().map(Ospfv3ERouterTlv::RouterLink).chain(lsa_body.unknown_tlvs.iter().map(Ospfv3ERouterTlv::Unknown));
         Some(iter)
     }
 
@@ -1974,18 +2055,27 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_sc
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::unknown_tlv::UnknownTlv<'a> {
-    type ParentListEntry = &'a ospfv3::packet::lsa::LsaRouterLink;
+    type ParentListEntry = Ospfv3ERouterTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, _rtr_link: &Self::ParentListEntry) -> Option<Self> {
-        // TODO: unknown TLVs aren't tracked at this level yet.
-        None
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3ERouterTlv::Unknown(tlv) = parent else {
+            return None;
+        };
+        Some(Self {
+            r#type: Some(tlv.tlv_type),
+            length: Some(tlv.length),
+            value: Some(HexStr(tlv.value.as_ref())),
+        })
     }
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::LinkTlv {
-    type ParentListEntry = &'a ospfv3::packet::lsa::LsaRouterLink;
+    type ParentListEntry = Ospfv3ERouterTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, rtr_link: &Self::ParentListEntry) -> Option<Self> {
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3ERouterTlv::RouterLink(rtr_link) = parent else {
+            return None;
+        };
         Some(Self {
             interface_id: Some(rtr_link.iface_id),
             neighbor_interface_id: Some(rtr_link.nbr_iface_id),
@@ -1997,11 +2087,17 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 }
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_router::e_router_tlvs::link_tlv::sub_tlvs::SubTlvs {
-    type ParentListEntry = &'a ospfv3::packet::lsa::LsaRouterLink;
+    type ParentListEntry = Ospfv3ERouterTlv<'a>;
     type ListEntry = Ospfv3RouterLinkSubTlv<'a>;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, &tlv: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        let iter = tlv.unknown_stlvs.iter().map(Ospfv3RouterLinkSubTlv::Unknown).chain(std::iter::once(Ospfv3RouterLinkSubTlv::AdjSids(&tlv.adj_sids)));
+    fn iter(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let Ospfv3ERouterTlv::RouterLink(tlv) = parent else {
+            return None;
+        };
+        let iter = (!tlv.adj_sids.is_empty())
+            .then_some(Ospfv3RouterLinkSubTlv::AdjSids(&tlv.adj_sids))
+            .into_iter()
+            .chain(tlv.unknown_stlvs.iter().map(Ospfv3RouterLinkSubTlv::Unknown));
         Some(iter)
     }
 
@@ -2108,11 +2204,13 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::ENetworkTlvs {
     type ParentListEntry = &'a LsaEntry<Ospfv3>;
-    type ListEntry = &'a LsaEntry<Ospfv3>;
+    type ListEntry = Ospfv3ENetworkTlv<'a>;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, _lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        // Nothing to do.
-        None::<std::iter::Empty<_>> // TODO
+    fn iter(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let lsa = &lse.data;
+        let lsa_body = lsa.body.as_ext_network()?;
+        let iter = std::iter::once(Ospfv3ENetworkTlv::AttachedRouters(lsa_body)).chain(lsa_body.unknown_tlvs.iter().map(Ospfv3ENetworkTlv::Unknown));
+        Some(iter)
     }
 
     fn new(_instance: &'a Instance<Ospfv3>, _tlv: &Self::ListEntry) -> Self {
@@ -2121,20 +2219,27 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_sc
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::unknown_tlv::UnknownTlv<'a> {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3ENetworkTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, _lse: &Self::ParentListEntry) -> Option<Self> {
-        // TODO: unknown TLVs aren't tracked at this level yet.
-        None
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3ENetworkTlv::Unknown(tlv) = parent else {
+            return None;
+        };
+        Some(Self {
+            r#type: Some(tlv.tlv_type),
+            length: Some(tlv.length),
+            value: Some(HexStr(tlv.value.as_ref())),
+        })
     }
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_network::e_network_tlvs::attached_router_tlv::AttachedRouterTlv<'a> {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3ENetworkTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<Self> {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_ext_network()?;
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3ENetworkTlv::AttachedRouters(lsa_body) = parent else {
+            return None;
+        };
         let iter = lsa_body.attached_rtrs.iter().copied();
         Some(Self {
             adjacent_neighbor_router_id: Some(Box::new(iter)),
@@ -2144,12 +2249,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::EInterPrefixTlvs {
     type ParentListEntry = &'a LsaEntry<Ospfv3>;
-    type ListEntry = &'a LsaEntry<Ospfv3>;
+    type ListEntry = Ospfv3EInterAreaPrefixTlv<'a>;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, &lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsa = &lse.data;
-        let _ = lsa.body.as_ext_inter_area_prefix()?;
-        let iter = std::iter::once(lse);
+        let lsa_body = lsa.body.as_ext_inter_area_prefix()?;
+        let iter = std::iter::once(Ospfv3EInterAreaPrefixTlv::InterAreaPrefix(lsa_body)).chain(lsa_body.unknown_tlvs.iter().map(Ospfv3EInterAreaPrefixTlv::Unknown));
         Some(iter)
     }
 
@@ -2159,20 +2264,27 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_sc
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::unknown_tlv::UnknownTlv<'a> {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EInterAreaPrefixTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, _lse: &Self::ParentListEntry) -> Option<Self> {
-        // TODO: unknown TLVs aren't tracked at this level yet.
-        None
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EInterAreaPrefixTlv::Unknown(tlv) = parent else {
+            return None;
+        };
+        Some(Self {
+            r#type: Some(tlv.tlv_type),
+            length: Some(tlv.length),
+            value: Some(HexStr(tlv.value.as_ref())),
+        })
     }
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::InterPrefixTlv {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EInterAreaPrefixTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<Self> {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_ext_inter_area_prefix()?;
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EInterAreaPrefixTlv::InterAreaPrefix(lsa_body) = parent else {
+            return None;
+        };
         Some(Self {
             metric: Some(lsa_body.metric),
             prefix: Some(lsa_body.prefix),
@@ -2183,11 +2295,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 impl<'a> YangContainer<'a, Instance<Ospfv3>>
     for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::prefix_options::PrefixOptions<'a>
 {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EInterAreaPrefixTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<Self> {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_ext_inter_area_prefix()?;
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EInterAreaPrefixTlv::InterAreaPrefix(lsa_body) = parent else {
+            return None;
+        };
         Some(Self {
             prefix_options: lsa_body.prefix_options.to_yang_flags_iter(),
         })
@@ -2195,13 +2308,17 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
 }
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_prefix::e_inter_prefix_tlvs::inter_prefix_tlv::sub_tlvs::SubTlvs {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EInterAreaPrefixTlv<'a>;
     type ListEntry = Ospfv3PrefixSubTlv<'a>;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_ext_inter_area_prefix()?;
-        let iter = lsa_body.unknown_stlvs.iter().map(Ospfv3PrefixSubTlv::Unknown).chain(std::iter::once(Ospfv3PrefixSubTlv::PrefixSids(&lsa_body.prefix_sids)));
+    fn iter(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let Ospfv3EInterAreaPrefixTlv::InterAreaPrefix(lsa_body) = parent else {
+            return None;
+        };
+        let iter = (!lsa_body.prefix_sids.is_empty())
+            .then_some(Ospfv3PrefixSubTlv::PrefixSids(&lsa_body.prefix_sids))
+            .into_iter()
+            .chain(lsa_body.unknown_stlvs.iter().map(Ospfv3PrefixSubTlv::Unknown));
         Some(iter)
     }
 
@@ -2265,12 +2382,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::EInterRouterTlvs {
     type ParentListEntry = &'a LsaEntry<Ospfv3>;
-    type ListEntry = &'a LsaEntry<Ospfv3>;
+    type ListEntry = Ospfv3EInterAreaRouterTlv<'a>;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, &lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+    fn iter(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsa = &lse.data;
-        let _ = lsa.body.as_ext_inter_area_router()?;
-        let iter = std::iter::once(lse);
+        let lsa_body = lsa.body.as_ext_inter_area_router()?;
+        let iter = std::iter::once(Ospfv3EInterAreaRouterTlv::InterAreaRouter(lsa_body)).chain(lsa_body.unknown_tlvs.iter().map(Ospfv3EInterAreaRouterTlv::Unknown));
         Some(iter)
     }
 
@@ -2280,20 +2397,27 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_sc
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::unknown_tlv::UnknownTlv<'a> {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EInterAreaRouterTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, _lse: &Self::ParentListEntry) -> Option<Self> {
-        // TODO: unknown TLVs aren't tracked at this level yet.
-        None
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EInterAreaRouterTlv::Unknown(tlv) = parent else {
+            return None;
+        };
+        Some(Self {
+            r#type: Some(tlv.tlv_type),
+            length: Some(tlv.length),
+            value: Some(HexStr(tlv.value.as_ref())),
+        })
     }
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::InterRouterTlv {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EInterAreaRouterTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<Self> {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_ext_inter_area_router()?;
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EInterAreaRouterTlv::InterAreaRouter(lsa_body) = parent else {
+            return None;
+        };
         Some(Self {
             metric: Some(lsa_body.metric),
             destination_router_id: Some(lsa_body.router_id),
@@ -2302,11 +2426,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::lsa_options::LsaOptions<'a> {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EInterAreaRouterTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<Self> {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_ext_inter_area_router()?;
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EInterAreaRouterTlv::InterAreaRouter(lsa_body) = parent else {
+            return None;
+        };
         Some(Self {
             lsa_options: lsa_body.options.to_yang_flags_iter(),
         })
@@ -2314,12 +2439,13 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 }
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_inter_area_router::e_inter_router_tlvs::inter_router_tlv::sub_tlvs::SubTlvs {
-    type ParentListEntry = &'a LsaEntry<Ospfv3>;
+    type ParentListEntry = Ospfv3EInterAreaRouterTlv<'a>;
     type ListEntry = &'a UnknownTlv;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        let lsa = &lse.data;
-        let lsa_body = lsa.body.as_ext_inter_area_router()?;
+    fn iter(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let Ospfv3EInterAreaRouterTlv::InterAreaRouter(lsa_body) = parent else {
+            return None;
+        };
         let iter = lsa_body.unknown_stlvs.iter();
         Some(iter)
     }
@@ -2359,12 +2485,16 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::EIntraPrefixTlvs {
     type ParentListEntry = &'a LsaEntry<Ospfv3>;
-    type ListEntry = &'a ospfv3::packet::lsa::LsaIntraAreaPrefixEntry;
+    type ListEntry = Ospfv3EIntraAreaPrefixTlv<'a>;
 
     fn iter(_instance: &'a Instance<Ospfv3>, lse: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_intra_area_prefix()?;
-        let iter = lsa_body.prefixes.iter();
+        let iter = lsa_body
+            .prefixes
+            .iter()
+            .map(Ospfv3EIntraAreaPrefixTlv::IntraAreaPrefix)
+            .chain(lsa_body.unknown_tlvs.iter().map(Ospfv3EIntraAreaPrefixTlv::Unknown));
         Some(iter)
     }
 
@@ -2374,18 +2504,27 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_sc
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::unknown_tlv::UnknownTlv<'a> {
-    type ParentListEntry = &'a ospfv3::packet::lsa::LsaIntraAreaPrefixEntry;
+    type ParentListEntry = Ospfv3EIntraAreaPrefixTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, _prefix: &Self::ParentListEntry) -> Option<Self> {
-        // TODO: unknown TLVs aren't tracked at this level yet.
-        None
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EIntraAreaPrefixTlv::Unknown(tlv) = parent else {
+            return None;
+        };
+        Some(Self {
+            r#type: Some(tlv.tlv_type),
+            length: Some(tlv.length),
+            value: Some(HexStr(tlv.value.as_ref())),
+        })
     }
 }
 
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::IntraPrefixTlv {
-    type ParentListEntry = &'a ospfv3::packet::lsa::LsaIntraAreaPrefixEntry;
+    type ParentListEntry = Ospfv3EIntraAreaPrefixTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, prefix: &Self::ParentListEntry) -> Option<Self> {
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EIntraAreaPrefixTlv::IntraAreaPrefix(prefix) = parent else {
+            return None;
+        };
         Some(Self {
             metric: Some(prefix.metric as u32),
             prefix: Some(prefix.value),
@@ -2396,9 +2535,12 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::database::ar
 impl<'a> YangContainer<'a, Instance<Ospfv3>>
     for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::prefix_options::PrefixOptions<'a>
 {
-    type ParentListEntry = &'a ospfv3::packet::lsa::LsaIntraAreaPrefixEntry;
+    type ParentListEntry = Ospfv3EIntraAreaPrefixTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, prefix: &Self::ParentListEntry) -> Option<Self> {
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3EIntraAreaPrefixTlv::IntraAreaPrefix(prefix) = parent else {
+            return None;
+        };
         Some(Self {
             prefix_options: prefix.options.to_yang_flags_iter(),
         })
@@ -2406,16 +2548,18 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>>
 }
 
 impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::database::area_scope_lsa_type::area_scope_lsas::area_scope_lsa::ospfv3::body::e_intra_area_prefix::e_intra_prefix_tlvs::intra_prefix_tlv::sub_tlvs::SubTlvs {
-    type ParentListEntry = &'a ospfv3::packet::lsa::LsaIntraAreaPrefixEntry;
+    type ParentListEntry = Ospfv3EIntraAreaPrefixTlv<'a>;
     type ListEntry = Ospfv3PrefixSubTlv<'a>;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, &prefix: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        let iter = prefix
-            .unknown_stlvs
-            .iter()
-            .map(Ospfv3PrefixSubTlv::Unknown)
-            .chain((!prefix.prefix_sids.is_empty()).then_some(Ospfv3PrefixSubTlv::PrefixSids(&prefix.prefix_sids)))
-            .chain((!prefix.bier.is_empty()).then_some(Ospfv3PrefixSubTlv::Biers(&prefix.bier)));
+    fn iter(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let Ospfv3EIntraAreaPrefixTlv::IntraAreaPrefix(prefix) = parent else {
+            return None;
+        };
+        let iter = (!prefix.prefix_sids.is_empty())
+            .then_some(Ospfv3PrefixSubTlv::PrefixSids(&prefix.prefix_sids))
+            .into_iter()
+            .chain((!prefix.bier.is_empty()).then_some(Ospfv3PrefixSubTlv::Biers(&prefix.bier)))
+            .chain(prefix.unknown_stlvs.iter().map(Ospfv3PrefixSubTlv::Unknown));
         Some(iter)
     }
 
@@ -2473,7 +2617,7 @@ impl<'a> YangList<'a, Instance<Ospfv3>>
     type ListEntry = Ospfv3BierSubSubTlv<'a>;
 
     fn iter(_instance: &'a Instance<Ospfv3>, &bier: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        let iter = bier.unknown_sstlvs.iter().map(Ospfv3BierSubSubTlv::Unknown).chain(std::iter::once(Ospfv3BierSubSubTlv::BierEncaps(&bier.encaps)));
+        let iter = std::iter::once(Ospfv3BierSubSubTlv::BierEncaps(&bier.encaps)).chain(bier.unknown_sstlvs.iter().map(Ospfv3BierSubSubTlv::Unknown));
         Some(iter)
     }
 
@@ -3255,7 +3399,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
         let lsa_body = lsa.body.as_std_link()?;
         Some(Self {
             rtr_priority: Some(lsa_body.priority),
-            link_local_interface_address: Some(match lsa_body.linklocal {
+            link_local_interface_address: Some(match lsa_body.linklocal.addr {
                 IpAddr::V4(addr) => addr.to_ipv6_mapped(),
                 IpAddr::V6(addr) => addr,
             }),
@@ -3406,8 +3550,9 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::inter
         let lsa = &lse.data;
         let lsa_body = lsa.body.as_ext_link()?;
         let iter_prefixes = lsa_body.prefixes.iter().map(Ospfv3ELinkTlv::LinkPrefix);
-        let iter_linklocal = std::iter::once(lsa_body.linklocal).map(Ospfv3ELinkTlv::LinkLocalAddr);
-        let iter = iter_prefixes.chain(iter_linklocal);
+        let iter_linklocal = std::iter::once(Ospfv3ELinkTlv::LinkLocalAddr(&lsa_body.linklocal));
+        let iter_unknown = lsa_body.unknown_tlvs.iter().map(Ospfv3ELinkTlv::Unknown);
+        let iter = iter_prefixes.chain(iter_linklocal).chain(iter_unknown);
         Some(iter)
     }
 
@@ -3419,9 +3564,15 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::inter
 impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::interface::database::link_scope_lsa_type::link_scope_lsas::link_scope_lsa::ospfv3::body::e_link::e_link_tlvs::unknown_tlv::UnknownTlv<'a> {
     type ParentListEntry = Ospfv3ELinkTlv<'a>;
 
-    fn new(_instance: &'a Instance<Ospfv3>, _tlv: &Self::ParentListEntry) -> Option<Self> {
-        // TODO: unknown TLVs aren't tracked at this level yet.
-        None
+    fn new(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<Self> {
+        let Ospfv3ELinkTlv::Unknown(tlv) = parent else {
+            return None;
+        };
+        Some(Self {
+            r#type: Some(tlv.tlv_type),
+            length: Some(tlv.length),
+            value: Some(HexStr(tlv.value.as_ref())),
+        })
     }
 }
 
@@ -3433,7 +3584,8 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
             return None;
         };
         Some(Self {
-            metric: None, // TODO
+            // Link-LSA prefixes have no metric, so the decoder ignores it.
+            metric: None,
             prefix: Some(lsa_prefix.value),
         })
     }
@@ -3492,7 +3644,8 @@ impl<'a> YangList<'a, Instance<Ospfv3>>
     type ListEntry = &'a ospfv3::packet::lsa::PrefixSid;
 
     fn iter(_instance: &'a Instance<Ospfv3>, _tlv: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        None::<std::iter::Empty<_>> // TODO
+        // Prefix-SIDs have no use in E-Link-LSAs, so the decoder ignores them.
+        None::<std::iter::Empty<_>>
     }
 
     fn new(_instance: &'a Instance<Ospfv3>, stlv: &Self::ListEntry) -> Self {
@@ -3523,7 +3676,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
             return None;
         };
         Some(Self {
-            link_local_address: Ipv6Addr::get(*lladdr),
+            link_local_address: Ipv6Addr::get(lladdr.addr),
         })
     }
 }
@@ -3532,8 +3685,15 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::inter
     type ParentListEntry = Ospfv3ELinkTlv<'a>;
     type ListEntry = &'a UnknownTlv;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, _tlv: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        None::<std::iter::Empty<_>> // TODO
+    fn iter(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let Ospfv3ELinkTlv::LinkLocalAddr(lladdr) = parent else {
+            return None;
+        };
+        if !lladdr.addr.is_ipv6() {
+            return None;
+        }
+        let iter = lladdr.unknown_stlvs.iter();
+        Some(iter)
     }
 
     fn new(_instance: &'a Instance<Ospfv3>, _tlv: &Self::ListEntry) -> Self {
@@ -3563,7 +3723,7 @@ impl<'a> YangContainer<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::
             return None;
         };
         Some(Self {
-            link_local_address: Ipv4Addr::get(*lladdr),
+            link_local_address: Ipv4Addr::get(lladdr.addr),
         })
     }
 }
@@ -3572,8 +3732,15 @@ impl<'a> YangList<'a, Instance<Ospfv3>> for ospf::areas::area::interfaces::inter
     type ParentListEntry = Ospfv3ELinkTlv<'a>;
     type ListEntry = &'a UnknownTlv;
 
-    fn iter(_instance: &'a Instance<Ospfv3>, _tlv: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
-        None::<std::iter::Empty<_>> // TODO
+    fn iter(_instance: &'a Instance<Ospfv3>, parent: &Self::ParentListEntry) -> Option<impl ListIterator<'a, Self::ListEntry>> {
+        let Ospfv3ELinkTlv::LinkLocalAddr(lladdr) = parent else {
+            return None;
+        };
+        if !lladdr.addr.is_ipv4() {
+            return None;
+        }
+        let iter = lladdr.unknown_stlvs.iter();
+        Some(iter)
     }
 
     fn new(_instance: &'a Instance<Ospfv3>, _tlv: &Self::ListEntry) -> Self {

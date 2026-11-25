@@ -713,10 +713,21 @@ pub struct LsaLink {
     pub extended: bool,
     pub priority: u8,
     pub options: Options,
-    pub linklocal: IpAddr,
+    pub linklocal: LsaLinkLocalAddr,
     pub prefixes: Vec<LsaLinkPrefix>,
     #[new(default)]
     pub unknown_tlvs: Vec<UnknownTlv>,
+}
+
+#[derive(Clone, Debug, Eq, new, PartialEq)]
+#[serde_with::apply(
+    Vec => #[serde(default, skip_serializing_if = "Vec::is_empty")],
+)]
+#[derive(Deserialize, Serialize)]
+pub struct LsaLinkLocalAddr {
+    pub addr: IpAddr,
+    #[new(default)]
+    pub unknown_stlvs: Vec<UnknownTlv>,
 }
 
 #[derive(Clone, Debug, Eq, new, PartialEq)]
@@ -2071,7 +2082,7 @@ impl LsaLink {
     fn decode_legacy(af: AddressFamily, buf: &mut Bytes) -> DecodeResult<Self> {
         let priority = buf.try_get_u8()?;
         let options = Options::decode(buf)?;
-        let linklocal = decode_16bit_addr(af, buf)?;
+        let linklocal = LsaLinkLocalAddr::new(decode_16bit_addr(af, buf)?);
 
         let mut prefixes = vec![];
         let prefixes_cnt = buf.try_get_u32()?;
@@ -2134,18 +2145,24 @@ impl LsaLink {
                 }
                 Some(ExtLsaTlv::Ipv6LinkLocalAddr) => {
                     let addr = buf_tlv.try_get_ipv6()?;
-                    let _stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
+                    let stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
 
                     if af == AddressFamily::Ipv6 {
-                        linklocal = Some(addr.into());
+                        linklocal = Some(LsaLinkLocalAddr {
+                            addr: addr.into(),
+                            unknown_stlvs: stlvs.unknown,
+                        });
                     }
                 }
                 Some(ExtLsaTlv::Ipv4LinkLocalAddr) => {
                     let addr = buf_tlv.try_get_ipv4()?;
-                    let _stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
+                    let stlvs = ExtLsaStlvs::decode(&mut buf_tlv)?;
 
                     if af == AddressFamily::Ipv4 {
-                        linklocal = Some(addr.into());
+                        linklocal = Some(LsaLinkLocalAddr {
+                            addr: addr.into(),
+                            unknown_stlvs: stlvs.unknown,
+                        });
                     }
                 }
                 _ => {
@@ -2188,7 +2205,7 @@ impl LsaLink {
     fn encode_legacy(&self, buf: &mut BytesMut) {
         buf.put_u8(self.priority);
         self.options.encode(buf);
-        encode_16bit_addr(&self.linklocal, buf);
+        encode_16bit_addr(&self.linklocal.addr, buf);
         buf.put_u32(self.prefixes.len() as u32);
         for prefix in &self.prefixes {
             buf.put_u8(prefix.value.prefix());
@@ -2204,12 +2221,12 @@ impl LsaLink {
         self.options.encode(buf);
 
         // Encode IPv6/IPv4 Link-Local Address TLV.
-        let tlv_type = match &self.linklocal {
+        let tlv_type = match &self.linklocal.addr {
             IpAddr::V6(_) => ExtLsaTlv::Ipv6LinkLocalAddr,
             IpAddr::V4(_) => ExtLsaTlv::Ipv4LinkLocalAddr,
         };
         let start_pos = tlv_encode_start(buf, tlv_type);
-        buf.put_ip(&self.linklocal);
+        buf.put_ip(&self.linklocal.addr);
         tlv_encode_end(buf, start_pos);
 
         // Encode Intra-Area-Prefix TLVs.

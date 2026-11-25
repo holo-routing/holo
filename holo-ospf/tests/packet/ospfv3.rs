@@ -785,7 +785,10 @@ static LSUPDATE1: Lazy<(Vec<u8>, Option<(Key, u64)>, Packet<Ospfv3>)> =
                             extended: false,
                             priority: 1,
                             options: Options::R | Options::E | Options::V6,
-                            linklocal: ip!("fe80::cc81:6eff:fea8:26d0"),
+                            linklocal: LsaLinkLocalAddr {
+                                addr: ip!("fe80::cc81:6eff:fea8:26d0"),
+                                unknown_stlvs: vec![],
+                            },
                             prefixes: vec![],
                             unknown_tlvs: vec![],
                         }),
@@ -913,7 +916,10 @@ static LSA1: Lazy<(Vec<u8>, Lsa<Ospfv3>)> = Lazy::new(|| {
                 extended: false,
                 priority: 1,
                 options: Options::R | Options::E | Options::V6,
-                linklocal: ip!("fe80::cc81:6eff:fea8:26d0"),
+                linklocal: LsaLinkLocalAddr {
+                    addr: ip!("fe80::cc81:6eff:fea8:26d0"),
+                    unknown_stlvs: vec![],
+                },
                 prefixes: vec![],
                 unknown_tlvs: vec![],
             }),
@@ -1186,7 +1192,10 @@ static EXT_LINK_LSA1: Lazy<(Vec<u8>, Lsa<Ospfv3>)> = Lazy::new(|| {
                 extended: true,
                 priority: 1,
                 options: Options::R | Options::E | Options::V6,
-                linklocal: ip!("fe80::cc81:6eff:fea8:26d0"),
+                linklocal: LsaLinkLocalAddr {
+                    addr: ip!("fe80::cc81:6eff:fea8:26d0"),
+                    unknown_stlvs: vec![],
+                },
                 prefixes: vec![LsaLinkPrefix {
                     options: PrefixOptions::empty(),
                     value: net!("2001:db8:1::/64"),

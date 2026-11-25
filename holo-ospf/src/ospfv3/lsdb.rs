@@ -33,9 +33,9 @@ use crate::ospfv3::packet::iana::{
 };
 use crate::ospfv3::packet::lsa::{
     LsaBody, LsaHdr, LsaInterAreaPrefix, LsaInterAreaRouter,
-    LsaIntraAreaPrefix, LsaIntraAreaPrefixEntry, LsaLink, LsaLinkPrefix,
-    LsaNetwork, LsaRouter, LsaRouterInfo, LsaRouterLink, LsaScopeCode, LsaType,
-    PrefixSid, kind,
+    LsaIntraAreaPrefix, LsaIntraAreaPrefixEntry, LsaLink, LsaLinkLocalAddr,
+    LsaLinkPrefix, LsaNetwork, LsaRouter, LsaRouterInfo, LsaRouterLink,
+    LsaScopeCode, LsaType, PrefixSid, kind,
 };
 use crate::packet::iana::RouterInfoCaps;
 use crate::packet::lsa::{
@@ -776,7 +776,7 @@ fn lsa_orig_link(
         extended_lsa,
         iface.config.priority,
         options,
-        linklocal,
+        LsaLinkLocalAddr::new(linklocal),
         prefixes,
     ));
     instance

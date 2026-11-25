@@ -692,5 +692,5 @@ fn calc_nexthop_lladdr(
             Ipv4Addr::from(nbr_iface_id),
         )
         .filter(|(lsa_hdr, _)| !lsa_hdr.is_maxage())
-        .map(|(_, lsa_body)| lsa_body.linklocal)
+        .map(|(_, lsa_body)| lsa_body.linklocal.addr)
 }

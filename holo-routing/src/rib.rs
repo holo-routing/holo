@@ -65,6 +65,9 @@ bitflags! {
     pub struct RouteFlags: u8 {
         const ACTIVE = 0x01;
         const REMOVED = 0x02;
+        // The route is kept in the RIB for protocol redistribution only,
+        // and is never installed into the kernel forwarding table.
+        const NO_FIB = 0x04;
     }
 }
 
@@ -109,6 +112,22 @@ impl Rib {
 
     // Adds IP route to the RIB.
     pub(crate) fn ip_route_add(&mut self, msg: RouteMsg, owner: IbusClientId) {
+        self.ip_route_add_inner(msg, Some(owner), RouteFlags::empty());
+    }
+
+    // Adds a route leaked from another RIB to the RIB. Leaked routes
+    // belong to no ibus client and are never installed into the kernel.
+    pub(crate) fn leaked_route_add(&mut self, msg: RouteMsg) {
+        self.ip_route_add_inner(msg, None, RouteFlags::NO_FIB);
+    }
+
+    // Common implementation of IP route addition.
+    fn ip_route_add_inner(
+        &mut self,
+        msg: RouteMsg,
+        owner: Option<IbusClientId>,
+        flags: RouteFlags,
+    ) {
         let (nexthops, resolving_kind) =
             self.resolve_nexthops(Some(msg.prefix), msg.nexthops);
 
@@ -136,7 +155,7 @@ impl Rib {
             Some(idx) => {
                 // Update the existing IP route with the new information.
                 let mut route = rib_prefix.remove(idx);
-                route.owner = Some(owner);
+                route.owner = owner;
                 route.kind = kind;
                 route.distance = msg.distance;
                 route.metric = msg.metric;
@@ -146,21 +165,29 @@ impl Rib {
                 route.owner_nexthops = None;
                 route.last_updated = Utc::now();
                 route.flags.remove(RouteFlags::REMOVED);
+                // Set (not insert) NO_FIB: a normal route replacing a
+                // leaked one must clear the flag, or the route would
+                // never reach the kernel.
+                route.flags.set(
+                    RouteFlags::NO_FIB,
+                    flags.contains(RouteFlags::NO_FIB),
+                );
                 (idx, route)
             }
-            None => (
-                rib_prefix.len(),
-                Route::new(
+            None => (rib_prefix.len(), {
+                let mut route = Route::new(
                     msg.protocol,
-                    Some(owner),
+                    owner,
                     kind,
                     msg.distance,
                     msg.metric,
                     msg.tag,
                     msg.opaque_attrs,
                     nexthops,
-                ),
-            ),
+                );
+                route.flags.insert(flags);
+                route
+            }),
         };
 
         // Put the route back where it was, or at the end if it's new, then
@@ -176,20 +203,41 @@ impl Rib {
 
     // Removes IP route from the RIB.
     pub(crate) fn ip_route_del(&mut self, msg: RouteKeyMsg) {
-        let Some(rib_prefix) = self.ip.get_mut(&msg.prefix) else {
+        self.ip_route_del_inner(msg.prefix, msg.protocol);
+    }
+
+    // Withdraws a route leaked into the RIB. Only leaked routes (those
+    // carrying NO_FIB) are matched: a real kernel route of the same
+    // protocol and prefix must never be withdrawn by a leak teardown.
+    pub(crate) fn leaked_route_del(&mut self, prefix: IpNetwork) {
+        let Some(rib_prefix) = self.ip.get_mut(&prefix) else {
+            return;
+        };
+        if let Some(route) = rib_prefix.iter_mut().find(|route| {
+            route.protocol == Protocol::KERNEL
+                && route.flags.contains(RouteFlags::NO_FIB)
+        }) {
+            route.flags.insert(RouteFlags::REMOVED);
+            self.ip_update_queue_add(prefix);
+        }
+    }
+
+    // Common implementation of IP route removal.
+    fn ip_route_del_inner(&mut self, prefix: IpNetwork, protocol: Protocol) {
+        let Some(rib_prefix) = self.ip.get_mut(&prefix) else {
             return;
         };
 
         // Find IP route entry from the same advertising protocol.
         if let Some(route) = rib_prefix
             .iter_mut()
-            .find(|route| route.protocol == msg.protocol)
+            .find(|route| route.protocol == protocol)
         {
             // Mark IP route as removed.
             route.flags.insert(RouteFlags::REMOVED);
 
             // Add IP route to the update queue.
-            self.ip_update_queue_add(msg.prefix);
+            self.ip_update_queue_add(prefix);
         }
     }
 
@@ -359,11 +407,12 @@ impl Rib {
                 .map(|route| &*route.nexthops);
             let rib_prefix = self.ip.entry(prefix).or_default();
 
-            // Find the protocol of the old best route, if one exists.
-            let old_best_protocol = rib_prefix
+            // Find the old best route, if one exists.
+            let old_best = rib_prefix
                 .iter()
                 .find(|route| route.flags.contains(RouteFlags::ACTIVE))
-                .map(|route| route.protocol);
+                .map(|route| (route.protocol, route.flags));
+            let old_best_protocol = old_best.map(|(protocol, _)| protocol);
 
             // Remove routes marked with the REMOVED flag.
             rib_prefix
@@ -384,8 +433,12 @@ impl Rib {
                     // Apply the prefix's FTN labels, if any.
                     route.relabel(ftn_nexthops);
 
-                    // Install the route in the dataplane.
-                    if route.protocol != Protocol::DIRECT {
+                    // Install the route in the dataplane, unless it's a
+                    // connected route or one leaked for redistribution
+                    // only.
+                    if route.protocol != Protocol::DIRECT
+                        && !route.flags.contains(RouteFlags::NO_FIB)
+                    {
                         dataplane.ip_route_install(&prefix, route, interfaces);
                     }
 
@@ -413,8 +466,12 @@ impl Rib {
             {
                 // Uninstall the old best route from the dataplane, unless the
                 // new best route was installed in its place. Connected routes
-                // are never installed.
+                // are never installed, and neither are leaked routes.
+                let old_best_no_fib = old_best.is_some_and(|(_, flags)| {
+                    flags.contains(RouteFlags::NO_FIB)
+                });
                 if old_best_protocol != Protocol::DIRECT
+                    && !old_best_no_fib
                     && best_protocol
                         .is_none_or(|protocol| protocol == Protocol::DIRECT)
                 {
@@ -658,8 +715,12 @@ impl Rib {
             if let Some(route) = rib_prefix
                 .iter()
                 .find(|route| route.flags.contains(RouteFlags::ACTIVE))
-                // Connected routes are owned by the kernel.
-                .filter(|route| route.protocol != Protocol::DIRECT)
+                // Connected routes are owned by the kernel, and leaked
+                // routes were never installed.
+                .filter(|route| {
+                    route.protocol != Protocol::DIRECT
+                        && !route.flags.contains(RouteFlags::NO_FIB)
+                })
             {
                 dataplane.ip_route_uninstall(&prefix, route.protocol);
             }
@@ -673,7 +734,7 @@ impl Rib {
 // ===== impl Route =====
 
 impl Route {
-    fn new(
+    pub(crate) fn new(
         protocol: Protocol,
         owner: Option<IbusClientId>,
         kind: RouteKind,
@@ -812,4 +873,83 @@ fn has_forwarding_nexthop(nexthops: &[Nexthop]) -> bool {
         Nexthop::Recursive { resolved, .. } => !resolved.is_empty(),
         _ => true,
     })
+}
+
+// ===== tests =====
+
+#[cfg(test)]
+mod tests {
+    use tokio::sync::mpsc;
+
+    use super::*;
+
+    fn route_msg(prefix: &str) -> RouteMsg {
+        RouteMsg {
+            protocol: Protocol::KERNEL,
+            kind: RouteKind::Unicast,
+            prefix: prefix.parse().unwrap(),
+            distance: 10,
+            metric: 0,
+            tag: None,
+            opaque_attrs: RouteOpaqueAttrs::None,
+            nexthops: vec![Nexthop::Address {
+                ifindex: 1,
+                addr: "10.0.0.1".parse().unwrap(),
+                labels: Box::default(),
+            }],
+        }
+    }
+
+    fn kernel_route<'a>(rib: &'a Rib, prefix: &str) -> &'a Route {
+        rib.ip
+            .get(&prefix.parse::<IpNetwork>().unwrap())
+            .unwrap()
+            .iter()
+            .find(|route| route.protocol == Protocol::KERNEL)
+            .unwrap()
+    }
+
+    #[test]
+    fn normal_route_clears_no_fib_on_replace() {
+        let (tx, _rx) = mpsc::unbounded_channel();
+        let mut rib = Rib::new(tx);
+        // A leaked route arrives first: NO_FIB is set.
+        rib.leaked_route_add(route_msg("10.0.0.0/24"));
+        assert!(
+            kernel_route(&rib, "10.0.0.0/24")
+                .flags
+                .contains(RouteFlags::NO_FIB)
+        );
+        // A real kernel route for the same prefix replaces it: the flag
+        // must be cleared, or the route never reaches the FIB.
+        rib.ip_route_add(route_msg("10.0.0.0/24"), 1);
+        assert!(
+            !kernel_route(&rib, "10.0.0.0/24")
+                .flags
+                .contains(RouteFlags::NO_FIB)
+        );
+    }
+
+    #[test]
+    fn leaked_route_del_spares_real_kernel_route() {
+        let (tx, _rx) = mpsc::unbounded_channel();
+        let mut rib = Rib::new(tx);
+        // A real kernel route (without NO_FIB) occupies the prefix.
+        rib.ip_route_add(route_msg("10.0.0.0/24"), 1);
+        // Withdrawing a leak on the same prefix must not touch it.
+        rib.leaked_route_del("10.0.0.0/24".parse().unwrap());
+        assert!(
+            !kernel_route(&rib, "10.0.0.0/24")
+                .flags
+                .contains(RouteFlags::REMOVED)
+        );
+        // A leaked route is withdrawn normally.
+        rib.leaked_route_add(route_msg("10.0.1.0/24"));
+        rib.leaked_route_del("10.0.1.0/24".parse().unwrap());
+        assert!(
+            kernel_route(&rib, "10.0.1.0/24")
+                .flags
+                .contains(RouteFlags::REMOVED)
+        );
+    }
 }

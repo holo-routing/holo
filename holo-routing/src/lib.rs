@@ -10,6 +10,8 @@ mod birt;
 mod dataplane;
 mod ibus;
 mod interface;
+mod kernel;
+mod leak;
 pub mod northbound;
 mod rib;
 
@@ -32,12 +34,14 @@ use holo_utils::sr::SrCfg;
 use holo_utils::task::Task;
 use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
-use tokio::sync::mpsc::{Sender, UnboundedReceiver};
+use tokio::sync::mpsc::{Sender, UnboundedReceiver, UnboundedSender};
 use tracing::debug_span;
 
 use crate::birt::Birt;
 use crate::dataplane::Dataplane;
 use crate::interface::Interfaces;
+use crate::kernel::{KernelCmd, KernelEvent, KernelRib};
+use crate::leak::RibConfig;
 use crate::northbound::configuration::StaticRoute;
 use crate::rib::Rib;
 
@@ -58,6 +62,14 @@ pub struct Master {
     pub static_routes: BTreeMap<IpNetwork, StaticRoute>,
     // Nexthop addresses tracked for static routes.
     pub static_nht: BTreeSet<IpAddr>,
+    // RIB configuration, mirrored from the running configuration.
+    pub rib_config: BTreeMap<String, RibConfig>,
+    // Custom RIBs bound to Linux kernel routing tables.
+    pub kernel_ribs: BTreeMap<String, KernelRib>,
+    // Per-source candidates for routes leaked into default RIBs.
+    pub(crate) leak_engine: crate::leak::LeakEngine,
+    // Command channel to the kernel table monitor task.
+    pub kernel_tx: UnboundedSender<KernelCmd>,
     // SR configuration data.
     pub sr_config: SrCfg,
     // BIER configuration data.
@@ -88,6 +100,7 @@ pub enum EventMsg {
     Ibus { client: IbusClient, msg: IbusMsg },
     IbusDisconnect { id: IbusClientId },
     IbusNotification(IbusMsg),
+    KernelEvent(KernelEvent),
     RibUpdate,
     BirtUpdate,
 }
@@ -102,6 +115,7 @@ impl Master {
         ibus_notif_rx: IbusReceiver,
         rib_update_queue_rx: UnboundedReceiver<()>,
         birt_update_queue_rx: UnboundedReceiver<()>,
+        kernel_event_rx: UnboundedReceiver<KernelEvent>,
     ) {
         // Spawn event aggregator task.
         let (agg_tx, mut agg_rx) = mpsc::channel(4);
@@ -111,6 +125,7 @@ impl Master {
             ibus_notif_rx,
             rib_update_queue_rx,
             birt_update_queue_rx,
+            kernel_event_rx,
             agg_tx,
         );
 
@@ -140,6 +155,9 @@ impl Master {
                 EventMsg::IbusNotification(msg) => {
                     ibus::process_notification_msg(self, msg);
                 }
+                EventMsg::KernelEvent(event) => {
+                    self.process_kernel_event(event);
+                }
                 EventMsg::RibUpdate => {
                     self.rib.process_rib_update_queue(
                         &self.interfaces,
@@ -162,6 +180,7 @@ fn event_aggregator(
     mut ibus_notif_rx: IbusReceiver,
     mut rib_update_queue_rx: UnboundedReceiver<()>,
     mut birt_update_queue_rx: UnboundedReceiver<()>,
+    mut kernel_event_rx: UnboundedReceiver<KernelEvent>,
     agg_tx: Sender<EventMsg>,
 ) -> Task<()> {
     Task::spawn(async move {
@@ -195,6 +214,9 @@ fn event_aggregator(
                 Some(_) = rib_update_queue_rx.recv() => {
                     EventMsg::RibUpdate
                 }
+                Some(event) = kernel_event_rx.recv() => {
+                    EventMsg::KernelEvent(event)
+                }
                 Some(_) = birt_update_queue_rx.recv() => {
                     EventMsg::BirtUpdate
                 }
@@ -218,6 +240,8 @@ pub fn start(
     let (rib_update_queue_tx, rib_update_queue_rx) = mpsc::unbounded_channel();
     let (birt_update_queue_tx, birt_update_queue_rx) =
         mpsc::unbounded_channel();
+    let (kernel_event_tx, kernel_event_rx) = mpsc::unbounded_channel();
+    let kernel_tx = kernel::spawn_monitor_task(kernel_event_tx);
 
     tokio::task::spawn(async move {
         let mut master = Master {
@@ -229,6 +253,10 @@ pub fn start(
             rib: Rib::new(rib_update_queue_tx),
             static_routes: Default::default(),
             static_nht: Default::default(),
+            rib_config: Default::default(),
+            kernel_ribs: Default::default(),
+            leak_engine: Default::default(),
+            kernel_tx,
             sr_config: Default::default(),
             bier_config: Default::default(),
             instances: Default::default(),
@@ -274,6 +302,7 @@ pub fn start(
                 ibus_notif_rx,
                 rib_update_queue_rx,
                 birt_update_queue_rx,
+                kernel_event_rx,
             );
 
             // Uninstall all routes before exiting.

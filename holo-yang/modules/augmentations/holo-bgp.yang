@@ -23,6 +23,10 @@ module holo-bgp {
     prefix bgp;
   }
 
+  import holo-routing {
+    prefix hr;
+  }
+
   organization
     "Holo Routing Stack";
 
@@ -210,7 +214,8 @@ module holo-bgp {
            + " or . = 'ietf-ospf:ospfv2'"
            + " or . = 'ietf-ospf:ospfv3'"
            + " or . = 'ietf-rip:ripv2'"
-           + " or . = 'ietf-rip:ripng'" {
+           + " or . = 'ietf-rip:ripng'"
+           + " or . = 'holo-routing:kernel'" {
           error-message
             "Invalid protocol type.";
         }
@@ -241,7 +246,8 @@ module holo-bgp {
            + " or . = 'ietf-ospf:ospfv2'"
            + " or . = 'ietf-ospf:ospfv3'"
            + " or . = 'ietf-rip:ripv2'"
-           + " or . = 'ietf-rip:ripng'" {
+           + " or . = 'ietf-rip:ripng'"
+           + " or . = 'holo-routing:kernel'" {
           error-message
             "Invalid protocol type.";
         }

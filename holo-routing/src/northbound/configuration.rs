@@ -24,13 +24,15 @@ use ipnetwork::IpNetwork;
 use tokio::sync::mpsc;
 use yang5::data::DataTree;
 
+use crate::kernel::KernelCmd;
+use crate::leak::rib_address_family;
 use crate::northbound::REGEX_PROTOCOLS;
 use crate::northbound::yang_gen::config::{
     self, BierBiftBirtBitstringlengthBfrNbrChange, BierBiftBirtBitstringlengthBfrNbrEntryChange, BierBiftBirtBitstringlengthChange, BierBiftBirtBitstringlengthEntryChange, BierBiftChange, BierBiftEntryChange, BierSubDomainChange,
     BierSubDomainEncapsulationChange, BierSubDomainEncapsulationEntryChange, BierSubDomainEntryChange, ConfigChange, ControlPlaneProtocolChange, ControlPlaneProtocolEntryChange, ControlPlaneProtocolStaticRoutesIpv4RouteChange,
     ControlPlaneProtocolStaticRoutesIpv4RouteEntryChange, ControlPlaneProtocolStaticRoutesIpv4RouteNextHopNextHopListNextHopChange, ControlPlaneProtocolStaticRoutesIpv4RouteNextHopNextHopListNextHopEntryChange,
     ControlPlaneProtocolStaticRoutesIpv6RouteChange, ControlPlaneProtocolStaticRoutesIpv6RouteEntryChange, ControlPlaneProtocolStaticRoutesIpv6RouteNextHopNextHopListNextHopChange,
-    ControlPlaneProtocolStaticRoutesIpv6RouteNextHopNextHopListNextHopEntryChange, RibChange, RibEntryChange, SegmentRoutingSrMplsBindingsConnectedPrefixSidMapConnectedPrefixSidChange,
+    ControlPlaneProtocolStaticRoutesIpv6RouteNextHopNextHopListNextHopEntryChange, RibChange, RibEntryChange, RibImportRibChange, RibImportRibEntryChange, SegmentRoutingSrMplsBindingsConnectedPrefixSidMapConnectedPrefixSidChange,
     SegmentRoutingSrMplsBindingsConnectedPrefixSidMapConnectedPrefixSidEntryChange, SegmentRoutingSrMplsSrgbChange, SegmentRoutingSrMplsSrlbChange,
 };
 use crate::northbound::yang_gen::routing::bier;
@@ -131,11 +133,9 @@ fn apply_master(master: &mut Master, change: ConfigChange, event_queue: &mut BTr
         ConfigChange::ControlPlaneProtocol(keys, change) => {
             apply_control_plane_protocol(master, keys.r#type, keys.name, change, event_queue)?;
         }
-        ConfigChange::Rib(_keys, change) => match change {
-            RibChange::Create | RibChange::Delete | RibChange::Entry(RibEntryChange::AddressFamily(..) | RibEntryChange::Description(..)) => {
-                // Nothing to do.
-            }
-        },
+        ConfigChange::Rib(keys, change) => {
+            apply_rib(master, &keys.name, change)?;
+        }
         ConfigChange::BierSubDomain(keys, change) => {
             apply_bier_sub_domain(master, keys.sub_domain_id, keys.address_family, change, event_queue)?;
         }
@@ -155,6 +155,137 @@ fn apply_master(master: &mut Master, change: ConfigChange, event_queue: &mut BTr
         }
     }
 
+    Ok(())
+}
+
+// Applies a change to a RIB entry: kernel table bindings and RIB
+// imports (route leaking).
+fn apply_rib(master: &mut Master, name: &str, change: RibChange) -> Result<(), ApplyError> {
+    tracing::debug!(rib = name, ?change, "apply_rib");
+    match change {
+        RibChange::Create => {
+            master.rib_config.entry(name.to_string()).or_default();
+        }
+        RibChange::Delete => {
+            // Drop this RIB's candidates in both roles: as a leak
+            // source (reproject other sources) and as a leak target
+            // (withdraw everything projected into it).
+            let as_source = master.leak_engine.drop_source_everywhere(name);
+            for (_target, prefix, projection) in as_source {
+                master.apply_projection(&projection, prefix);
+            }
+            let as_target = master.leak_engine.drop_target(name);
+            for (prefix, projection) in as_target {
+                master.apply_projection(&projection, prefix);
+            }
+            master.rib_config.remove(name);
+            reconcile_kernel_binding(master, name);
+        }
+        RibChange::Entry(entry_change) => match entry_change {
+            RibEntryChange::AddressFamily(value) => {
+                // The leaf may be deleted (value None): clear the
+                // stored family so reconciliation can stop a watch
+                // that is no longer fully configured.
+                let af = rib_address_family(&value);
+                master.rib_config.entry(name.to_string()).or_default().address_family = af;
+                reconcile_kernel_binding(master, name);
+            }
+            RibEntryChange::Description(_) => (),
+            RibEntryChange::KernelTableId(table) => {
+                apply_rib_kernel_table(master, name, table)?;
+            }
+            RibEntryChange::ImportRib(keys, import_change) => {
+                apply_rib_import(master, name, keys.source_rib, import_change)?;
+            }
+        },
+    }
+    Ok(())
+}
+
+// Binds a non-default RIB to a kernel routing table, or unbinds it.
+// Constraints are enforced by validate_ribs.
+fn apply_rib_kernel_table(master: &mut Master, name: &str, table: Option<u32>) -> Result<(), ApplyError> {
+    if let Some(config) = master.rib_config.get_mut(name) {
+        config.kernel_table_id = table;
+    } else if table.is_some() {
+        master.rib_config.entry(name.to_string()).or_default().kernel_table_id = table;
+    }
+    reconcile_kernel_binding(master, name);
+    Ok(())
+}
+
+// Reconciles a RIB's kernel-table watch with its configuration after
+// any change: starts a complete binding, restarts it when the address
+// family or table changed, and stops it when the binding became
+// incomplete or the RIB was deleted. Every rib change funnels through
+// here, so all event orders converge to the configured state.
+fn reconcile_kernel_binding(master: &mut Master, name: &str) {
+    let desired = master.rib_config.get(name).and_then(|config| Some((config.address_family?, config.kernel_table_id?)));
+    let current = master.kernel_ribs.get(name).map(|rib| (rib.address_family, rib.table_id));
+    let Some((unwatch, watch)) = watch_transition(desired, current) else {
+        return;
+    };
+    if let Some((af, table)) = unwatch {
+        let _ = master.kernel_tx.send(KernelCmd::Unwatch {
+            af,
+            table,
+        });
+        master.remove_kernel_rib(name);
+    }
+    if let Some((af, table)) = watch {
+        master.set_kernel_rib(name, af, table);
+        tracing::debug!(
+            rib = name,
+            %af,
+            table,
+            "watching kernel routing table"
+        );
+        let _ = master.kernel_tx.send(KernelCmd::Watch {
+            af,
+            table,
+        });
+        // Routes may have to be leaked from the newly bound table.
+        master.reevaluate_leaks(name);
+    }
+}
+
+// A complete (address family, kernel table) binding.
+type KernelBinding = (AddressFamily, u32);
+
+// Pure transition decision: returns (unwatch, watch) when the watched
+// binding must change, or None when it already matches the config.
+fn watch_transition(desired: Option<KernelBinding>, current: Option<KernelBinding>) -> Option<(Option<KernelBinding>, Option<KernelBinding>)> {
+    (desired != current).then_some((current, desired))
+}
+
+// Adds, updates or removes an import-rib entry. Constraints are enforced
+// by validate_ribs.
+fn apply_rib_import(master: &mut Master, name: &str, source_rib: String, change: RibImportRibChange) -> Result<(), ApplyError> {
+    let config = master.rib_config.entry(name.to_string()).or_default();
+    let import_removed = matches!(change, RibImportRibChange::Delete);
+    match change {
+        RibImportRibChange::Create => {
+            config.import_ribs.insert(source_rib.clone(), None);
+        }
+        RibImportRibChange::Delete => {
+            config.import_ribs.remove(&source_rib);
+        }
+        RibImportRibChange::Entry(RibImportRibEntryChange::ImportPolicy(policy)) => {
+            if let Some(entry) = config.import_ribs.get_mut(&source_rib) {
+                *entry = policy;
+            }
+        }
+    }
+    // An import removal drops exactly this source's candidates; other
+    // sources leaking the same prefixes are reprojected, not withdrawn.
+    if import_removed {
+        let actions = master.leak_engine.drop_source(name, &source_rib);
+        for (prefix, projection) in actions {
+            master.apply_projection(&projection, prefix);
+        }
+    }
+    // Reevaluate the source RIB's routes against the new import.
+    master.reevaluate_leaks(&source_rib);
     Ok(())
 }
 
@@ -997,5 +1128,109 @@ pub fn validate(config: &DataTree<'static>) -> Result<(), ValidationError> {
         }
     }
 
+    // Validate RIB kernel table bindings and RIB imports.
+    validate_ribs(config)?;
+
     Ok(())
+}
+
+// Validates RIB kernel table bindings and RIB imports (route leaking).
+fn validate_ribs(config: &DataTree<'static>) -> Result<(), ValidationError> {
+    use std::collections::{BTreeMap, BTreeSet};
+
+    use crate::kernel::table_id_allowed;
+    use crate::leak::{RibConfig, import_graph_has_cycle, is_default_rib};
+    use crate::northbound::yang_gen::routing::ribs::rib;
+
+    let mut rib_configs: BTreeMap<String, RibConfig> = BTreeMap::new();
+    let mut bound: BTreeSet<(String, u32)> = Default::default();
+    let mut last_dnode = None;
+
+    for dnode in config.iter_path(rib::PATH) {
+        let Some(name) = dnode.get_string_relative("./name") else {
+            continue;
+        };
+        let af = dnode.get_string_relative("./address-family").as_deref().and_then(rib_address_family);
+        let mut rib_config = RibConfig {
+            address_family: af,
+            kernel_table_id: None,
+            import_ribs: Default::default(),
+        };
+        if let Some(table) = dnode.get_typed_path::<u32>(rib::kernel_table_id::PATH) {
+            if is_default_rib(&name) {
+                return Err(ValidationError::new(&dnode, "the default RIB cannot bind to a kernel table"));
+            }
+            if !table_id_allowed(table) {
+                return Err(ValidationError::new(&dnode, "this kernel table cannot be imported"));
+            }
+            let Some(af) = af else {
+                return Err(ValidationError::new(&dnode, "a RIB bound to a kernel table must have an address family"));
+            };
+            if !bound.insert((af.to_string(), table)) {
+                return Err(ValidationError::new(&dnode, "two RIBs of the same address family bind to the same kernel table"));
+            }
+            rib_config.kernel_table_id = Some(table);
+        }
+        for import in dnode.iter_path(rib::import_rib::PATH) {
+            if !is_default_rib(&name) {
+                return Err(ValidationError::new(&import, "import-rib is only supported on default RIBs"));
+            }
+            let Some(source) = import.get_string_relative("./source-rib") else {
+                continue;
+            };
+            let policy = import.get_string_relative("./import-policy");
+            rib_config.import_ribs.insert(source, policy);
+        }
+        rib_configs.insert(name, rib_config);
+        last_dnode = Some(dnode);
+    }
+
+    if import_graph_has_cycle(&rib_configs)
+        && let Some(dnode) = last_dnode
+    {
+        return Err(ValidationError::new(&dnode, "the import-rib configuration contains a cycle"));
+    }
+    Ok(())
+}
+
+// ===== tests =====
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::leak::RibConfig;
+
+    #[test]
+    fn binding_reconciliation_covers_all_transitions() {
+        let v4a = (AddressFamily::Ipv4, 52);
+        let v4b = (AddressFamily::Ipv4, 53);
+        let v6a = (AddressFamily::Ipv6, 52);
+        // Unconfigured and unwatched: nothing to do.
+        assert_eq!(watch_transition(None, None), None);
+        // Either half arriving first starts the watch exactly once,
+        // when the second half completes the binding.
+        assert_eq!(watch_transition(Some(v4a), None), Some((None, Some(v4a))));
+        // Already matching: no churn (covers the duplicate-change case).
+        assert_eq!(watch_transition(Some(v4a), Some(v4a)), None);
+        // Table change: stop old, start new.
+        assert_eq!(watch_transition(Some(v4b), Some(v4a)), Some((Some(v4a), Some(v4b))));
+        // Address-family change: stop old, start new.
+        assert_eq!(watch_transition(Some(v6a), Some(v4a)), Some((Some(v4a), Some(v6a))));
+        // Binding removed (leaf delete or RIB delete): stop, no restart.
+        assert_eq!(watch_transition(None, Some(v4a)), Some((Some(v4a), None)));
+    }
+
+    #[test]
+    fn kernel_table_config_order_independence() {
+        // The reconciler reads both halves from the stored config, so
+        // applying kernel-table-id before address-family (or the
+        // reverse) converges once both are present.
+        let desired = |config: &RibConfig| Some((config.address_family?, config.kernel_table_id?));
+        let mut config = RibConfig::default();
+        config.kernel_table_id = Some(52);
+        assert_eq!(desired(&config), None);
+        assert_eq!(watch_transition(desired(&config), None), None);
+        config.address_family = Some(AddressFamily::Ipv6);
+        assert_eq!(watch_transition(desired(&config), None), Some((None, Some((AddressFamily::Ipv6, 52)))));
+    }
 }

@@ -1,4 +1,5 @@
 {"RouteRedistributeSub":{"protocol":"direct","af":"Ipv4"}}
+{"RouteRedistributeSub":{"protocol":"kernel","af":"Ipv4"}}
 {"RouteRedistributeSub":{"protocol":"isis","af":"Ipv4"}}
 {"RouteRedistributeSub":{"protocol":"ldp","af":"Ipv4"}}
 {"RouteRedistributeSub":{"protocol":"ospfv2","af":"Ipv4"}}

@@ -44,6 +44,8 @@ pub enum RibAddressFamily {
     Ipv4,
     Ipv6,
     Mpls,
+    // Custom RIB bound to a kernel routing table (name of the RIB).
+    Custom(String),
 }
 
 #[derive(Debug)]
@@ -105,18 +107,23 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::Rib<'a> {
                 RibAddressFamily::Ipv4 => master.rib.ip.ipv4().iter().any(|(_, routes)| routes.iter().any(|route| !route.flags.contains(RouteFlags::REMOVED))),
                 RibAddressFamily::Ipv6 => master.rib.ip.ipv6().iter().any(|(_, routes)| routes.iter().any(|route| !route.flags.contains(RouteFlags::REMOVED))),
                 RibAddressFamily::Mpls => master.rib.mpls.values().any(|route| !route.flags.contains(RouteFlags::REMOVED)),
-            });
+                RibAddressFamily::Custom(_) => false,
+            })
+            .collect::<Vec<_>>();
+        // Custom RIBs bound to kernel tables are always shown.
+        let iter = iter.into_iter().chain(master.kernel_ribs.keys().cloned().map(RibAddressFamily::Custom));
         Some(iter)
     }
 
     fn new(_master: &'a Master, rib: &Self::ListEntry) -> Self {
         let name = match rib {
-            RibAddressFamily::Ipv4 => "ipv4",
-            RibAddressFamily::Ipv6 => "ipv6",
-            RibAddressFamily::Mpls => "mpls",
+            RibAddressFamily::Ipv4 => Cow::Borrowed("ipv4"),
+            RibAddressFamily::Ipv6 => Cow::Borrowed("ipv6"),
+            RibAddressFamily::Mpls => Cow::Borrowed("mpls"),
+            RibAddressFamily::Custom(name) => Cow::Owned(name.clone()),
         };
         Self {
-            name: name.into(),
+            name,
         }
     }
 }
@@ -149,6 +156,18 @@ impl<'a> YangList<'a, Master> for routing::ribs::rib::routes::route::Route<'a> {
                 let iter = master.rib.mpls.iter().filter(|(_, route)| !route.flags.contains(RouteFlags::REMOVED)).map(|(dest, route)| {
                     let dest = RouteDestination::new_label(*dest);
                     (dest, route)
+                });
+                Box::new(iter)
+            }
+            RibAddressFamily::Custom(name) => {
+                let iter = master.kernel_ribs.get(name).into_iter().flat_map(|rib| {
+                    rib.routes.iter().map(|(prefix, route)| {
+                        let dest = match prefix {
+                            ipnetwork::IpNetwork::V4(v4) => RouteDestination::new_ipv4(*v4),
+                            ipnetwork::IpNetwork::V6(v6) => RouteDestination::new_ipv6(*v6),
+                        };
+                        (dest, route)
+                    })
                 });
                 Box::new(iter)
             }

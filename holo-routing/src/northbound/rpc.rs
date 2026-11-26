@@ -79,7 +79,9 @@ fn find_instance(rpc: &DataNodeRef<'_>) -> Result<(Protocol, Option<String>), Rp
             let name = rpc.get_string_relative("./rip-instance");
             (protocol, name)
         }
-        _ => return Err(RpcError::new(RpcErrorTag::OperationFailed).with_message("unknown protocol")),
+        _ => {
+            return Err(RpcError::new(RpcErrorTag::OperationFailed).with_message("unknown protocol"));
+        }
     };
 
     Ok((protocol, name))

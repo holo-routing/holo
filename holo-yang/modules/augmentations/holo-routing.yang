@@ -32,6 +32,63 @@ module holo-routing {
     "This module defines augment statements for the ietf-routing
     module.";
 
+  identity kernel {
+    // NOTE: base must be rt:routing-protocol (itself derived from
+    // rt:control-plane-protocol): the ietf-routing RIB route
+    // source-protocol identityref requires the routing-protocol base,
+    // while everything needing control-plane-protocol still accepts
+    // kernel through the derivation chain. Do not "simplify" this.
+    base rt:routing-protocol;
+    description
+      "Routes imported from Linux kernel routing tables.";
+  }
+
+  augment "/rt:routing/rt:ribs/rt:rib" {
+    description
+      "Binding of a non-default RIB to a Linux kernel routing
+       table, and import (leaking) of routes from other RIBs.";
+    leaf kernel-table-id {
+      type uint32 {
+        range "1..4294967295";
+      }
+      description
+        "Linux kernel routing table ID (RTA_TABLE) to import
+         routes from, read-only: imported routes are never written
+         back to the kernel table they were imported from, nor to
+         any other kernel table.
+
+         Only non-default RIBs may bind to a kernel table, and two
+         RIBs of the same address family may not bind to the same
+         kernel table.
+
+         Security note: any process able to modify routes in the
+         watched table can influence the leaked and redistributed
+         routes, so the table must be writable only by trusted
+         users.";
+    }
+    list import-rib {
+      key "source-rib";
+      description
+        "Import (leak) routes of another RIB into this RIB.
+         Leaked routes are not installed into the kernel: they
+         exist in this RIB for protocol redistribution only.";
+      leaf source-rib {
+        type leafref {
+          path "/rt:routing/rt:ribs/rt:rib/rt:name";
+        }
+        description
+          "Name of the RIB to import routes from.";
+      }
+      leaf import-policy {
+        type string;
+        description
+          "Name of the routing-policy policy-definition to run
+           on imported routes. Routes rejected by the policy
+           are not leaked. When unset, all routes are leaked.";
+      }
+    }
+  }
+
   grouping resolved-next-hops {
     description
       "Next hops a recursive next hop resolved to.";

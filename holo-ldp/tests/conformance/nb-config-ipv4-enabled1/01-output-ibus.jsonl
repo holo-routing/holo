@@ -11,6 +11,7 @@
 {"RouteMplsDel":{"protocol":"ldp","label":23,"prefix":"10.0.5.0/24"}}
 {"RouteMplsDel":{"protocol":"ldp","label":24,"prefix":"10.0.8.0/24"}}
 {"RouteRedistributeUnsub":{"protocol":"direct","af":"Ipv4"}}
+{"RouteRedistributeUnsub":{"protocol":"kernel","af":"Ipv4"}}
 {"RouteRedistributeUnsub":{"protocol":"isis","af":"Ipv4"}}
 {"RouteRedistributeUnsub":{"protocol":"ldp","af":"Ipv4"}}
 {"RouteRedistributeUnsub":{"protocol":"ospfv2","af":"Ipv4"}}

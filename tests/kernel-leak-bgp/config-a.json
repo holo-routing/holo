@@ -1,0 +1,187 @@
+{
+  "ietf-routing-policy:routing-policy": {
+    "defined-sets": {
+      "prefix-sets": {
+        "prefix-set": [
+          {
+            "name": "TS-IPV4",
+            "mode": "ipv4",
+            "prefixes": {
+              "prefix-list": [
+                {
+                  "ip-prefix": "100.64.0.0/10",
+                  "mask-length-lower": 32,
+                  "mask-length-upper": 32
+                }
+              ]
+            }
+          },
+          {
+            "name": "TS-IPV6",
+            "mode": "ipv6",
+            "prefixes": {
+              "prefix-list": [
+                {
+                  "ip-prefix": "fd7a:115c:a1e0::/48",
+                  "mask-length-lower": 128,
+                  "mask-length-upper": 128
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    "policy-definitions": {
+      "policy-definition": [
+        {
+          "name": "IMPORT-TAILSCALE",
+          "statements": {
+            "statement": [
+              {
+                "name": "10",
+                "conditions": {
+                  "match-prefix-set": {
+                    "prefix-set": "TS-IPV4"
+                  }
+                },
+                "actions": {
+                  "policy-result": "accept-route"
+                }
+              },
+              {
+                "name": "20",
+                "conditions": {
+                  "match-prefix-set": {
+                    "prefix-set": "TS-IPV6"
+                  }
+                },
+                "actions": {
+                  "policy-result": "accept-route"
+                }
+              }
+            ]
+          }
+        }
+      ]
+    }
+  },
+  "ietf-routing:routing": {
+    "ribs": {
+      "rib": [
+        {
+          "name": "tailscale-v4",
+          "address-family": "ietf-routing:ipv4",
+          "default-rib": false,
+          "holo-routing:kernel-table-id": 52
+        },
+        {
+          "name": "tailscale-v6",
+          "address-family": "ietf-routing:ipv6",
+          "default-rib": false,
+          "holo-routing:kernel-table-id": 52
+        },
+        {
+          "name": "ipv4-unicast",
+          "address-family": "ietf-routing:ipv4",
+          "default-rib": true,
+          "holo-routing:import-rib": [
+            {
+              "source-rib": "tailscale-v4",
+              "import-policy": "IMPORT-TAILSCALE"
+            }
+          ]
+        },
+        {
+          "name": "ipv6-unicast",
+          "address-family": "ietf-routing:ipv6",
+          "default-rib": true,
+          "holo-routing:import-rib": [
+            {
+              "source-rib": "tailscale-v6",
+              "import-policy": "IMPORT-TAILSCALE"
+            }
+          ]
+        }
+      ]
+    },
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "main",
+          "ietf-bgp:bgp": {
+            "global": {
+              "as": 64661,
+              "identifier": "10.255.0.1",
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "enabled": true,
+                    "apply-policy": {
+                      "default-import-policy": "accept-route"
+                    },
+                    "ipv4-unicast": {
+                      "holo-bgp:redistribution": [
+                        {
+                          "type": "holo-routing:kernel"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "name": "iana-bgp-types:ipv6-unicast",
+                    "enabled": true,
+                    "apply-policy": {
+                      "default-import-policy": "accept-route"
+                    },
+                    "ipv6-unicast": {
+                      "holo-bgp:redistribution": [
+                        {
+                          "type": "holo-routing:kernel"
+                        }
+                      ]
+                    }
+                  }
+                ]
+              }
+            },
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "10.128.0.2",
+                  "peer-as": 64662,
+                  "afi-safis": {
+                    "afi-safi": [
+                      {
+                        "name": "iana-bgp-types:ipv4-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "export-policy": [
+                            "IMPORT-TAILSCALE"
+                          ],
+                          "default-export-policy": "reject-route"
+                        }
+                      },
+                      {
+                        "name": "iana-bgp-types:ipv6-unicast",
+                        "enabled": true,
+                        "apply-policy": {
+                          "export-policy": [
+                            "IMPORT-TAILSCALE"
+                          ],
+                          "default-export-policy": "reject-route"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

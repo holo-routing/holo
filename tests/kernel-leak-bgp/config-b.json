@@ -1,0 +1,38 @@
+{
+  "ietf-routing:routing": {
+    "control-plane-protocols": {
+      "control-plane-protocol": [
+        {
+          "type": "ietf-bgp:bgp",
+          "name": "main",
+          "ietf-bgp:bgp": {
+            "global": {
+              "as": 64662,
+              "identifier": "10.255.0.2",
+              "afi-safis": {
+                "afi-safi": [
+                  {
+                    "name": "iana-bgp-types:ipv4-unicast",
+                    "enabled": true
+                  },
+                  {
+                    "name": "iana-bgp-types:ipv6-unicast",
+                    "enabled": true
+                  }
+                ]
+              }
+            },
+            "neighbors": {
+              "neighbor": [
+                {
+                  "remote-address": "10.128.0.1",
+                  "peer-as": 64661
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

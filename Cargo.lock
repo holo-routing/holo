@@ -1530,6 +1530,7 @@ dependencies = [
  "libc",
  "netlink-packet-core",
  "netlink-packet-route",
+ "netlink-sys",
  "phf 0.14.0",
  "prefix-trie",
  "regex",

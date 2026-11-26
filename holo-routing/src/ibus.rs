@@ -104,14 +104,17 @@ pub(crate) fn process_msg(
         }
         IbusMsg::PolicyUpd(policy) => {
             // Update the local copy of the policy definition.
-            master
-                .shared
-                .policies
-                .insert(policy.name.clone(), policy.clone());
+            let name = policy.name.clone();
+            master.shared.policies.insert(name.clone(), policy.clone());
+            // Reevaluate route leaks filtered by this policy.
+            master.reevaluate_policy_leaks(&name);
         }
         IbusMsg::PolicyDel(policy_name) => {
             // Remove the local copy of the policy definition.
             master.shared.policies.remove(&policy_name);
+            // Reevaluate route leaks filtered by this policy: routes
+            // requiring the deleted policy are now rejected.
+            master.reevaluate_policy_leaks(&policy_name);
         }
         IbusMsg::RouteIpAdd(msg) => {
             // Add route to the RIB.
